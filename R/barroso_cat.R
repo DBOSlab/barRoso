@@ -16,8 +16,8 @@
 #' source (`keep_source`) when duplicates exist.
 #'
 #' @usage
-#' combine_herbaria(list_sources = list(source1, source2, ...),
-#'                  keep_source = NULL)
+#' barroso_cat(list_sources = list(source1, source2, ...),
+#'             keep_source = NULL)
 #'
 #' @param list_sources A named list of data frames. Each element represents a
 #' herbarium data source. The names of the list are used to track the source origin
@@ -31,9 +31,9 @@
 #'
 #' @examples
 #'
-#' combined_df <- combine_herbaria(list_sources = list(GBIF = gbif_data,
-#'                                                     speciesLink = splink_data,
-#'                                                     JABOT = jabot_data),
+#' combined_df <- barroso_cat(list_sources = list(GBIF = gbif_data,
+#'                                                speciesLink = splink_data,
+#'                                                JABOT = jabot_data),
 #'                                 keep_source = "GBIF")
 #'
 #' @importFrom dplyr bind_rows filter

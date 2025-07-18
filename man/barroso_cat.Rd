@@ -4,8 +4,8 @@
 \alias{barroso_cat}
 \title{Combine and Harmonize Multiple Herbarium Data Sources}
 \usage{
-combine_herbaria(list_sources = list(source1, source2, ...),
-                 keep_source = NULL)
+barroso_cat(list_sources = list(source1, source2, ...),
+            keep_source = NULL)
 }
 \arguments{
 \item{list_sources}{A named list of data frames. Each element represents a
@@ -35,9 +35,9 @@ source (\code{keep_source}) when duplicates exist.
 }
 \examples{
 
-combined_df <- combine_herbaria(list_sources = list(GBIF = gbif_data,
-                                                    speciesLink = splink_data,
-                                                    JABOT = jabot_data),
+combined_df <- barroso_cat(list_sources = list(GBIF = gbif_data,
+                                               speciesLink = splink_data,
+                                               JABOT = jabot_data),
                                 keep_source = "GBIF")
 
 }
