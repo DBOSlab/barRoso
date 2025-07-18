@@ -81,7 +81,7 @@ library(barroso)
 Below are the key functions provided by the barroso package for working with biodiversity and herbarium specimen data:.\
 \
 \
-devtools::document()
+
 #### _1. `barroso_std()`:  Standardize Herbarium Records_
 
 This function serves as the core standardization pipeline for cleaning herbarium specimen records. It accepts raw data frames from any herbarium source and applies a series of cleaning and harmonization steps, including:
