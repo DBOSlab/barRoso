@@ -25,13 +25,15 @@ Observations.
 
 **barroso** is an R package designed to clean, standardize, and
 reconcile biodiversity collection records—especially those from herbaria
-and virtual databases. Named in honor of Brazilian botanist Graziela
-Maciel Barroso, this toolkit provides flexible functions to harmonize
-specimen data across diverse sources. The name BARROSO also stands for:
-Biodiversity Analysis & Record Reconciliation for Organizing Specimen
-Observations. This acronym also subtly highlights its close connection
-to the R programming language, as a symbolic nod to the R ecosystem in
-which the package is developed.
+and virtual databases. Named in honor of Brazilian botanist [Graziela
+Maciel
+Barroso](https://www.gov.br/jbrj/pt-br/assuntos/colecoes/arquivistica/graziela-maciel-barroso),
+this toolkit provides flexible functions to harmonize specimen data
+across diverse sources. The name BARROSO also stands for: Biodiversity
+Analysis & Record Reconciliation for Organizing Specimen Observations.
+This acronym also subtly highlights its close connection to the R
+programming language, as a symbolic nod to the R ecosystem in which the
+package is developed.
 
 The package automates the cleaning and standardization of herbarium
 records from public biodiversity databases such as
