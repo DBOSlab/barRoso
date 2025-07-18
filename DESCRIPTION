@@ -1,0 +1,39 @@
+Package: barroso
+Title: Biodiversity Analysis and Record Reconciliation for Organizing Specimen Observations
+Version: 1.0.0
+Authors@R: 
+    person("Domingos", "Cardoso", , "domingoscardoso@jbrj.gov.br", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-7072-2656"))
+Maintainer: Domingos Cardoso <domingoscardoso@jbrj.gov.br>
+Description: Provides a comprehensive toolkit for cleaning, standardizing, and reconciling herbarium specimen records from public biodiversity databases such as GBIF, SEINet, REFLORA, JABOT, and speciesLink. The package includes functions for taxonomic and geographic harmonization, duplicate detection, type status validation, and the generation of printable herbarium labels. It supports integration of data from multiple sources and is particularly useful for curators, botanists, and biodiversity informatics workflows.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 3.5.0)
+Imports:
+    cowplot,
+    ggplot2,
+    ggspatial,
+    ggthemes,
+    magrittr,
+    maps,
+    sf,
+    dplyr,
+    tibble,
+    stringi,
+    stringr,
+    countrycode,
+    tools,
+    tmcn  
+Suggests:
+    lcvplants,
+    LCVP,
+    quarto,
+    testthat (>= 3.0.0)
+URL: 
+    https://dboslab.github.io/barroso-website/,
+    https://github.com/dboslab/barroso
+BugReports: https://github.com/DBOSlab/barroso/issues
+Config/testthat/edition: 3
+LazyData: true
