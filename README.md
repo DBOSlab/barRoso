@@ -49,7 +49,16 @@ in biodiversity informatics, such as identifying duplicate specimens
 distributed among different herbaria.
 
 In addition, **barroso** supports the generation of herbarium labels
-from field notebooks or observation data.  
+from field notebooks or observation data.
+
+Unlike many packages that rely on static dictionaries to clean collector
+names, `barroso` uses a robust set of regular expressions (regex) to
+dynamically identify and standardize collector patterns across datasets.
+This approach allows `barroso` to generalize better across sources and
+spelling variations — even when names are inconsistently formatted.
+Combined with harmonization of geographic and taxonomic fields, this
+makes the package especially powerful for detecting duplicates and
+preparing data for downstream analysis.  
   
   
 

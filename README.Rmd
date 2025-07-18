@@ -34,7 +34,9 @@ Biodiversity Analysis and Record Reconciliation for Organizing Specimen Observat
 
 The package automates the cleaning and standardization of herbarium records from public biodiversity databases such as [GBIF](https://www.gbif.org), [SEINet](https://swbiodiversity.org/seinet/), [REFLORA Virtual Herbarium](https://floradobrasil.jbrj.gov.br/reflora/herbarioVirtual/), Rio de Janeiro Botanical Gardens's [JABOT](https://jabot.jbrj.gov.br/v3/consulta.php) herbarium collections, and [speciesLink](https://specieslink.net). It is particularly useful for standardizing collector names and collection numbers across herbarium datasets, helping resolve long-standing issues in biodiversity informatics, such as identifying duplicate specimens distributed among different herbaria.
 
-In addition, **barroso** supports the generation of herbarium labels from field notebooks or observation data.\
+In addition, **barroso** supports the generation of herbarium labels from field notebooks or observation data.
+
+Unlike many packages that rely on static dictionaries to clean collector names, `barroso` uses a robust set of regular expressions (regex) to dynamically identify and standardize collector patterns across datasets. This approach allows `barroso` to generalize better across sources and spelling variations — even when names are inconsistently formatted. Combined with harmonization of geographic and taxonomic fields, this makes the package especially powerful for detecting duplicates and preparing data for downstream analysis.\
 \
 \
 
