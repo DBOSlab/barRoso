@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# barRoso <img src="inst/figures/barRoso_hex_sticker.png" align="right" alt="" width="120" />
+# barRoso <img src="inst/figures/barroso_hex_sticker.png" align="right" alt="" width="120" />
 
 <!-- badges: start -->
 
