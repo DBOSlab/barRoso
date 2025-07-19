@@ -28,11 +28,11 @@ biodiversity collection records—especially those from herbaria and
 virtual databases. Named in honor of Brazilian botanist [Graziela Maciel
 Barroso](https://www.gov.br/jbrj/pt-br/assuntos/colecoes/arquivistica/graziela-maciel-barroso),
 this toolkit provides flexible functions to harmonize specimen data
-across diverse sources. The name BARROSO also stands for: Biodiversity
-Analysis & Record Reconciliation for Organizing Specimen Observations.
-This acronym also subtly highlights its close connection to the R
-programming language, as a symbolic nod to the R ecosystem in which the
-package is developed.
+across diverse sources. The name **BARROSO** also stands for:
+**B**iodiversity **A**nalysis and **R**ecord **R**econciliation for
+**O**rganizing **S**pecimen **O**bservations. This acronym also subtly
+highlights its close connection to the R programming language, as a
+symbolic nod to the R ecosystem in which the package is developed.
 
 The package automates the cleaning and standardization of herbarium
 records from public biodiversity databases such as
@@ -54,7 +54,7 @@ Unlike many packages that rely on static dictionaries to clean collector
 names, `barroso` uses a robust set of regular expressions (regex) to
 dynamically identify and standardize collector patterns across datasets.
 This approach allows `barroso` to generalize better across sources and
-spelling variations — even when names are inconsistently formatted.
+spelling variations, even when names are inconsistently formatted.
 Combined with harmonization of geographic and taxonomic fields, this
 makes the package especially powerful for detecting duplicates and
 preparing data for downstream analysis.
@@ -64,13 +64,13 @@ of discarding valuable records, `barroso` takes a different approach.
 Its philosophy centers on standardization rather than removal. All
 herbarium specimens carry potential scientific value, even when
 incomplete or inconsistently entered. Instead of omitting such records,
-barroso focuses on harmonizing fields to enhance comparability across
+`barroso` focuses on harmonizing fields to enhance comparability across
 collections. By standardizing collector names, geographic fields, and
-taxonomic labels, barroso allows users to flag rather than erase
-inconsistencies—enabling more transparent workflows and empowering users
-to trace potential misidentifications, especially across distributed
-duplicates. This inclusive approach honors the archival role of herbaria
-while facilitating reproducible biodiversity research.  
+taxonomic labels, `barroso` allows users to flag rather than erase
+inconsistencies, enabling more transparent workflows and tracing
+potential misidentifications, especially across distributed duplicates.
+This inclusive approach honors the archival role of herbaria while
+facilitating reproducible biodiversity research.  
   
   
 
@@ -115,11 +115,11 @@ library(barroso)
 ## Usage
 
 Below are the key functions provided by the barroso package for working
-with biodiversity and herbarium specimen
-<a href="data:.\" class="uri">data:.\</a>  
+with biodiversity and herbarium specimen data:  
+  
   
 
-#### *1. `barroso_std()`: Standardize Herbarium Records*
+#### *1. `barroso_std()` Standardize Herbarium Records*
 
 This function serves as the core standardization pipeline for cleaning
 herbarium specimen records. It accepts raw data frames from any
@@ -134,7 +134,7 @@ naming via arguments and can handle large datasets in chunks to avoid
 memory issues.  
   
 
-##### Example of using `barroso_std`:
+##### Example of using `barroso_std()`
 
 ``` r
 library(barroso)
@@ -167,7 +167,7 @@ cleaned_df <- barroso_std(df,
   
   
 
-#### *2. `barroso_flag_duplicates()`: Detect Duplicate Specimens*
+#### *2. `barroso_flag_duplicates()` Detect Duplicate Specimens*
 
 This function flags potential duplicate specimens in a dataset by
 comparing key fields such as recordedBy, recordNumber, species, and
@@ -175,10 +175,10 @@ collection date (year, month, day). It assigns a duplicate = TRUE/FALSE
 flag to each row.
 
 You can use this function standalone to identify duplicates or integrate
-it via barroso_std()  
+it via `barroso_std()`.  
   
 
-##### Example of using `barroso_flag_duplicates`:
+##### Example of using `barroso_flag_duplicates()`
 
 ``` r
 library(barroso)
@@ -191,7 +191,7 @@ flagged_df <- barroso_flag_duplicates(df,
   
   
 
-#### *3. `barroso_labels()`: Generate Herbarium Labels from Field Data*
+#### *3. `barroso_labels()` Generate Herbarium Labels from Field Data*
 
 This function makes herbarium labels from field book in spreadsheet CSV
 format. It is currently more comprehensive for making herbarium labels
@@ -205,7 +205,7 @@ function from
 [lcvplants](https://idiv-biodiversity.github.io/lcvplants/).  
   
 
-##### Example of using `barroso_labels`:
+##### Example of using `barroso_labels()`
 
 ``` r
 library(barroso)
