@@ -1,4 +1,4 @@
-Package: barroso
+Package: barRoso
 Title: Biodiversity Analysis and Record Reconciliation for Organizing Specimen Observations
 Version: 1.0.0
 Authors@R: 
@@ -32,8 +32,8 @@ Suggests:
     quarto,
     testthat (>= 3.0.0)
 URL: 
-    https://dboslab.github.io/barroso-website/,
-    https://github.com/dboslab/barroso
-BugReports: https://github.com/DBOSlab/barroso/issues
+    https://dboslab.github.io/barRoso-website/,
+    https://github.com/dboslab/barRoso
+BugReports: https://github.com/DBOSlab/barRoso/issues
 Config/testthat/edition: 3
 LazyData: true

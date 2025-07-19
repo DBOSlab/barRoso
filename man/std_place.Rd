@@ -44,7 +44,7 @@ The function handles translations, synonyms, upper-case anomalies, ISO country
 codes, and common geographic aliases.
 }
 \details{
-This function is used internally by the \code{barroso} package to support record
+This function is used internally by the \code{barRoso} package to support record
 reconciliation, duplicate detection, and label generation across different
 biodiversity databases. It ensures consistency of location fields by correcting
 common mistakes and variations. Country names are translated to English and

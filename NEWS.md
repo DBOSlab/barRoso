@@ -1,30 +1,6 @@
----
-title: "News"
-format:
-  html:
-    toc: true
-    toc-depth: 3
----
+## News
 
-<style>
-  body {
-    position: relative;
-  }
-
-  .watermark {
-    position: fixed;
-    bottom: 50px;
-    right: 50px;
-    opacity: 0.15;
-    z-index: -1;
-    width: 400px;
-  }
-</style>
-
-<img src="/figures/barroso_hex_sticker.png" class="watermark" alt="barroso watermark">
-
-
-# barroso 1.0.0
+# barRoso 1.0.0
 
 ## Initial Release
 
@@ -34,9 +10,14 @@ The first official release of the `barroso` R package — a comprehensive toolki
 
 - `barroso_std()`: Unified function to clean and standardize herbarium records across multiple fields (collector, geography, taxonomy, etc.).
 - `barroso_flag_duplicates()`: Flag potential duplicate specimens across herbaria using metadata patterns.
-- `barroso_cat()`: Combine and reconcile specimen records from multiple virtual herbaria (e.g., GBIF, JABOT, speciesLink).
+- `barroso_cat()`: Combine and reconcile specimen records from multiple virtual herbaria (e.g., GBIF, SEINet, REFLORA, JABOT, speciesLink).
 - `barroso_labels()`: Generate printable herbarium labels from cleaned fieldbook data, with embedded maps and taxonomic authority retrieval.
-- Flexible support for multilingual column names and Darwin Core standards.
+- Standardize collector names and collection numbers using regex-based parsing
+- Harmonize taxonomic, geographic, and temporal fields
+- Flag and remove potential duplicates across herbarium records
+- Generate herbarium labels from fieldbook data
+- Integrate with external taxonomic databases (e.g., LCVP, WFO)
+- Prepare large-scale biodiversity datasets for publication and analysis
 - Optimized for datasets from [REFLORA](https://floradobrasil.jbrj.gov.br/reflora/herbarioVirtual/), [speciesLink](https://specieslink.net), and [JABOT](https://jabot.jbrj.gov.br/v3/consulta.php).
 - Supports integration with tidyverse workflows for downstream analyses.
 - Test coverage >95%, continuous integration via GitHub Actions.
@@ -49,9 +30,9 @@ Unlike other tools that **aggressively clean (and discard)** records, `barroso` 
 
 - MIT license.
 - GitHub Actions: R-CMD-check, test coverage, continuous integration.
-- Website: [barroso documentation site](https://dboslab.github.io/barroso-website/)
+- Website: [barRoso documentation site](https://dboslab.github.io/barRoso-website/)
 
 ### Feedback
 
 Please report bugs or feature requests here:  
-<https://github.com/DBOSlab/barroso/issues>
+<https://github.com/DBOSlab/barRoso/issues>

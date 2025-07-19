@@ -10,7 +10,7 @@
 #' values with fallback rules and optional original column retention.
 #'
 #' @details
-#' This function is part of the `barroso` package, and applies a large set of
+#' This function is part of the `barRoso` package, and applies a large set of
 #' conditional replacements based on known patterns and integrates fallback from
 #' `institutionCode` when `collectionCode` is missing or ambiguous. Common aliases
 #' like `"Herbarium"`, `"Botany"`, or `"Angiosperms"` are converted to valid acronyms

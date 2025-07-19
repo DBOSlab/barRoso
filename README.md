@@ -1,17 +1,17 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# barroso <img src="inst/figures/barroso_hex_sticker.png" align="right" alt="" width="120" />
+# barRoso <img src="inst/figures/barRoso_hex_sticker.png" align="right" alt="" width="120" />
 
 <!-- badges: start -->
 
 [![Codecov test
-coverage](https://codecov.io/gh/DBOSlab/barroso/graph/badge.svg)](https://app.codecov.io/gh/DBOSlab/barroso)
+coverage](https://codecov.io/gh/DBOSlab/barRoso/graph/badge.svg)](https://app.codecov.io/gh/DBOSlab/barRoso)
 [![Test
-Coverage](https://github.com/DBOSlab/barroso/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/DBOSlab/barroso/actions/workflows/test-coverage.yaml)
+Coverage](https://github.com/DBOSlab/barRoso/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/DBOSlab/barRoso/actions/workflows/test-coverage.yaml)
 [![CRAN
-Downloads](https://cranlogs.r-pkg.org/badges/grand-total/barroso)](https://cran.r-project.org/package=barroso)
-[![R-CMD-check](https://github.com/DBOSlab/barroso/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DBOSlab/barroso/actions/workflows/R-CMD-check.yaml)
+Downloads](https://cranlogs.r-pkg.org/badges/grand-total/barRoso)](https://cran.r-project.org/package=barRoso)
+[![R-CMD-check](https://github.com/DBOSlab/barRoso/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DBOSlab/barRoso/actions/workflows/R-CMD-check.yaml)
 [![License:
 MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 <!-- badges: end -->
@@ -23,12 +23,12 @@ Observations.
 
 ## Overview
 
-`barroso` is an R package designed to clean, standardize, and reconcile
+`barRoso` is an R package designed to clean, standardize, and reconcile
 biodiversity collection records—especially those from herbaria and
 virtual databases. Named in honor of Brazilian botanist [Graziela Maciel
 Barroso](https://www.gov.br/jbrj/pt-br/assuntos/colecoes/arquivistica/graziela-maciel-barroso),
 this toolkit provides flexible functions to harmonize specimen data
-across diverse sources. The name **BARROSO** also stands for:
+across diverse sources. The name **barRoso** also stands for:
 **B**iodiversity **A**nalysis and **R**ecord **R**econciliation for
 **O**rganizing **S**pecimen **O**bservations. This acronym also subtly
 highlights its close connection to the R programming language, as a
@@ -47,26 +47,26 @@ numbers across herbarium datasets, helping resolve long-standing issues
 in biodiversity informatics, such as identifying duplicate specimens
 distributed among different herbaria.
 
-In addition, `barroso` supports the generation of herbarium labels from
+In addition, `barRoso` supports the generation of herbarium labels from
 field notebooks or observation data.
 
 Unlike many packages that rely on static dictionaries to clean collector
-names, `barroso` uses a robust set of regular expressions (regex) to
+names, `barRoso` uses a robust set of regular expressions (regex) to
 dynamically identify and standardize collector patterns across datasets.
-This approach allows `barroso` to generalize better across sources and
+This approach allows `barRoso` to generalize better across sources and
 spelling variations, even when names are inconsistently formatted.
 Combined with harmonization of geographic and taxonomic fields, this
 makes the package especially powerful for detecting duplicates and
 preparing data for downstream analysis.
 
 While many data tools prioritize aggressive cleaning, often at the cost
-of discarding valuable records, `barroso` takes a different approach.
+of discarding valuable records, `barRoso` takes a different approach.
 Its philosophy centers on standardization rather than removal. All
 herbarium specimens carry potential scientific value, even when
 incomplete or inconsistently entered. Instead of omitting such records,
-`barroso` focuses on harmonizing fields to enhance comparability across
+`barRoso` focuses on harmonizing fields to enhance comparability across
 collections. By standardizing collector names, geographic fields, and
-taxonomic labels, `barroso` allows users to flag rather than erase
+taxonomic labels, `barRoso` allows users to flag rather than erase
 inconsistencies, enabling more transparent workflows and tracing
 potential misidentifications, especially across distributed duplicates.
 This inclusive approach honors the archival role of herbaria while
@@ -91,10 +91,10 @@ Online and Flora, LCVP, and Funga of Brasil
 
 ## Installation
 
-You can install the development version of `barroso` from
+You can install the development version of `barRoso` from
 [GitHub](https://github.com/) directly from R using the `install_github`
 function of devtools (you may need to install that one first). To fully
-use `barroso` you also need to install the
+use `barRoso` you also need to install the
 [lcvplants](https://idiv-biodiversity.github.io/lcvplants/) and
 [LCVP](https://github.com/idiv-biodiversity/LCVP) packages first.
 
@@ -104,11 +104,11 @@ use `barroso` you also need to install the
 devtools::install_github("idiv-biodiversity/LCVP")
 devtools::install_github("idiv-biodiversity/lcvplants")
 
-devtools::install_github("DBOSlab/barroso")
+devtools::install_github("DBOSlab/barRoso")
 ```
 
 ``` r
-library(barroso)
+library(barRoso)
 ```
 
   
@@ -116,8 +116,8 @@ library(barroso)
 
 ## Usage
 
-Below are the key functions provided by the barroso package for working
-with biodiversity and herbarium specimen data:  
+Below are the key functions provided by the `barRoso` package for
+working with biodiversity and herbarium specimen data:  
   
   
 
@@ -142,7 +142,7 @@ datasets in chunks to avoid memory issues.
 ##### Example of using `barroso_std()`
 
 ``` r
-library(barroso)
+library(barRoso)
 
 df <- read.csv("raw_herbarium_data.csv")
 cleaned_df <- barroso_std(df,
@@ -186,7 +186,7 @@ it via `barroso_std()`.
 ##### Example of using `barroso_flag_duplicates()`
 
 ``` r
-library(barroso)
+library(barRoso)
 
 flagged_df <- barroso_flag_duplicates(df,
                                       rm_duplicates = FALSE)
@@ -213,7 +213,7 @@ function from
 ##### Example of using `barroso_labels()`
 
 ``` r
-library(barroso)
+library(barRoso)
 
 df <- read.csv("Data/MSU_duplicates_to_HUEFS.csv", sep = ",")
 
@@ -228,8 +228,8 @@ barroso_labels(fieldbook = df,
 
 ## Documentation
 
-A detailed description of the `barroso`’s full functionality is
-available in different [articles](https://dboslab.github.io/barroso/).  
+A detailed description of the full functionality of `barRoso` is
+available in different [articles](https://dboslab.github.io/barRoso/).  
   
   
 
@@ -243,8 +243,8 @@ herbarium science inspire this tool.
 
 ## Citation
 
-Cardoso, D. (2025). *barroso*: Biodiversity Analysis and Record
+Cardoso, D. (2025). *barRoso*: Biodiversity Analysis and Record
 Reconciliation for Organizing Specimen Observations.
-<https://github.com/dboslab/barroso>
+<https://github.com/dboslab/barRoso>
 
 <img src="inst/figures/DBOSlab_logo.png" align="left" alt="" width="150" />

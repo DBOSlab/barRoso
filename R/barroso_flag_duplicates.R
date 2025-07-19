@@ -8,7 +8,7 @@
 #' Adds a logical `duplicate` column to indicate flagged duplicates.
 #'
 #' @details
-#' This function is part of the internal workflow of the `barroso` package, supporting
+#' This function is part of the internal workflow of the `barRoso` package, supporting
 #' record reconciliation and dataset cleaning. It uses combinations of collector names
 #' (`recordedBy`), collection numbers (`recordNumber`), and collection dates (`year`,
 #' `month`, `day`) to identify duplicate entries. When `rm_duplicates = TRUE`, one

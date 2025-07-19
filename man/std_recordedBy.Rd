@@ -31,10 +31,11 @@ main collector names, and handles multilingual and complex name structures inclu
 multiple collectors, Asian unicode names, and Brazilian surname conventions.
 }
 \details{
-This function supports reconciliation of biodiversity records, especially for resolving
-collector name discrepancies across duplicate specimens. A new column \code{addCollector}
-is created when multiple collectors are detected, storing secondary collectors
-as \code{"et al."}. Original columns can be preserved or overwritten.
+This function is part of the \code{barRoso} package. It supports reconciliation of
+biodiversity records, especially for resolving collector name discrepancies
+across duplicate specimens. A new column \code{addCollector} is created when multiple
+collectors are detected, storing secondary collectors as \code{"et al."}. Original
+columns can be preserved or overwritten.
 
 Specifically, this function performs extensive string cleaning including:
 \itemize{

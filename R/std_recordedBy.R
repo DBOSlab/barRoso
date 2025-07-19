@@ -10,10 +10,11 @@
 #' multiple collectors, Asian unicode names, and Brazilian surname conventions.
 #'
 #' @details
-#' This function supports reconciliation of biodiversity records, especially for resolving
-#' collector name discrepancies across duplicate specimens. A new column `addCollector`
-#' is created when multiple collectors are detected, storing secondary collectors
-#' as `"et al."`. Original columns can be preserved or overwritten.
+#' This function is part of the `barRoso` package. It supports reconciliation of
+#' biodiversity records, especially for resolving collector name discrepancies
+#' across duplicate specimens. A new column `addCollector` is created when multiple
+#' collectors are detected, storing secondary collectors as `"et al."`. Original
+#' columns can be preserved or overwritten.
 #'
 #' Specifically, this function performs extensive string cleaning including:
 #' - Converting unicode (e.g., Chinese) to Latin names

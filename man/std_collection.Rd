@@ -31,7 +31,7 @@ or placeholder codes with recognized herbarium acronyms. It also flags missing
 values with fallback rules and optional original column retention.
 }
 \details{
-This function is part of the \code{barroso} package, and applies a large set of
+This function is part of the \code{barRoso} package, and applies a large set of
 conditional replacements based on known patterns and integrates fallback from
 \code{institutionCode} when \code{collectionCode} is missing or ambiguous. Common aliases
 like \code{"Herbarium"}, \code{"Botany"}, or \code{"Angiosperms"} are converted to valid acronyms

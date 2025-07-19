@@ -1,19 +1,19 @@
-## CRAN submission for jabotR 1.0.0
+## CRAN submission for barRoso 1.0.0
 
 ### Package Summary
 
-* **Package name:** barroso  
+* **Package name:** barRoso  
 * **Version:** 1.0.0  
 * **Title:** Biodiversity Analysis and Record Reconciliation for Organizing Specimen Observations  
 * **Authors:** Domingos Cardoso  
 * **Maintainer:** domingoscardoso@jbrj.gov.br  
 * **License:** MIT  
-* **URL:** https://github.com/DBOSlab/barroso  
-* **BugReports:** https://github.com/DBOSlab/barroso/issues  
+* **URL:** https://github.com/DBOSlab/barRoso  
+* **BugReports:** https://github.com/DBOSlab/barRoso/issues  
 
 ### Submission Notes
 
-* This is the initial submission of the `barroso` package to CRAN.
+* This is the initial submission of the `barRoso` package to CRAN.
 * The package provides tools to access, download, and filter plant specimen data from the REFLORA Virtual Herbarium maintained by the Rio de Janeiro Botanical Garden (JBRJ).
 * It leverages standard packages (`dplyr`, `stringr`, `finch`, etc.) and supports tidyverse workflows.
 * All exported functions are documented with reproducible examples.

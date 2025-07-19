@@ -75,12 +75,12 @@ duplicate handling, and label generation.
 }
 \description{
 A wrapper function that performs integrated cleaning and standardization of
-biodiversity collection records using the \code{barroso} package. This includes
+biodiversity collection records using the \code{barRoso} package. This includes
 harmonizing taxonomic, geographic, collector, and type status information,
 as well as flagging or removing unvouchered and duplicate specimens.
 }
 \details{
-This function orchestrates several \verb{std_*} functions from the \code{barroso}
+This function orchestrates several \verb{std_*} functions from the \code{barRoso}
 package to clean records from virtual herbaria and biodiversity portals. It
 handles multilingual field names, missing data, inconsistent formatting,
 and dataset chunking for large inputs. The function also detects and optionally

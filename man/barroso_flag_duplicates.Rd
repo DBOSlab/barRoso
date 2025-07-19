@@ -23,7 +23,7 @@ collector name and number, or—when these are missing—by species name and dat
 Adds a logical \code{duplicate} column to indicate flagged duplicates.
 }
 \details{
-This function is part of the internal workflow of the \code{barroso} package, supporting
+This function is part of the internal workflow of the \code{barRoso} package, supporting
 record reconciliation and dataset cleaning. It uses combinations of collector names
 (\code{recordedBy}), collection numbers (\code{recordNumber}), and collection dates (\code{year},
 \code{month}, \code{day}) to identify duplicate entries. When \code{rm_duplicates = TRUE}, one

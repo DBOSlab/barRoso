@@ -26,7 +26,7 @@ harmonizes formatting, and optionally fills missing values if present in other
 duplicate records (assumed to be handled outside this function).
 }
 \details{
-This function is used internally in the \code{barroso} package to prepare
+This function is used internally in the \code{barRoso} package to prepare
 type status data for reconciliation and label generation. It corrects known
 placeholder or non-type entries (e.g. “Fotografia do Tipo”, “NOTATYPE”, “Epítipo”)
 and simplifies terms like \code{"sim -"} to ensure clean type labels.

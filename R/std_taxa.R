@@ -9,7 +9,7 @@
 #' and formatting genus/species names for consistency.
 #'
 #' @details
-#' This function is part of the `barroso` package and is designed to improve the
+#' This function is part of the `barRoso` package and is designed to improve the
 #' quality of taxon names for reconciliation, querying, and label generation.
 #' It removes common taxonomic noise such as uncertain identifiers (e.g. “cf.”,
 #' “aff.”, “indet.”), numeric placeholders, and genus-only labels mistakenly
