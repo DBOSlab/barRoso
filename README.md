@@ -85,7 +85,9 @@ facilitating reproducible biodiversity research.
 ✅ Generate standardized herbarium labels from field records
 
 ✅ Integrate with public blant taxonomic portals such as World Flora
-Online and Flora, LCVP, and Funga of Brasil
+Online and Flora, LCVP, and Funga of Brasil  
+  
+  
 
 ## Installation
 
@@ -126,12 +128,15 @@ herbarium specimen records. It accepts raw data frames from any
 herbarium source and applies a series of cleaning and harmonization
 steps, including:
 
-Standardizing collector names and collection numbers Cleaning and
-unifying geographic fields (country, state, locality, etc.) Harmonizing
-taxonomic names using authority sources Normalizing type status entries
-Optionally detecting and removing duplicates It accepts flexible column
-naming via arguments and can handle large datasets in chunks to avoid
-memory issues.  
+- Standardizing collector names and collection numbers
+- Cleaning and unifying geographic fields (country, state, locality,
+  etc.)
+- Harmonizing taxonomic names using authority sources
+- Normalizing type status entries
+- Optionally detecting and removing duplicates
+
+It accepts flexible column naming via arguments and can handle large
+datasets in chunks to avoid memory issues.  
   
 
 ##### Example of using `barroso_std()`
@@ -233,6 +238,7 @@ available in different [articles](https://dboslab.github.io/barroso/).
 This package is named in honor of Graziela Maciel Barroso (1912–2003), a
 pioneer of Brazilian botany. Her contributions to plant taxonomy and
 herbarium science inspire this tool.  
+  
   
 
 ## Citation
