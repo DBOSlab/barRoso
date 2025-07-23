@@ -63,7 +63,7 @@ std_taxa <- function(df = NULL,
   if (colname_genus != "genus") {
     names(df)[colnames_df %in% colname_genus] <- "genus"
   }
-  if (colname_specificEpithet != "specificEpithet" ) {
+  if (colname_specificEpithet != "specificEpithet") {
     names(df)[colnames_df %in% colname_specificEpithet] <- "specificEpithet"
   }
 
@@ -73,7 +73,7 @@ std_taxa <- function(df = NULL,
 
     message("std_taxa $family $genus $specificEpithet")
 
-    # Remove original typeStatus column ####
+    # Remove original $family $genus $specificEpithet" columns ####
     if (rm_original_column == FALSE) {
       df <- df %>%
         tibble::add_column(familyOriginal = df$family,
@@ -123,11 +123,6 @@ std_taxa <- function(df = NULL,
       df$specificEpithet[tf] <- NA
     }
 
-    tf <- !grepl("\\s", df$specificEpithet)
-    if (any(tf)) {
-      df$specificEpithet[tf] <- NA
-    }
-
     del <- c("\\scf$|\\scf[.]|\\scf\\s|\\saff\\s|\\saff$|\\saff[.]|\\sCf[.]|\\sAff[.]|\\sCf$|\\sAff$")
     tf <- grepl(del, df$specificEpithet)
     if (any(tf)) {
@@ -162,8 +157,6 @@ std_taxa <- function(df = NULL,
   return(df)
 }
 
-
-#_______________________________________________________________________________
 # Side function make first letter to upper case ####
 .firstUp <- function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))

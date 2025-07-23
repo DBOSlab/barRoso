@@ -97,8 +97,9 @@ barroso_flag_duplicates <- function(df,
                                        "year", "month", "day")])==F, ]
 
     df <- rbind(df, df_na)
-
   }
+
+  df <- df[ , !(names(df) %in% "scientificName_temp")]
 
   return(df)
 }
