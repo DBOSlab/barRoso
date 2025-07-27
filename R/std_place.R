@@ -96,7 +96,7 @@ std_place <- function(df = NULL,
     message("std_place $country")
 
     df$country <- as.character(df$country)
-    df$country <- stringi::stri_trans_general(df$country, "Latin-ASCII")
+    #df$country <- stringi::stri_trans_general(df$country, "Latin-ASCII")
 
     # Remove original country column ####
     if (rm_original_column == FALSE) {
@@ -107,35 +107,22 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_country, "' column removed"))
     }
 
-    df$country <- ifelse(df$country %in% c("Venezuela (Bolivarian Republic of)",
-                                           "Venezuela, Bolivarian Republic of"),
-                         "Venezuela", as.character(df$country))
-    df$country <- ifelse(df$country == "Tanzania, United Republic of",
-                         "Tanzania", as.character(df$country))
-    df$country <- ifelse(df$country == "Micronesia, Federated States of",
-                         "Micronesia", as.character(df$country))
-    df$country <- ifelse(df$country == "Bolivia, Plurinational State of",
-                         "Bolivia", as.character(df$country))
-    df$country <- ifelse(df$country == "Russian Federation",
-                         "Russia", as.character(df$country))
-    df$country <- ifelse(df$country == "unknown or invalid",
-                         NA, as.character(df$country))
-
-    tolowercountries <- grepl("[[:upper:]]{4,}", df$country)
-    if(any(tolowercountries)){
-      df$country[tolowercountries] <- tolower(df$country[tolowercountries])
+    temp <- c("unknown or invalid", "Unknown", "Sem procedência", "s.", "s.loc.",
+              "s.l.",  "S.loc.", "s/localidade", "Indeterminada", "Indeterminado",
+              "?")
+    tf <- df$country %in% temp
+    if (any(tf)) {
+      df$country[tf] <- NA
     }
 
-    # Convert country codes into country names
-    countrycodes <- grepl("[[:upper:]]{2,}", df$country)
-    if(any(countrycodes)){
-      df$country[countrycodes] <- countrycode::countrycode(df$country[countrycodes],
-                                                           "iso2c", "country.name")
+    df$country <- gsub("[[]|[]]", "", df$country)
+
+    df$country <- .firstUp(df$country)
+
+    tolowercountries <- grepl("[[:upper:]]{5,}", df$country)
+    if (any(tolowercountries)) {
+      df$country[tolowercountries] <- .firstUp(tolower(df$country[tolowercountries]))
     }
-
-    df$country <- ifelse(df$country == "United States",
-                         "United States of America", as.character(df$country))
-
 
     # Fix country names such as put them in English ####
     df <- .fix_country_names(df)
@@ -574,14 +561,106 @@ std_place <- function(df = NULL,
 
 
 #_______________________________________________________________________________
-# Convert Portuguese country names to English ####
+# Standardize country names into English ####
 .fix_country_names <- function(df) {
 
-  tf <- grepl("Bra|Brail|Brasi|Brasiil|BraSil|Brasl|brésil|Brazil|brésil|brasil|Brasil|Brésil austral|Brésil central|Brésil méridional|Brésil septentrional|Brasil[.]|Brasilia tropica|Brasil australs|Brasilia tropicae",
-        df$country)
+  # SOUTH AMERICA ####
+  temp <- c("Bra$", "Braail", "Brail", "Brasi", "Brasiil", "BraSil", "Brasl",
+            "Brasil", "Brésil austral", "Brésil central", "Bésil",
+            "Brésil méridional", "Brésil septentrional", "Brasil.", "Brsail",
+            "Brasilia tropica", "Brasil australs", "Brasilia tropicae", "Brézil",
+            "Brésil", "BRazil", "Brébrsil", "Brasiliae", "Brasiliae tropicae",
+            "Brasill", "Brébrsil", "Btasil", "Bresil", "Bresille", "Basil",
+            "Barsil", "Brésil")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
     df$country[tf] <- "Brazil"
   }
+
+  temp <- c("Bolívia", "Bolivia", "Bolovie", "Bolivie", "Bol  via")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Bolivia"
+  }
+
+  temp <- c("ane anglaise$", "ane Anglaise$", "^Guyana$", "ane angloise$", "^Guian$",
+            "Guyanna$", "Guyane[?]$", "^Guyanne$", "^Guyane$", "ane Guyane$",
+            "Guayne$", "Guiana$", "Guiana Brit", "Guiana ang", "Guyane ang",
+            "^Guiane$", "ana Inglesa$", "ane britannique$", "^Grayanae$",
+            "British gu", "British Gu")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Guyana"
+  }
+
+  temp <- c("Guyana fra", "Guyane Fra", "Guyanne fra", "Guyane fra", "Guinana Fra",
+            "Guiana Fra")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "French Guiana"
+  }
+
+  temp <- c("Peru", "Perou", "Pérou", "Perú")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Peru"
+  }
+
+  temp <- c("Surinam", "ane hollandaise$", "ana Holandesa$", "Dutch Guyana",
+            "Guyane hol", "Guiana Holandesa")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Surinam"
+  }
+
+  temp <- c("Venezu", "Venezula", "Vénézuela", "Vénézuéla", "Venezula")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Venezula"
+  }
+
+  # NORTH AMERICA ####
+  temp <- c("United State", "USA$", "E[.]U[.]A[.]", "U[.]S[.]A[.]", "^US$",
+            "^États-Unis", "^Etats-Unis", "Etats Unis d",
+            "^États-unis", "^Estados Un", "Estado Unidos da América$")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "United States"
+  }
+
+  # EUROPE ####
+  temp <- c("Alemaha", "Alemanga", "Alemanha")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "Germany"
+  }
+
+  temp <- c("UK$", "Inglaterra")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "England"
+  }
+
+  # AFRICA ####
+  temp <- c("África do Sul", "África do sul", "South Africa", "Africa do Sul")
+  pattern <- paste0(temp, collapse = "|")
+  tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
+  if (any(tf)) {
+    df$country[tf] <- "South Africa"
+  }
+
+  # sort(unique(df$country[tf]))
+  # sort(unique(df$country))
 
   en <- countrycode::countryname(sourcevar = df$country,
                                  destination = "country.name.en",
@@ -589,9 +668,20 @@ std_place <- function(df = NULL,
   en[is.na(en)] <- df$country[is.na(en)]  # Keep original for unmatched
   df$country <- en
 
-  df$country <- ifelse(df$country == "US",
-                       "United States of America", as.character(df$country))
+  # Convert country codes into country names
+
+  # Problem with BR states acronyms
+  # countrycodes <- grepl("[[:upper:]]{2,}", df$country)
+  # if (any(countrycodes)) {
+  #   df$country[countrycodes] <- countrycode::countrycode(df$country[countrycodes],
+  #                                                        "iso2c", "country.name")
+  # }
 
   return(df)
 }
 
+# Side function make first letter to upper case ####
+.firstUp <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
