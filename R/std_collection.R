@@ -153,7 +153,7 @@ std_collection <- function(df = NULL,
 
   # Put original collectionCode name back ####
   if (colname_collectionCode != "collectionCode") {
-    names(df)[names(df) %in% "collectionCode"] <- colname_family
+    names(df)[names(df) %in% "collectionCode"] <- colname_collectionCode
     if (rm_original_column == FALSE) {
       names(df)[names(df) %in% "collectionCodeOriginal"] <- paste0(colname_collectionCode, "Original")
     }
