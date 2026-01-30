@@ -38,3 +38,24 @@
 
   return(df)
 }
+
+
+.upper_first_only <- function(x) {
+  if (!is.character(x)) {
+    x <- as.character(x)
+  }
+
+  sapply(x, function(str) {
+    if (is.na(str) || !nzchar(str)) {
+      return(str)
+    }
+
+    # Convert first character to uppercase, rest to lowercase
+    first_char <- substr(str, 1, 1)
+    rest <- substr(str, 2, nchar(str))
+
+    paste0(toupper(first_char), tolower(rest))
+  }, USE.NAMES = FALSE)
+}
+
+
