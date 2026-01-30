@@ -96,13 +96,17 @@ en dashes (e.g., "4.3–14.5 cm").
 }
 \details{
 The function expects an Excel file with specific column naming conventions.
-Species names should be in separate columns (e.g., "Genus", "Species", "Author").
 Morphological characters should be grouped with consistent naming patterns:
 \itemize{
 \item Simple characters: "Habit", "LEAF shape", "LEAF margin"
 \item Measurements: "LEAF length (cm)", "LEAF width (mm)"
 \item Hierarchical structures: "FLOWER SEPALS length (mm)", "FLOWER SEPALS width (mm)"
 }
+
+The package includes an example dataset \code{morphological_dataset} containing
+morphological data for 15 species of \emph{Ouratea} (Ochnaceae) that demonstrates
+these naming conventions. This dataset can be used to test the function
+and understand the required data structure.
 
 The function automatically:
 \itemize{
@@ -247,6 +251,20 @@ barroso_write_taxon_descr(
   xlsx_path = "data.xlsx",
   species_cols = 1:2,          # First two columns: Genus and Species
   character_cols = 3:18        # Columns 3-18: morphological characters
+)
+}
+
+# Using the included morphological_dataset
+\dontrun{
+# First save the dataset to Excel format=
+library(openxlsx)
+openxlsx::write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
+
+# Generate descriptions using the example dataset
+barroso_write_taxon_descr(
+  xlsx_path = "morphological_dataset.xlsx",
+  species_cols = c("Genus", "Species", "Author"),
+  character_cols = 19:131  # Morphological character columns
 )
 }
 

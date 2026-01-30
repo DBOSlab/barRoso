@@ -10,12 +10,16 @@
 #'   en dashes (e.g., "4.3–14.5 cm").
 #'
 #' @details The function expects an Excel file with specific column naming conventions.
-#'   Species names should be in separate columns (e.g., "Genus", "Species", "Author").
 #'   Morphological characters should be grouped with consistent naming patterns:
 #'
 #'   - Simple characters: "Habit", "LEAF shape", "LEAF margin"
 #'   - Measurements: "LEAF length (cm)", "LEAF width (mm)"
 #'   - Hierarchical structures: "FLOWER SEPALS length (mm)", "FLOWER SEPALS width (mm)"
+#'
+#'   The package includes an example dataset \code{morphological_dataset} containing
+#'   morphological data for 15 species of \emph{Ouratea} (Ochnaceae) that demonstrates
+#'   these naming conventions. This dataset can be used to test the function
+#'   and understand the required data structure.
 #'
 #'   The function automatically:
 #'   \itemize{
@@ -134,6 +138,21 @@
 #'   xlsx_path = "data.xlsx",
 #'   species_cols = 1:2,          # First two columns: Genus and Species
 #'   character_cols = 3:18        # Columns 3-18: morphological characters
+#' )
+#' }
+#'
+#' @examples
+#' # Using the included morphological_dataset
+#' \dontrun{
+#' # First save the dataset to Excel format=
+#' library(openxlsx)
+#' openxlsx::write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
+#'
+#' # Generate descriptions using the example dataset
+#' barroso_write_taxon_descr(
+#'   xlsx_path = "morphological_dataset.xlsx",
+#'   species_cols = c("Genus", "Species", "Author"),
+#'   character_cols = 19:131  # Morphological character columns
 #' )
 #' }
 #'
@@ -289,7 +308,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
   # Filter by species if species_filter is provided
   if (!is.null(species_filter)) {
     species_names_vector <- df %>%
-      tidyr::unite("species_name", all_of(species_cols),
+      tidyr::unite("species_name", dplyr::all_of(species_cols),
                    sep = " ",
                    remove = FALSE,
                    na.rm = TRUE) %>%
@@ -1088,7 +1107,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
   # Create a temporary species identifier column
   df_temp <- df %>%
-    tidyr::unite("_species_id", all_of(species_cols), sep = " ", remove = FALSE, na.rm = TRUE)
+    tidyr::unite("_species_id", dplyr::all_of(species_cols), sep = " ", remove = FALSE, na.rm = TRUE)
   df_temp[[1]] <- barRoso::remove_authorship(df_temp[[1]])
 
   # Identify character columns
@@ -1096,7 +1115,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
   # Convert all character columns to character type to ensure consistency
   df_temp <- df_temp %>%
-    mutate(across(all_of(char_cols), as.character))
+    dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), as.character))
 
   # Identify measurement columns
   is_measurement_col <- function(col_name) {
@@ -1182,19 +1201,19 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
   # Group and merge
   df_merged <- df_temp %>%
-    group_by(`_species_id`) %>%
-    summarise(
+    dplyr::group_by(`_species_id`) %>%
+    dplyr::summarise(
       # Species columns (take first, ensure character type)
-      across(all_of(species_cols), ~as.character(first(na.omit(.)))),
+      dplyr::across(dplyr::all_of(species_cols), ~as.character(dplyr::first(na.omit(.)))),
       # Non-measurement columns
-      across(all_of(non_measurement_cols),
+      dplyr::across(dplyr::all_of(non_measurement_cols),
              ~merge_non_measurement(.)),
       # Measurement columns
-      across(all_of(measurement_cols),
+      dplyr::across(dplyr::all_of(measurement_cols),
              ~merge_measurement(.)),
       .groups = "drop"
     ) %>%
-    select(-`_species_id`)
+    dplyr::select(-`_species_id`)
 
   for (i in seq_along(measurement_cols)) {
     tf <- grepl(",|or", df_merged[[measurement_cols[i]]])
