@@ -31,10 +31,11 @@ this toolkit provides flexible functions to harmonize specimen data
 across diverse sources. The package also supports the generation of
 standardized taxonomic descriptions from morphological character data,
 facilitating the writing of taxonomic treatments. The name BARROSO also
-stands for: Biodiversity Analysis & Record Reconciliation for Organizing
-Specimen Observations. This acronym also subtly highlights its close
-connection to the R programming language, as a symbolic nod to the R
-ecosystem in which the package is developed.
+stands for: **B**iodiversity **A**nalysis and **R**ecord
+**R**econciliation for **O**rganizing **S**pecimen **O**bservations.
+This acronym also subtly highlights its close connection to the R
+programming language, as a symbolic nod to the R ecosystem in which the
+package is developed.
 
 The package automates the cleaning and standardization of herbarium
 records from public biodiversity databases such as
