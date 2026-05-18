@@ -12,11 +12,6 @@
 #'
 #' @param xlsx_path Character. Path to the .xlsx file containing specimen data.
 #' @param species_cols Character/integer. Columns used to build the species header.
-#' @param collection_cols Named list or character vector. Columns containing
-#'   specimen information. Must include: country, stateProvince, municipality,
-#'   locality, decimalLatitude, decimalLongitude, day, month, year, recordBy,
-#'   recordNumber, collectionCode. Names can be customized using a named list
-#'   (e.g., list(country = "Country", state = "StateProvince")).
 #' @param sheet Sheet name or index. Default 1.
 #' @param species_filter Optional character vector to filter species.
 #' @param journal Character. Journal style format. Currently supports
@@ -25,6 +20,22 @@
 #'   Portuguese). Affects month names and country translations. Default "en".
 #' @param add_representative Logical. Should "Representative Specimens Examined"
 #'   header be added? Default TRUE.
+#' @param colname_recordedBy Character. Column name for collector name. Default "recordedBy".
+#' @param colname_recordNumber Character. Column name for collector number. Default "recordNumber".
+#' @param colname_continent Character. Column name for continent. Default "continent".
+#' @param colname_country Character. Column name for country. Default "country".
+#' @param colname_stateProvince Character. Column name for state/province. Default "stateProvince".
+#' @param colname_county Character. Column name for county. Default "county".
+#' @param colname_municipality Character. Column name for municipality. Default "municipality".
+#' @param colname_locality Character. Column name for locality description. Default "locality".
+#' @param colname_decimalLatitude Character. Column name for latitude. Default "decimalLatitude".
+#' @param colname_decimalLongitude Character. Column name for longitude. Default "decimalLongitude".
+#' @param colname_day Character. Column name for collection day. Default "day".
+#' @param colname_month Character. Column name for collection month. Default "month".
+#' @param colname_year Character. Column name for collection year. Default "year".
+#' @param colname_collectionCode Character. Column name for herbarium code. Default "collectionCode".
+#' @param colname_institutionCode Character. Column name for institution code. Default "institutionCode".
+#' @param colname_typeStatus Character. Column name for type status. Default "typeStatus".
 #' @param font_family Character. Font family for Word document. Default "Times New Roman".
 #' @param font_size Numeric. Font size in points. Default 12.
 #' @param species_bold Logical. Make species names bold. Default TRUE.
@@ -54,16 +65,23 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Basic usage
+#' # Basic usage with default column names
 #' barroso_write_specimens(
 #'   xlsx_path = "specimens.xlsx",
 #'   species_cols = c("Genus", "Species", "Author"),
-#'   collection_cols = c("country", "stateProvince", "municipality",
-#'                        "locality", "decimalLatitude", "decimalLongitude",
-#'                        "day", "month", "year", "recordBy", "recordNumber",
-#'                        "collectionCode"),
 #'   journal = "SystematicBotany",
 #'   language = "en"
+#' )
+#'
+#' # Custom column names
+#' barroso_write_specimens(
+#'   xlsx_path = "specimens.xlsx",
+#'   species_cols = c("Genus", "Species", "Author"),
+#'   colname_country = "Country",
+#'   colname_stateProvince = "State",
+#'   colname_locality = "Location",
+#'   colname_recordedBy = "Collector",
+#'   colname_recordNumber = "Number"
 #' )
 #' }
 #'
@@ -76,12 +94,27 @@
 #' @export
 barroso_write_specimens <- function(xlsx_path,
                                     species_cols,
-                                    collection_cols,
                                     sheet = 1,
                                     species_filter = NULL,
                                     journal = "SystematicBotany",
                                     language = "en",
                                     add_representative = TRUE,
+                                    colname_recordedBy = "recordedBy",
+                                    colname_recordNumber = "recordNumber",
+                                    colname_continent = "continent",
+                                    colname_country = "country",
+                                    colname_stateProvince = "stateProvince",
+                                    colname_county = "county",
+                                    colname_municipality = "municipality",
+                                    colname_locality = "locality",
+                                    colname_decimalLatitude = "decimalLatitude",
+                                    colname_decimalLongitude = "decimalLongitude",
+                                    colname_day = "day",
+                                    colname_month = "month",
+                                    colname_year = "year",
+                                    colname_collectionCode = "collectionCode",
+                                    colname_institutionCode = "institutionCode",
+                                    colname_typeStatus = "typeStatus",
                                     font_family = "Times New Roman",
                                     font_size = 12,
                                     species_bold = TRUE,
@@ -109,43 +142,56 @@ barroso_write_specimens <- function(xlsx_path,
   .arg_check_xlsx_path(xlsx_path)
   df <- readxl::read_excel(path = xlsx_path, sheet = sheet)
 
-  # Resolve column names
+  # Clean column names (replace dots with spaces)
+  names(df) <- gsub("[.]", " ", names(df))
+  names(df) <- trimws(gsub("(\\s){2,}", " ", names(df)))
+
+  # Resolve species columns
   species_cols <- .resolve_cols(df, species_cols, arg = "species_cols")
 
-  # Handle collection_cols - if named list, map to actual names
-  if (is.list(collection_cols) && !is.null(names(collection_cols))) {
-    mapped_cols <- character()
-    for (std_name in names(collection_cols)) {
-      actual_name <- collection_cols[[std_name]]
-      if (actual_name %in% names(df)) {
-        mapped_cols[std_name] <- actual_name
-      } else {
-        stop("Column '", actual_name, "' (mapped from '", std_name, "') not found in data")
-      }
-    }
-    collection_cols <- mapped_cols
-  } else if (is.character(collection_cols)) {
-    names(collection_cols) <- collection_cols
-  }
+  # Create mapping of standard names to actual column names
+  col_mapping <- list(
+    recordedBy = colname_recordedBy,
+    recordNumber = colname_recordNumber,
+    continent = colname_continent,
+    country = colname_country,
+    stateProvince = colname_stateProvince,
+    county = colname_county,
+    municipality = colname_municipality,
+    locality = colname_locality,
+    decimalLatitude = colname_decimalLatitude,
+    decimalLongitude = colname_decimalLongitude,
+    day = colname_day,
+    month = colname_month,
+    year = colname_year,
+    collectionCode = colname_collectionCode,
+    institutionCode = colname_institutionCode,
+    typeStatus = colname_typeStatus
+  )
 
-  # Required standard column names
+  # Check that all required columns exist
   required_cols <- c("country", "stateProvince", "locality", "decimalLatitude",
-                     "decimalLongitude", "day", "month", "year", "recordBy",
+                     "decimalLongitude", "day", "month", "year", "recordedBy",
                      "recordNumber", "collectionCode")
 
   for (req in required_cols) {
-    if (!req %in% names(collection_cols)) {
-      stop("Required column mapping missing for: ", req)
+    col_name <- col_mapping[[req]]
+    if (!col_name %in% names(df)) {
+      warning("Column '", col_name, "' (mapped from '", req, "') not found in data. ",
+              "This may affect output quality.")
     }
   }
 
   # Select all needed columns
-  all_needed <- unique(c(species_cols, collection_cols))
-  missing <- setdiff(all_needed, names(df))
-  if (length(missing) > 0) {
-    stop("Missing columns: ", paste(missing, collapse = ", "))
+  all_needed <- unique(c(species_cols, unlist(col_mapping)))
+  existing_cols <- intersect(all_needed, names(df))
+  missing <- setdiff(all_needed, existing_cols)
+  if (length(missing) > 0 && verbose) {
+    message("Note: The following columns are missing and will be skipped: ",
+            paste(missing, collapse = ", "))
   }
-  df <- df[, all_needed, drop = FALSE]
+
+  df <- df[, existing_cols, drop = FALSE]
 
   # Filter species if needed
   if (!is.null(species_filter)) {
@@ -171,22 +217,40 @@ barroso_write_specimens <- function(xlsx_path,
   df$species_id <- barRoso::remove_authorship(df$species_id)
 
   # Group by collector and number to merge duplicate herbaria
-  df$collector_key <- paste(df[[collection_cols["recordBy"]]],
-                            df[[collection_cols["recordNumber"]]],
-                            sep = " ## ")
+  if (col_mapping$recordedBy %in% names(df) && col_mapping$recordNumber %in% names(df)) {
+    df$collector_key <- paste(df[[col_mapping$recordedBy]],
+                              df[[col_mapping$recordNumber]],
+                              sep = " ## ")
+  } else {
+    df$collector_key <- paste(seq_len(nrow(df)), "temp", sep = "_")
+  }
 
-  # Format coordinates
-  df$coords <- .format_coordinates(df[[collection_cols["decimalLatitude"]]],
-                                   df[[collection_cols["decimalLongitude"]]])
+  # Format coordinates if columns exist
+  if (col_mapping$decimalLatitude %in% names(df) && col_mapping$decimalLongitude %in% names(df)) {
+    df$coords <- .format_coordinates(df[[col_mapping$decimalLatitude]],
+                                     df[[col_mapping$decimalLongitude]])
+  } else {
+    df$coords <- ""
+  }
 
-  # Format date
-  df$date <- .format_date(df[[collection_cols["day"]]],
-                          df[[collection_cols["month"]]],
-                          df[[collection_cols["year"]]],
-                          language = language)
+  # Format date if columns exist
+  if (col_mapping$year %in% names(df)) {
+    df$date <- .format_date(
+      if (col_mapping$day %in% names(df)) df[[col_mapping$day]] else NA,
+      if (col_mapping$month %in% names(df)) df[[col_mapping$month]] else NA,
+      df[[col_mapping$year]],
+      language = language
+    )
+  } else {
+    df$date <- ""
+  }
 
-  # Format phenology (to be added by user or extracted from other columns)
-  df$phenology <- ""  # Placeholder - could be extracted from additional column
+  # Format type status if column exists
+  if (col_mapping$typeStatus %in% names(df)) {
+    df$type_status <- df[[col_mapping$typeStatus]]
+  } else {
+    df$type_status <- ""
+  }
 
   # Group by species and geographic hierarchy
   result_list <- list()
@@ -194,23 +258,37 @@ barroso_write_specimens <- function(xlsx_path,
   for (sp in unique(df$species_id)) {
     sp_df <- df[df$species_id == sp, ]
 
-    # Group by country, state, municipality
-    sp_df$geo_key <- paste(sp_df[[collection_cols["country"]]],
-                           sp_df[[collection_cols["stateProvince"]]],
-                           sp_df[[collection_cols["municipality"]]],
-                           sep = "||")
+    # Create geographic key if country exists
+    if (col_mapping$country %in% names(df)) {
+      sp_df$geo_key <- paste(
+        if (col_mapping$country %in% names(df)) sp_df[[col_mapping$country]] else "",
+        if (col_mapping$stateProvince %in% names(df)) sp_df[[col_mapping$stateProvince]] else "",
+        if (col_mapping$municipality %in% names(df)) sp_df[[col_mapping$municipality]] else "",
+        sep = "||"
+      )
+    } else {
+      sp_df$geo_key <- "No geography||"
+    }
 
     specimens_list <- list()
 
     for (geo in unique(sp_df$geo_key)) {
       geo_df <- sp_df[sp_df$geo_key == geo, ]
 
-      country <- unique(geo_df[[collection_cols["country"]]])[1]
-      state <- unique(geo_df[[collection_cols["stateProvince"]]])[1]
-      municipality <- unique(geo_df[[collection_cols["municipality"]]])[1]
+      country <- if (col_mapping$country %in% names(df)) {
+        unique(geo_df[[col_mapping$country]])[1]
+      } else { "" }
+
+      state <- if (col_mapping$stateProvince %in% names(df)) {
+        unique(geo_df[[col_mapping$stateProvince]])[1]
+      } else { "" }
+
+      municipality <- if (col_mapping$municipality %in% names(df)) {
+        unique(geo_df[[col_mapping$municipality]])[1]
+      } else { "" }
 
       # Translate country if needed
-      if (language == "pt") {
+      if (language == "pt" && nzchar(country)) {
         country <- .translate_country(country)
       }
 
@@ -222,7 +300,10 @@ barroso_write_specimens <- function(xlsx_path,
         coll_df <- geo_df[geo_df$collector_key == collector, ]
 
         # Get unique herbaria
-        herbaria <- unique(coll_df[[collection_cols["collectionCode"]]])
+        herbaria <- if (col_mapping$collectionCode %in% names(df)) {
+          unique(coll_df[[col_mapping$collectionCode]])
+        } else { character(0) }
+
         herbaria <- herbaria[!is.na(herbaria) & nzchar(herbaria)]
         herbarium_text <- if (length(herbaria) > 0) {
           paste0("(", paste(herbaria, collapse = ", "), ")")
@@ -231,19 +312,35 @@ barroso_write_specimens <- function(xlsx_path,
         }
 
         # Format locality info
-        locality <- unique(coll_df[[collection_cols["locality"]]])[1]
+        locality <- if (col_mapping$locality %in% names(df)) {
+          unique(coll_df[[col_mapping$locality]])[1]
+        } else { "" }
+
         coords <- unique(coll_df$coords)[1]
         date <- unique(coll_df$date)[1]
+        type_status <- unique(coll_df$type_status)[1]
+
+        # Add type status if present
+        if (nzchar(type_status)) {
+          type_text <- paste0("[", type_status, "] ")
+        } else {
+          type_text <- ""
+        }
 
         # Build specimen entry
-        collector_name <- unique(coll_df[[collection_cols["recordBy"]]])[1]
-        collector_num <- unique(coll_df[[collection_cols["recordNumber"]]])[1]
+        collector_name <- if (col_mapping$recordedBy %in% names(df)) {
+          unique(coll_df[[col_mapping$recordedBy]])[1]
+        } else { "Anonymous" }
+
+        collector_num <- if (col_mapping$recordNumber %in% names(df)) {
+          unique(coll_df[[col_mapping$recordNumber]])[1]
+        } else { "" }
 
         specimen_entry <- .format_specimen_entry(
           locality = locality,
           coords = coords,
           date = date,
-          phenology = "",  # Could be added
+          type_status = type_text,
           collector = collector_name,
           collector_num = collector_num,
           herbaria = herbarium_text,
@@ -313,48 +410,66 @@ barroso_write_specimens <- function(xlsx_path,
     specimens_text_all <- character()
 
     for (geo_group in specimens_list) {
+      # Skip if no specimens
+      if (length(geo_group$specimens) == 0) next
+
+      # Skip if no country (can't format properly)
+      if (!nzchar(geo_group$country) && !nzchar(geo_group$state)) {
+        # Just add specimens without header
+        for (spec in geo_group$specimens) {
+          normal_prop <- officer::fp_text(font.family = font_family,
+                                          font.size = font_size,
+                                          bold = FALSE,
+                                          italic = FALSE)
+          spec_run <- officer::ftext(paste0("  ", spec), prop = normal_prop)
+          doc <- officer::body_add_fpar(doc, officer::fpar(spec_run))
+          specimens_text_all <- c(specimens_text_all, spec)
+        }
+        next
+      }
+
       # Country with bold
       country_prop <- officer::fp_text(font.family = font_family,
                                        font.size = font_size,
                                        bold = country_bold,
                                        italic = FALSE)
 
-      # State with small caps
-      state_prop <- officer::fp_text(font.family = font_family,
-                                     font.size = font_size,
-                                     bold = FALSE,
-                                     italic = FALSE,
-                                     vertical.align = "baseline")
-      if (state_smallcaps) {
-        state_prop <- officer::fp_text(font.family = font_family,
-                                       font.size = font_size,
-                                       bold = FALSE,
-                                       italic = FALSE,
-                                       vertical.align = "baseline",
-                                       fp_p = officer::fp_par(text.align = "left"))
-        # Note: officer doesn't directly support small caps
-        # We'll use regular text and note in documentation
-      }
-
-      # Format country line
+      # Format country line based on journal style
       if (journal == "SystematicBotany") {
         if (nzchar(geo_group$state)) {
           country_line <- paste0(geo_group$country, ". —",
-                                 toupper(geo_group$state), ":")
-        } else {
+                                 toupper(geo_group$state))
+          if (nzchar(geo_group$municipality)) {
+            country_line <- paste0(country_line, ": ", geo_group$municipality)
+          } else {
+            country_line <- paste0(country_line, ":")
+          }
+        } else if (nzchar(geo_group$country)) {
           country_line <- paste0(geo_group$country, ".")
+        } else {
+          country_line <- ""
         }
       } else {
+        # Taxon style
         if (nzchar(geo_group$state)) {
           country_line <- paste0(geo_group$country, ". —",
-                                 toupper(geo_group$state), ":")
-        } else {
+                                 toupper(geo_group$state))
+          if (nzchar(geo_group$municipality)) {
+            country_line <- paste0(country_line, ": ", geo_group$municipality)
+          } else {
+            country_line <- paste0(country_line, ":")
+          }
+        } else if (nzchar(geo_group$country)) {
           country_line <- paste0(geo_group$country, ".")
+        } else {
+          country_line <- ""
         }
       }
 
-      country_run <- officer::ftext(country_line, prop = country_prop)
-      doc <- officer::body_add_fpar(doc, officer::fpar(country_run))
+      if (nzchar(country_line)) {
+        country_run <- officer::ftext(country_line, prop = country_prop)
+        doc <- officer::body_add_fpar(doc, officer::fpar(country_run))
+      }
 
       # Add specimens
       for (spec in geo_group$specimens) {
@@ -364,7 +479,6 @@ barroso_write_specimens <- function(xlsx_path,
                                         italic = FALSE)
         spec_run <- officer::ftext(paste0("  ", spec), prop = normal_prop)
         doc <- officer::body_add_fpar(doc, officer::fpar(spec_run))
-
         specimens_text_all <- c(specimens_text_all, spec)
       }
     }
@@ -396,25 +510,21 @@ barroso_write_specimens <- function(xlsx_path,
   invisible(out_tbl)
 }
 
-# Helper functions
+# Helper functions (same as before, included for completeness)
 
 #' Format coordinates for display
 #' @keywords internal
 #' @noRd
 .format_coordinates <- function(lat, lon) {
   if (is.na(lat) || is.na(lon)) return("")
-
-  # Format degrees/minutes/seconds if needed
   if (abs(lat) > 90) return("")
 
-  # Simple decimal format
   lat_dir <- ifelse(lat >= 0, "N", "S")
   lon_dir <- ifelse(lon >= 0, "E", "W")
 
   lat_abs <- abs(lat)
   lon_abs <- abs(lon)
 
-  # Format as degrees/minutes/seconds for precision
   lat_deg <- floor(lat_abs)
   lat_min_float <- (lat_abs - lat_deg) * 60
   lat_min <- floor(lat_min_float)
@@ -451,7 +561,7 @@ barroso_write_specimens <- function(xlsx_path,
 
   months <- if (language == "pt") months_pt else months_en
 
-  month_num <- as.numeric(month)
+  month_num <- suppressWarnings(as.numeric(month))
   if (!is.na(month_num) && month_num >= 1 && month_num <= 12) {
     month_abbr <- months[month_num]
   } else {
@@ -504,20 +614,15 @@ barroso_write_specimens <- function(xlsx_path,
 #' Format individual specimen entry
 #' @keywords internal
 #' @noRd
-.format_specimen_entry <- function(locality, coords, date, phenology,
+.format_specimen_entry <- function(locality, coords, date, type_status,
                                    collector, collector_num, herbaria,
                                    journal = "SystematicBotany") {
   parts <- c()
 
   if (nzchar(locality)) parts <- c(parts, locality)
+  if (nzchar(type_status)) parts <- c(parts, type_status)
   if (nzchar(coords)) parts <- c(parts, coords)
-  if (nzchar(date)) {
-    if (nzchar(phenology)) {
-      parts <- c(parts, paste0(date, " (", phenology, ")"))
-    } else {
-      parts <- c(parts, date)
-    }
-  }
+  if (nzchar(date)) parts <- c(parts, date)
 
   collector_info <- paste(collector, collector_num)
   if (nzchar(herbaria)) {
@@ -527,4 +632,3 @@ barroso_write_specimens <- function(xlsx_path,
 
   paste(parts, collapse = ", ")
 }
-

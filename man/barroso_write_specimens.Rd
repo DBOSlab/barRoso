@@ -7,12 +7,27 @@
 barroso_write_specimens(
   xlsx_path,
   species_cols,
-  collection_cols,
   sheet = 1,
   species_filter = NULL,
   journal = "SystematicBotany",
   language = "en",
   add_representative = TRUE,
+  colname_recordedBy = "recordedBy",
+  colname_recordNumber = "recordNumber",
+  colname_continent = "continent",
+  colname_country = "country",
+  colname_stateProvince = "stateProvince",
+  colname_county = "county",
+  colname_municipality = "municipality",
+  colname_locality = "locality",
+  colname_decimalLatitude = "decimalLatitude",
+  colname_decimalLongitude = "decimalLongitude",
+  colname_day = "day",
+  colname_month = "month",
+  colname_year = "year",
+  colname_collectionCode = "collectionCode",
+  colname_institutionCode = "institutionCode",
+  colname_typeStatus = "typeStatus",
   font_family = "Times New Roman",
   font_size = 12,
   species_bold = TRUE,
@@ -29,12 +44,6 @@ barroso_write_specimens(
 
 \item{species_cols}{Character/integer. Columns used to build the species header.}
 
-\item{collection_cols}{Named list or character vector. Columns containing
-specimen information. Must include: country, stateProvince, municipality,
-locality, decimalLatitude, decimalLongitude, day, month, year, recordBy,
-recordNumber, collectionCode. Names can be customized using a named list
-(e.g., list(country = "Country", state = "StateProvince")).}
-
 \item{sheet}{Sheet name or index. Default 1.}
 
 \item{species_filter}{Optional character vector to filter species.}
@@ -47,6 +56,38 @@ Portuguese). Affects month names and country translations. Default "en".}
 
 \item{add_representative}{Logical. Should "Representative Specimens Examined"
 header be added? Default TRUE.}
+
+\item{colname_recordedBy}{Character. Column name for collector name. Default "recordedBy".}
+
+\item{colname_recordNumber}{Character. Column name for collector number. Default "recordNumber".}
+
+\item{colname_continent}{Character. Column name for continent. Default "continent".}
+
+\item{colname_country}{Character. Column name for country. Default "country".}
+
+\item{colname_stateProvince}{Character. Column name for state/province. Default "stateProvince".}
+
+\item{colname_county}{Character. Column name for county. Default "county".}
+
+\item{colname_municipality}{Character. Column name for municipality. Default "municipality".}
+
+\item{colname_locality}{Character. Column name for locality description. Default "locality".}
+
+\item{colname_decimalLatitude}{Character. Column name for latitude. Default "decimalLatitude".}
+
+\item{colname_decimalLongitude}{Character. Column name for longitude. Default "decimalLongitude".}
+
+\item{colname_day}{Character. Column name for collection day. Default "day".}
+
+\item{colname_month}{Character. Column name for collection month. Default "month".}
+
+\item{colname_year}{Character. Column name for collection year. Default "year".}
+
+\item{colname_collectionCode}{Character. Column name for herbarium code. Default "collectionCode".}
+
+\item{colname_institutionCode}{Character. Column name for institution code. Default "institutionCode".}
+
+\item{colname_typeStatus}{Character. Column name for type status. Default "typeStatus".}
 
 \item{font_family}{Character. Font family for Word document. Default "Times New Roman".}
 
@@ -96,16 +137,23 @@ Collector Name ## (HERBARIUM1, HERBARIUM2).
 }
 \examples{
 \dontrun{
-# Basic usage
+# Basic usage with default column names
 barroso_write_specimens(
   xlsx_path = "specimens.xlsx",
   species_cols = c("Genus", "Species", "Author"),
-  collection_cols = c("country", "stateProvince", "municipality",
-                       "locality", "decimalLatitude", "decimalLongitude",
-                       "day", "month", "year", "recordBy", "recordNumber",
-                       "collectionCode"),
   journal = "SystematicBotany",
   language = "en"
+)
+
+# Custom column names
+barroso_write_specimens(
+  xlsx_path = "specimens.xlsx",
+  species_cols = c("Genus", "Species", "Author"),
+  colname_country = "Country",
+  colname_stateProvince = "State",
+  colname_locality = "Location",
+  colname_recordedBy = "Collector",
+  colname_recordNumber = "Number"
 )
 }
 
