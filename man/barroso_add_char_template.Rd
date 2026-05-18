@@ -8,8 +8,12 @@ barroso_add_char_template(
   species_df,
   sheet = 1,
   plant_group = NULL,
-  extra_cols = NULL,
+  species_cols = NULL,
   overwrite = TRUE,
+  format_excel = TRUE,
+  sheet_name = "described_specimens",
+  base_font_size = 10,
+  base_font_name = "Calibri Light",
   verbose = TRUE,
   filename = NULL,
   dir = NULL
@@ -31,8 +35,22 @@ never overwritten.}
 listed above. \code{NULL} (default) uses the generic flowering-plant
 profile.}
 
+\item{species_cols}{Character vector or integer indices. Column names or indices
+used to build the species header (e.g., c("Genus", "Species", "Author") or 1:3).
+These can be combined flexibly (e.g., a single "Scientific_name" column or
+separate Genus, Species, and Author columns).}
+
 \item{overwrite}{Logical. If TRUE (default), an existing file at the
 target path is overwritten; if FALSE, the function errors out.}
+
+\item{format_excel}{Logical. If TRUE (default), the function will use more
+user-friendly format for the spreadsheet.}
+
+\item{sheet_name}{Character. Name of the worksheet. Default "described_specimens".}
+
+\item{base_font_size}{Numeric. Base font size. Default 10.}
+
+\item{base_font_name}{Character. Base font name. Default "Calibri Light".}
 
 \item{verbose}{Logical. Print progress messages. Default TRUE.}
 

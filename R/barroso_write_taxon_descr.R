@@ -490,29 +490,6 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
 #' @keywords internal
 #' @noRd
-.resolve_cols <- function(df, cols, arg) {
-  if (is.null(cols) || length(cols) == 0L) stop(arg, " must be non-empty.", call. = FALSE)
-  nms <- names(df)
-  if (is.numeric(cols)) {
-    idx <- as.integer(cols)
-    if (anyNA(idx) || any(idx < 1L) || any(idx > length(nms))) {
-      stop(arg, " indices out of range 1..", length(nms), ".", call. = FALSE)
-    }
-    return(nms[idx])
-  }
-  if (is.character(cols)) {
-    missing <- setdiff(cols, nms)
-    if (length(missing) > 0L) {
-      stop("Missing columns for ", arg, ": ", paste(missing, collapse = ", "),
-           call. = FALSE)
-    }
-    return(cols)
-  }
-  stop(arg, " must be a character vector of names or numeric indices.", call. = FALSE)
-}
-
-#' @keywords internal
-#' @noRd
 .parse_character_columns <- function(character_cols) {
   main_terms <- vapply(character_cols, .extract_main_term, character(1))
   group_order <- unique(main_terms)

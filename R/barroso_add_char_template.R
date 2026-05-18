@@ -44,8 +44,17 @@
 #' @param plant_group Optional character. One of the supported profiles
 #'   listed above. \code{NULL} (default) uses the generic flowering-plant
 #'   profile.
+#' @param species_cols Character vector or integer indices. Column names or indices
+#'   used to build the species header (e.g., c("Genus", "Species", "Author") or 1:3).
+#'   These can be combined flexibly (e.g., a single "Scientific_name" column or
+#'   separate Genus, Species, and Author columns).
 #' @param overwrite Logical. If TRUE (default), an existing file at the
 #'   target path is overwritten; if FALSE, the function errors out.
+#' @param format_excel Logical. If TRUE (default), the function will use more
+#'   user-friendly format for the spreadsheet.
+#' @param sheet_name Character. Name of the worksheet. Default "described_specimens".
+#' @param base_font_size Numeric. Base font size. Default 10.
+#' @param base_font_name Character. Base font name. Default "Calibri Light".
 #' @param verbose Logical. Print progress messages. Default TRUE.
 #' @param filename Output file base name (with or without ".xlsx"). If NULL,
 #'   uses "taxon_template" or "<plant_group>_template" when a group is given.
@@ -86,8 +95,12 @@
 barroso_add_char_template <- function(species_df,
                                       sheet = 1,
                                       plant_group = NULL,
-                                      extra_cols = NULL,
+                                      species_cols = NULL,
                                       overwrite = TRUE,
+                                      format_excel = TRUE,
+                                      sheet_name = "described_specimens",
+                                      base_font_size = 10,
+                                      base_font_name = "Calibri Light",
                                       verbose = TRUE,
                                       filename = NULL,
                                       dir = NULL) {
@@ -140,6 +153,16 @@ barroso_add_char_template <- function(species_df,
 
   input_cols <- names(df)
 
+  # Allow user to pass indices or names
+  if (!is.null(species_cols) && length(species_cols) > 0) {
+    species_cols <- .resolve_cols(df, species_cols, arg = "species_cols")
+  } else {
+    # If no species_cols provided, use all input columns (or throw warning)
+    species_cols <- input_cols
+    if (verbose) {
+      message("No species_cols specified, using all input columns as species identifiers.")
+    }
+  }
   # Check for duplicate column names
   if (any(duplicated(input_cols))) {
     dupes <- paste(unique(input_cols[duplicated(input_cols)]), collapse = ", ")
@@ -165,6 +188,9 @@ barroso_add_char_template <- function(species_df,
     out[[cn]] <- NA_character_
   }
 
+  # ---- Extract trait groups for coloring ------------------------------------
+  trait_groups <- .extract_trait_groups(template_cols, plant_group)
+
   # ---- Resolve output path ---------------------------------------------------
   if (is.null(filename)) {
     base <- if (is.null(plant_group)) "taxon_template" else
@@ -185,8 +211,23 @@ barroso_add_char_template <- function(species_df,
     stop("File already exists and overwrite = FALSE: ", out_path, call. = FALSE)
   }
 
-  # ---- Write -----------------------------------------------------------------
-  openxlsx::write.xlsx(out, file = out_path, overwrite = overwrite)
+  # ---- Write to Excel with formatting ----------------------------------------
+  if (format_excel) {
+    # Use custom formatted writer
+    .write_spreadsheet(
+      data = out,
+      species_cols = species_cols,
+      trait_groups = trait_groups,
+      sheet_name = sheet_name,
+      filename = out_path,
+      overwrite = overwrite,
+      base_font_size = base_font_size,
+      base_font_name = base_font_name
+    )
+  } else {
+    # Use simple write.xlsx
+    openxlsx::write.xlsx(out, file = out_path, overwrite = overwrite)
+  }
 
   if (isTRUE(verbose)) {
     message(sprintf(
@@ -748,3 +789,280 @@ barroso_add_char_template <- function(species_df,
     )
   )
 }
+
+
+#' Extract trait groups from template columns for coloring
+#' @keywords internal
+#' @noRd
+.extract_trait_groups <- function(template_cols, plant_group = NULL) {
+  # Define group patterns based on column prefixes
+  trait_groups <- list()
+
+  # List of main trait blocks and their patterns
+  block_definitions <- list(
+    "HABIT" = "^HABIT",
+    "STIPULE" = "^STIPULE",
+    "LEAF" = "^LEAF",
+    "INFLORESCENCE" = "^INFLORESCENCE",
+    "FLOWER" = "^FLOWER",
+    "FRUIT" = "^FRUIT",
+    "SEED" = "^SEED"
+  )
+
+  # Add Asteraceae-specific blocks
+  if (!is.null(plant_group) && plant_group == "Asteraceae") {
+    block_definitions$INFLORESCENCE <- "^(INFLORESCENCE|CAPITULUM|INVOLUCRE|PHYLLARIES|RECEPTACLE)"
+    block_definitions$FLORET <- "^(FLORET|RAY|DISC|PAPPUS)"
+  }
+
+  # Add Ochnaceae-specific blocks (carpophore and mericarp under fruit)
+  if (!is.null(plant_group) && plant_group == "Ochnaceae") {
+    block_definitions$FRUIT <- "^(FRUIT|CARPOPHORE|MERICARP)"
+  }
+
+  # Add Orchidaceae-specific blocks
+  if (!is.null(plant_group) && plant_group == "Orchidaceae") {
+    block_definitions$FLOWER <- "^(FLOWER|SEPALS|PETALS|LABELLUM|COLUMN)"
+  }
+
+  # For Leguminosae groups, add the specialized flower parts
+  if (!is.null(plant_group) && grepl("Leguminosae", plant_group)) {
+    block_definitions$FLOWER <- "^(FLOWER|STANDARD|WING|KEEL|CALYX|COROLLA)"
+  }
+
+  # Build trait groups by matching column names to patterns
+  for (block_name in names(block_definitions)) {
+    pattern <- block_definitions[[block_name]]
+    matched_cols <- grep(pattern, template_cols, value = TRUE, perl = TRUE)
+    if (length(matched_cols) > 0) {
+      trait_groups[[block_name]] <- matched_cols
+    }
+  }
+
+  # Also capture any columns that start with UPPERCASE words as potential blocks
+  # This catches any custom blocks that might have been added via extra_cols
+  all_cols <- template_cols
+  potential_blocks <- unique(gsub("^([A-Z]+).*", "\\1", all_cols))
+  for (pb in potential_blocks) {
+    if (!pb %in% names(trait_groups) && nchar(pb) > 0) {
+      matched <- grep(paste0("^", pb), all_cols, value = TRUE)
+      if (length(matched) > 0) {
+        trait_groups[[pb]] <- matched
+      }
+    }
+  }
+
+  return(trait_groups)
+}
+
+#' Write a formatted Excel spreadsheet with colored morphological trait blocks
+#'
+#' @description Creates a professionally formatted Excel file with color-coded
+#'   blocks for each morphological trait group (HABIT, STIPULE, LEAF, etc.),
+#'   with frozen header rows, auto-adjusted column widths based on header text,
+#'   filter dropdowns, and clean formatting.
+#'
+#' @param data Data frame to write to Excel.
+#' @param species_cols Character vector. Names of columns that identify the species
+#'   (these will NOT be colored as trait blocks and will be frozen).
+#' @param trait_groups Named list. Each element contains the column names for a
+#'   specific trait group (e.g., HABIT, LEAF, FLOWER). Created by .extract_trait_groups().
+#' @param sheet_name Character. Name of the worksheet. Default "described_specimens".
+#' @param filename Character. Path where the Excel file will be saved.
+#' @param overwrite Logical. Overwrite existing file? Default TRUE.
+#' @param base_font_size Numeric. Base font size. Default 10.
+#' @param base_font_name Character. Base font name. Default "Calibri Light".
+#'
+#' @return Invisibly returns the file path.
+#'
+#' @importFrom openxlsx createWorkbook addWorksheet modifyBaseFont writeData
+#'   freezePane setColWidths saveWorkbook addStyle createStyle addFilter
+#'
+#' @keywords internal
+#' @noRd
+.write_spreadsheet <- function(data,
+                               species_cols,
+                               trait_groups,
+                               sheet_name = "described_specimens",
+                               filename,
+                               overwrite = TRUE,
+                               base_font_size = 10,
+                               base_font_name = "Calibri Light") {
+
+  # Default block colors for trait groups
+  block_colors <- c(
+    "HABIT" = "#E6F3FF",           # Light blue
+    "STIPULE" = "#FFF0E6",         # Light orange
+    "LEAF" = "#E6FFE6",            # Light green
+    "INFLORESCENCE" = "#FFE6F0",   # Light pink
+    "FLOWER" = "#FFE6CC",          # Light peach
+    "FRUIT" = "#F0E6FF",           # Light purple
+    "SEED" = "#FFFACD",            # Light yellow
+    "FLORET" = "#FFDAB9"           # Peach puff for Asteraceae florets
+  )
+
+  # Create workbook
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, sheetName = sheet_name)
+
+  # Modify base font
+  openxlsx::modifyBaseFont(wb, fontSize = base_font_size,
+                           fontName = base_font_name,
+                           fontColour = "black")
+
+  # Create a mapping of column to its trait group
+  col_to_group <- list()
+  for (group_name in names(trait_groups)) {
+    for (col in trait_groups[[group_name]]) {
+      col_to_group[[col]] <- group_name
+    }
+  }
+
+  col_names <- names(data)
+
+  # Write ALL data in one go (much faster!)
+  openxlsx::writeData(wb, sheet = sheet_name, x = data,
+                      startCol = 1, startRow = 2, colNames = FALSE)
+
+  # Write headers
+  for (j in seq_along(col_names)) {
+    openxlsx::writeData(wb, sheet = sheet_name, x = col_names[j],
+                        startCol = j, startRow = 1)
+  }
+
+  # Create and apply styles by column group (apply to entire columns at once)
+  # This is much faster than cell-by-cell styling
+
+  # First, apply styles to header row
+  for (j in seq_along(col_names)) {
+    col_name <- col_names[j]
+
+    if (col_name %in% species_cols) {
+      style <- openxlsx::createStyle(
+        fontSize = base_font_size + 1,
+        fontColour = "#000000",
+        fontName = base_font_name,
+        fgFill = "#F0F0F0",
+        halign = "left",
+        valign = "center",
+        textDecoration = "bold",
+        border = "TopBottomLeftRight",
+        borderColour = "#CCCCCC"
+      )
+    } else if (col_name %in% names(col_to_group)) {
+      group_name <- col_to_group[[col_name]]
+      color <- if (group_name %in% names(block_colors)) block_colors[group_name] else "#F5F5F5"
+      style <- openxlsx::createStyle(
+        fontSize = base_font_size + 1,
+        fontColour = "#000000",
+        fontName = base_font_name,
+        fgFill = color,
+        halign = "left",
+        valign = "center",
+        textDecoration = "bold",
+        border = "TopBottomLeftRight",
+        borderColour = "#CCCCCC"
+      )
+    } else {
+      style <- openxlsx::createStyle(
+        fontSize = base_font_size + 1,
+        fontColour = "#000000",
+        fontName = base_font_name,
+        fgFill = "#FFFFFF",
+        halign = "left",
+        valign = "center",
+        textDecoration = "bold",
+        border = "TopBottomLeftRight",
+        borderColour = "#CCCCCC"
+      )
+    }
+    openxlsx::addStyle(wb, sheet = sheet_name, style = style,
+                       rows = 1, cols = j, gridExpand = TRUE, stack = TRUE)
+  }
+
+  # Apply styles to data rows (apply to entire columns at once)
+  if (nrow(data) > 0) {
+    for (j in seq_along(col_names)) {
+      col_name <- col_names[j]
+
+      if (col_name %in% species_cols) {
+        style <- openxlsx::createStyle(
+          fontSize = base_font_size,
+          fontColour = "#000000",
+          fontName = base_font_name,
+          fgFill = "#FFFFFF",
+          halign = "left",
+          valign = "center",
+          wrapText = FALSE,
+          border = "TopBottomLeftRight",
+          borderColour = "#CCCCCC"
+        )
+      } else if (col_name %in% names(col_to_group)) {
+        group_name <- col_to_group[[col_name]]
+        color <- if (group_name %in% names(block_colors)) block_colors[group_name] else "#F5F5F5"
+        style <- openxlsx::createStyle(
+          fontSize = base_font_size,
+          fontColour = "#000000",
+          fontName = base_font_name,
+          fgFill = color,
+          halign = "left",
+          valign = "center",
+          wrapText = FALSE,
+          border = "TopBottomLeftRight",
+          borderColour = "#CCCCCC"
+        )
+      } else {
+        style <- openxlsx::createStyle(
+          fontSize = base_font_size,
+          fontColour = "#000000",
+          fontName = base_font_name,
+          fgFill = "#FFFFFF",
+          halign = "left",
+          valign = "center",
+          wrapText = FALSE,
+          border = "TopBottomLeftRight",
+          borderColour = "#CCCCCC"
+        )
+      }
+      # Apply style to entire data column at once (rows 2 to n+1)
+      openxlsx::addStyle(wb, sheet = sheet_name, style = style,
+                         rows = 2:(nrow(data) + 1), cols = j,
+                         gridExpand = TRUE, stack = TRUE)
+    }
+  }
+
+  # Add filters to the header row
+  if (nrow(data) > 0) {
+    openxlsx::addFilter(wb, sheet = sheet_name, rows = 1, cols = 1:ncol(data))
+  }
+
+  # Freeze panes
+  species_col_indices <- which(col_names %in% species_cols)
+
+  if (length(species_col_indices) > 0) {
+    last_species_col <- max(species_col_indices)
+    if (last_species_col == 1) {
+      openxlsx::freezePane(wb, sheet = sheet_name, firstRow = TRUE, firstCol = TRUE)
+    } else {
+      openxlsx::freezePane(wb, sheet = sheet_name,
+                           firstActiveRow = 2,
+                           firstActiveCol = last_species_col + 1)
+    }
+  } else {
+    openxlsx::freezePane(wb, sheet = sheet_name, firstRow = TRUE, firstCol = FALSE)
+  }
+
+  # Auto-adjust column widths based on header text
+  for (j in seq_len(ncol(data))) {
+    header_text <- as.character(col_names[j])
+    header_width <- nchar(header_text) + 4
+    width <- min(max(header_width, 8), 50)
+    openxlsx::setColWidths(wb, sheet = sheet_name, cols = j, widths = width)
+  }
+
+  # Save the workbook
+  openxlsx::saveWorkbook(wb, filename, overwrite = overwrite)
+
+  invisible(filename)
+}
+

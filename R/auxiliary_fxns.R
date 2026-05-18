@@ -4,6 +4,8 @@
 
 #_______________________________________________________________________________
 # Create a named list of the input database ####
+#' @keywords internal
+#' @noRd
 .namedherbsource <- function(...) {
   nms <- sapply(as.list(substitute(list(...))), deparse)[-1]
   setNames(list(...), nms)
@@ -12,6 +14,8 @@
 
 #_______________________________________________________________________________
 # Delete all records associated with just wood, seed or spirit collections  ####
+#' @keywords internal
+#' @noRd
 .delunvouchered <- function(df,
                             colname_collectionCode) {
 
@@ -39,7 +43,8 @@
   return(df)
 }
 
-
+#' @keywords internal
+#' @noRd
 .upper_first_only <- function(x) {
   if (!is.character(x)) {
     x <- as.character(x)
@@ -58,4 +63,25 @@
   }, USE.NAMES = FALSE)
 }
 
-
+#' @keywords internal
+#' @noRd
+.resolve_cols <- function(df, cols, arg) {
+  if (is.null(cols) || length(cols) == 0L) stop(arg, " must be non-empty.", call. = FALSE)
+  nms <- names(df)
+  if (is.numeric(cols)) {
+    idx <- as.integer(cols)
+    if (anyNA(idx) || any(idx < 1L) || any(idx > length(nms))) {
+      stop(arg, " indices out of range 1..", length(nms), ".", call. = FALSE)
+    }
+    return(nms[idx])
+  }
+  if (is.character(cols)) {
+    missing <- setdiff(cols, nms)
+    if (length(missing) > 0L) {
+      stop("Missing columns for ", arg, ": ", paste(missing, collapse = ", "),
+           call. = FALSE)
+    }
+    return(cols)
+  }
+  stop(arg, " must be a character vector of names or numeric indices.", call. = FALSE)
+}
