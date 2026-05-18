@@ -5,68 +5,105 @@
 #' @description This function reads morphological data from an Excel spreadsheet,
 #'   generates standardized species descriptions in plain text and Word document formats,
 #'   and exports them to a Word (.docx) file. It handles complex morphological data
-#'   structures including measurements, subterms, and grouping of related characters.
+#'   structures including measurements, subterms and grouping of related characters.
 #'   The function automatically detects measurement ranges and formats them with
-#'   en dashes (e.g., "4.3–14.5 cm").
+#'   en dashes (e.g., "4.3–14.5 cm"). Optionally, it can compute and print averages
+#'   for user-selected measurement columns when a species has more than a threshold
+#'   number of values (see \code{avg_cols} and \code{avg_min_n}).
 #'
-#' @details The function expects an Excel file with specific column naming conventions.
-#'   Morphological characters should be grouped with consistent naming patterns:
+#' @details \strong{Column naming conventions}
 #'
-#'   - Simple characters: "Habit", "LEAF shape", "LEAF margin"
-#'   - Measurements: "LEAF length (cm)", "LEAF width (mm)"
-#'   - Hierarchical structures: "FLOWER SEPALS length (mm)", "FLOWER SEPALS width (mm)"
+#' The function relies on a structured column naming system to parse and organize
+#' morphological traits. Columns must follow these conventions:
 #'
-#'   The package includes an example dataset \code{morphological_dataset} containing
-#'   morphological data for 15 species of \emph{Ouratea} (Ochnaceae) that demonstrates
-#'   these naming conventions. This dataset can be used to test the function
-#'   and understand the required data structure.
+#' \describe{
+#'   \item{\strong{Main character groups}}{Use ALL CAPS for the primary category:
+#'     \code{HABIT}, \code{STIPULE}, \code{LEAF}, \code{INFLORESCENCE},
+#'     \code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers.}
 #'
-#'   The function automatically:
-#'   \itemize{
-#'     \item{Detects and groups related morphological characters}
-#'     \item{Handles measurement ranges (e.g., "4.3-14.5" becomes "4.3–14.5")}
-#'     \item{Merges duplicate species entries}
-#'     \item{Formats descriptions with customizable text formatting}
-#'     \item{Exports to Word with proper scientific typography}
-#'   }
+#'   \item{\strong{Simple characters}}{Lowercase descriptive terms after the main group.
+#'     Examples: \code{LEAF shape}, \code{LEAF margin}, \code{FLOWER symmetry}.
+#'     These will be appended directly after the lowercase group name.}
 #'
-#'   Text formatting can be controlled via the \code{species_bold}, \code{group_bold},
-#'   and related parameters. Species names are italicized by default following
-#'   botanical conventions.
+#'   \item{\strong{Hierarchical characters}}{Use ALL CAPS for subgroup terms.
+#'     Examples: \code{LEAF PETIOLE length (cm)}, \code{FLOWER SEPALS shape}.
+#'     The capitalized term (\code{PETIOLE}, \code{SEPALS}) is extracted once
+#'     and used as a subheading.}
 #'
-#' @usage barroso_write_taxon_descr(
-#'   xlsx_path,
-#'   species_cols,
-#'   character_cols,
-#'   sheet = 1,
-#'   species_filter = NULL,
-#'   font_family = "Times New Roman",
-#'   font_size = 12,
-#'   species_bold = TRUE,
-#'   species_italic = TRUE,
-#'   group_bold = TRUE,
-#'   group_italic = FALSE,
-#'   description_bold = FALSE,
-#'   description_italic = FALSE,
-#'   verbose = TRUE,
-#'   dir = NULL,
-#'   filename = NULL
+#'   \item{\strong{Measurements}}{Include units in parentheses for automatic detection:
+#'     \code{LEAF length (cm)}, \code{STIPULE width (mm)}, \code{HABIT height (m)}.
+#'     Multiple measurements (e.g., length + width) are automatically combined
+#'     with "×" and the unit is placed at the end.}
+#'
+#'   \item{\strong{Column name flexibility}}{Spaces, dots, or underscores can be used
+#'     as separators. All of the following are valid:
+#'     \itemize{
+#'       \item \code{STIPULE length (mm)}
+#'       \item \code{STIPULE.length.(mm)}
+#'       \item \code{STIPULE_length_mm}
+#'       \item \code{LEAF PETIOLE shape}
+#'       \item \code{LEAF.PETIOLE.shape}
+#'     }}
+#' }
+#'
+#' \strong{Example dataset}
+#'
+#' The package includes an example dataset \code{morphological_dataset} containing
+#' morphological data for 15 species of \emph{Ouratea} (Ochnaceae) compiled from
+#' herbarium specimens and field observations for a taxonomic revision. This dataset
+#' demonstrates proper column naming conventions and can be used to test the function:
+#'
+#' \preformatted{
+#' data(morphological_dataset)
+#' head(names(morphological_dataset))
+#' }
+#'
+#' \strong{Creating a template}
+#'
+#' To create a properly formatted Excel template with all required columns for your
+#' plant group, use the companion function \code{\link{barroso_add_char_template}}.
+#' This function generates a ready-to-use template based on your species list and
+#' selected plant group (e.g., "Ochnaceae", "Asteraceae", "Orchidaceae",
+#' "Leguminosae-Papilionoideae"), saving hours of manual column creation.
+#'
+#' \preformatted{
+#' # Create a template for Ochnaceae
+#' barroso_add_char_template(
+#'   species_df = my_species_list,
+#'   plant_group = "Ochnaceae",
+#'   filename = "Ochnaceae_template"
 #' )
+#' }
 #'
-#' @param xlsx_path Character string. Path to the .xlsx file containing
-#'   morphological data.
-#' @param species_cols Character vector or integer indices. Column names or
-#'   indices used to build the species header (e.g., c("Genus", "Species",
-#'   "Author") or 1:3).
-#' @param character_cols Character vector or integer indices. Column names or
-#'   indices of morphological character columns (e.g., c("Habit", "Leaf.length",
-#'   "Leaf.width") or 4:20).
+#' @param xlsx_path Character. Path to the .xlsx file containing morphological data
+#'   with properly structured column names (see Details for naming conventions).
+#' @param species_cols Character vector or integer indices. Column names or indices
+#'   used to build the species header (e.g., c("Genus", "Species", "Author") or 1:3).
+#'   These can be combined flexibly (e.g., a single "Scientific_name" column or
+#'   separate Genus, Species, and Author columns).
+#' @param character_cols Character vector or integer indices. Column names or indices
+#'   of morphological character columns (e.g., c("HABIT", "LEAF shape",
+#'   "LEAF length (cm)") or 4:20). These must follow the naming conventions described
+#'   in Details.
 #' @param sheet Character string or integer. Sheet name or index passed to
 #'   \code{readxl::read_excel()}. Default is 1.
 #' @param species_filter Optional character vector of species names to filter.
 #'   Only species matching these names will have descriptions generated.
 #'   The names should match the species name as it appears when concatenating
 #'   the \code{species_cols} columns (without authorship).
+#' @param avg_cols Optional character vector or integer indices of columns for
+#'   which an average should be reported, displayed immediately after the existing
+#'   range (e.g. "3–8 × 1–2 cm, average 5.5 × 1.5 cm"). Must be a subset of
+#'   \code{character_cols}. Default \code{NULL} (no averages reported).
+#' @param avg_min_n Integer. Minimum number of non-empty observations per species
+#'   required for an average to be reported. Averages are emitted only when the
+#'   number of observed values is strictly greater than \code{avg_min_n}.
+#'   Default \code{3} (i.e., need at least 4 values for averaging).
+#' @param approx_char Character string to use for approximate measurements when
+#'   no variation is present (e.g., "ca." or "c."). Default is "ca.".
+#'   Set to \code{NULL} to disable adding approximation. Examples:
+#'   \code{"ca. 0.1 × 0.1 cm"} (no variation) vs \code{"1.3–2.5 × 0.6–1.1 cm"}
+#'   (variation present, no "ca.").
 #' @param font_family Character string. Font family for the Word document.
 #'   Default is "Times New Roman". Common options include "Arial", "Calibri",
 #'   "Cambria".
@@ -83,14 +120,10 @@
 #'   Default is FALSE.
 #' @param description_italic Logical. Whether to make description text italic.
 #'   Default is FALSE.
-#' @param verbose Logical. If \code{TRUE} (default), progress messages are
-#'   printed to the console. Set to \code{FALSE} for silent operation.
-#' @param filename Character string. Basename for output files (without
-#'   extension). If \code{NULL}, uses the Excel filename with "_descriptions"
-#'   suffix.
-#' @param dir Character string. Directory path where output will be saved.
-#'   A date-stamped subfolder will be created inside this directory. If
-#'   \code{NULL}, uses the Excel filename as directory name.
+#' @param verbose Logical. Print progress messages. Default TRUE.
+#' @param dir Output directory. Default NULL (uses Excel filename as directory name).
+#' @param filename Output file base name (without extension). Default NULL
+#'   (uses Excel filename with "_descriptions" suffix).
 #'
 #' @return Invisibly returns a data.frame with two columns:
 #'   \itemize{
@@ -101,14 +134,32 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Basic usage - generate descriptions for all species
+#' # Basic usage with example dataset
+#' data(morphological_dataset)
+#'
+#' # First, save the example dataset to Excel
+#' library(openxlsx)
+#' write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
+#'
+#' # Generate descriptions using proper column selection
+#' barroso_write_taxon_descr(
+#'   xlsx_path = "morphological_dataset.xlsx",
+#'   species_cols = c("Genus", "Species", "Author"),  # Taxonomic identification
+#'   character_cols = 19:131,  # Morphological character columns
+#'   approx_char = "ca."  # Add "ca." to measurements without variation
+#' )
+#'
+#' # Generate descriptions with average calculation
 #' barroso_write_taxon_descr(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = c("Genus", "Species", "Author"),
-#'   character_cols = 4:20
+#'   character_cols = 4:20,
+#'   avg_cols = c("LEAF length (cm)", "FRUIT length (cm)"),
+#'   avg_min_n = 3,  # Calculate averages when n > 3 observations
+#'   approx_char = "ca."
 #' )
 #'
-#' # Generate descriptions only for specific species
+#' # Filter to specific species only
 #' barroso_write_taxon_descr(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = c("Genus", "Species"),
@@ -116,7 +167,7 @@
 #'   species_filter = c("Ouratea concinna", "Ouratea coarctata")
 #' )
 #'
-#' # Customize formatting
+#' # Customize text formatting in Word output
 #' barroso_write_taxon_descr(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = 1:3,
@@ -132,115 +183,16 @@
 #'   filename = "MySpeciesDescriptions",
 #'   dir = "Output"
 #' )
-#'
-#' # Using column indices instead of names
-#' barroso_write_taxon_descr(
-#'   xlsx_path = "data.xlsx",
-#'   species_cols = 1:2,          # First two columns: Genus and Species
-#'   character_cols = 3:18        # Columns 3-18: morphological characters
-#' )
 #' }
 #'
-#' @examples
-#' # Using the included morphological_dataset
-#' \dontrun{
-#' # First save the dataset to Excel format=
-#' library(openxlsx)
-#' openxlsx::write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
-#'
-#' # Generate descriptions using the example dataset
-#' barroso_write_taxon_descr(
-#'   xlsx_path = "morphological_dataset.xlsx",
-#'   species_cols = c("Genus", "Species", "Author"),
-#'   character_cols = 19:131  # Morphological character columns
-#' )
-#' }
-#'
-#' @section Column naming conventions and text construction:
-#' The function comprehensively parses column names to construct coherent descriptions.
-#' Capitalized terms in column names serve as organizational elements that are
-#' pulled out and used to structure the description text. Follow these conventions:
-#'
-#' \describe{
-#'   \item{Species columns}{One or more columns containing taxonomic information.
-#'     Can be flexible combinations:
-#'     \itemize{
-#'       \item{Single column: "Species_name" (e.g., "Ouratea concinna")}
-#'       \item{Two columns: "Genus" and "Species" (e.g., "Ouratea" and "concinna")}
-#'       \item{Three columns: "Genus", "Species", and "Author" (e.g., "Ouratea",
-#'             "concinna", and "(Mart.) Engl.")}
-#'       \item{Any other combination needed for your data structure}
-#'     }
-#'     These are concatenated to form the species header.}
-#'   \item{Main character groups}{Use ALL CAPS: "HABIT", "LEAF",
-#'     "Flower". These become section headers in the description.}
-#'   \item{Hierarchical structures}{Use ALL CAPS for sub-levels: "LEAF shape",
-#'     "LEAF margin", "FLOWER PETALS color". The capitalized terms ("LEAF",
-#'     "PETALS") are extracted once and the descriptive text from the cell is
-#'     appended. For example, a column named "LEAF shape" with cell value
-#'     "elliptic to ovate" produces: "leaf elliptic to ovate".}
-#'   \item{Measurements}{Include units in parentheses: "LEAF length (cm)",
-#'        "PETAL width (mm)". Measurements with multiple values (e.g., "4.3-14.5")
-#'        are automatically formatted with en dashes: "4.3–14.5 cm".}
-#'   \item{Related measurements}{Columns like "LEAF length (cm)" and
-#'        "LEAF width (cm)" are automatically combined: "4.3–14.5 × 2.1–3.8 cm".}
-#'   \item{Higher hierarchies}{Complex structures like "FLOWER SEPALS BASE shape"
-#'     are parsed as: "flower sepals base" + cell value. This allows grouping
-#'     related characters under common headings.}
-#' }
-#'
-#' @section Examples of species column flexibility:
-#' \preformatted{
-#' # Example 1: Single species name column
-#' species_cols = "Species"  # Column contains "Ouratea concinna (Mart.) Engl."
-#'
-#' # Example 2: Separate genus and species
-#' species_cols = c("Genus", "Species")  # "Ouratea" + "concinna"
-#'
-#' # Example 3: With separate authorship
-#' species_cols = c("Genus", "Species", "Author")  # "Ouratea" + "concinna" + "(Mart.) Engl."
-#'
-#' # Example 4: With infraspecific rank
-#' species_cols = c("Genus", "Species", "Infrasp_rank", "Infrasp", "Author")
-#' # Produces: "Ouratea concinna subsp. coarctata (Mart.) Engl."
-#' }
-#'
-#' @section How descriptions are constructed:
-#' For each species, the function:
-#' 1. **Parses column names** to extract hierarchical structure
-#' 2. **Groups related characters** based on capitalized terms
-#' 3. **Extracts capitalized terms once** to avoid repetition
-#' 4. **Appends cell values** to create natural language descriptions
-#' 5. **Formats measurements** with proper units and en dashes
-#' 6. **Organizes text** with appropriate punctuation
-#'
-#' Example transformation:
-#' \preformatted{
-#' Column name: "LEAF shape" with cell value: "elliptic to ovate"
-#' Result in description: "leaf elliptic to ovate"
-#'
-#' Column names: "LEAF length (cm)" (value: "4.3-14.5") and
-#'               "LEAF width (cm)" (value: "2.1-3.8")
-#' Result in description: "leaf 4.3–14.5 × 2.1–3.8 cm"
-#'
-#' Column names: "FLOWER PETALS color" (value: "white") and
-#'               "FLOWER PETALS number" (value: "5")
-#' Result in description: "flower petals white, 5"
-#' }
-#'
-#' @section Output structure:
-#' The generated Word document contains:
-#' \itemize{
-#'   \item{Species name with authorship (italicized by default)}
-#'   \item{Morphological description organized by character groups}
-#'   \item{Measurements formatted with proper units and en dashes for ranges}
-#'   \item{Hierarchical characters grouped logically}
-#' }
+#' @seealso
+#' \code{\link{barroso_add_char_template}} for creating properly formatted Excel templates,
+#' \code{\link{morphological_dataset}} for an example dataset showing correct column naming
 #'
 #' @importFrom readxl read_excel
 #' @importFrom stringr str_split_fixed str_split str_replace_all str_trim str_squish str_detect str_to_lower str_match
 #' @importFrom officer read_docx body_add_fpar fpar fp_text ftext body_add_par
-#' @importFrom dplyr select all_of group_by summarise across
+#' @importFrom dplyr select all_of group_by summarise across first
 #' @importFrom tidyr unite
 #' @importFrom tools file_path_sans_ext file_ext
 #' @importFrom stats na.omit
@@ -252,6 +204,9 @@ barroso_write_taxon_descr <- function(xlsx_path,
                                       character_cols,
                                       sheet = 1,
                                       species_filter = NULL,
+                                      avg_cols = NULL,
+                                      avg_min_n = 3,
+                                      approx_char = "ca.",
                                       font_family = "Times New Roman",
                                       font_size = 12,
                                       species_bold = TRUE,
@@ -261,12 +216,11 @@ barroso_write_taxon_descr <- function(xlsx_path,
                                       description_bold = FALSE,
                                       description_italic = FALSE,
                                       verbose = TRUE,
-                                      dir = NULL,
-                                      filename = NULL) {
+                                      filename = NULL,
+                                      dir = NULL) {
 
   # Creating the directory to save the file based on the current date
   if (!is.null(dir)) {
-    # dir check
     dir <- .arg_check_dir(dir)
     foldername <- paste0(dir, "/", format(Sys.time(), "%d%b%Y"))
     if (!dir.exists(dir)) dir.create(dir)
@@ -283,66 +237,87 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
   # Read Excel structured spreadsheet
   df <- readxl::read_excel(path = xlsx_path, sheet = sheet)
+  names(df) <- gsub("[.]", " ", names(df))
+  names(df) <- trimws(gsub("(\\s){2,}", " ", names(df)))
 
   # Allow user to pass indices or names
-  species_cols <- .resolve_cols(df, species_cols, arg = "species_cols")
+  species_cols <- .resolve_cols(df, species_cols,   arg = "species_cols")
   character_cols <- .resolve_cols(df, character_cols, arg = "character_cols")
 
-  # Create a vector of all columns to select
-  selected_cols <- unique(c(species_cols, character_cols))
 
-  # Validate all columns exist
+  # Remove signals at the end of the string
+  df[character_cols] <- data.frame(
+    lapply(df[character_cols], function(x) {
+      if (is.character(x)) {
+        x <- trimws(gsub("[.,;:]+$", "", x))
+      }
+      x
+    }),
+    stringsAsFactors = FALSE
+  )
+
+  # Select columns
+  selected_cols <- unique(c(species_cols, character_cols))
   missing_cols <- setdiff(selected_cols, names(df))
   if (length(missing_cols) > 0) {
     stop("The following columns are not found in the data: ",
          paste(missing_cols, collapse = ", "))
   }
-
-  # Select columns
-  df <- df %>%
-    dplyr::select(dplyr::all_of(selected_cols))
+  df <- df %>% dplyr::select(dplyr::all_of(selected_cols))
 
   # Update character_cols to match exactly what's in the filtered dataframe
   character_cols <- intersect(character_cols, names(df))
+
+  # Resolve avg_cols (must be a subset of character_cols)
+  if (!is.null(avg_cols)) {
+    avg_cols <- .resolve_cols(df, avg_cols, arg = "avg_cols")
+    not_in_chars <- setdiff(avg_cols, character_cols)
+    if (length(not_in_chars) > 0) {
+      stop("avg_cols must be a subset of character_cols. ",
+           "These columns are not in character_cols: ",
+           paste(not_in_chars, collapse = ", "), call. = FALSE)
+    }
+  }
 
   # Filter by species if species_filter is provided
   if (!is.null(species_filter)) {
     species_names_vector <- df %>%
       tidyr::unite("species_name", dplyr::all_of(species_cols),
-                   sep = " ",
-                   remove = FALSE,
-                   na.rm = TRUE) %>%
+                   sep = " ", remove = FALSE, na.rm = TRUE) %>%
       .$species_name
-
-    # Check if species_filter matches any species
     matches <- barRoso::remove_authorship(species_names_vector) %in% species_filter
-
     if (sum(matches) == 0) {
       warning("No species in the data match the species_filter: ",
               paste(species_filter, collapse = ", "))
     }
-
-    # Filter the dataframe
     df <- df[matches, , drop = FALSE]
-
     if (verbose) {
       message("Filtering to ", nrow(df), " species: ",
               paste(species_names_vector[matches], collapse = ", "))
     }
   }
 
+  # ---- IMPORTANT: compute averages from the ORIGINAL (pre-merge) data ----
+  # Done BEFORE en-dash conversion and BEFORE merging duplicates so each row
+  # contributes its own observed value(s) to the per-species pool.
+  species_averages <- .compute_species_averages(
+    df, species_cols, avg_cols,
+    avg_min_n = avg_min_n
+  )
+
+  # Normalize ranges to en-dashes
   df[] <- lapply(df, function(col) {
     gsub("(\\d+(?:\\.\\d+)?)\\s*\\-\\s*(\\d+(?:\\.\\d+)?)",
-         "\\1–\\2",
-         col,
-         perl = TRUE)
+         "\\1–\\2", col, perl = TRUE)
   })
 
+  # Merge duplicate species rows
   df <- .merge_duplicate_species(df, species_cols, character_cols)
 
   # Parse character columns
   char_meta <- .parse_character_columns(character_cols)
 
+  # Output filename
   if (is.null(filename)) {
     base <- tools::file_path_sans_ext(basename(xlsx_path))
     filename <- paste0(foldername, "/", base, "_descriptions.docx")
@@ -362,18 +337,28 @@ barroso_write_taxon_descr <- function(xlsx_path,
     row <- df[i, , drop = FALSE]
     species_name_parts <- .build_species_name_parts(row, species_cols)
 
-    # Build descriptions for this specific row
-    desc_plain <- .build_species_description_plain(row, species_name_parts, char_meta)
+    # Look up averages for this species
+    row_averages <- .get_row_averages(row, species_cols, species_averages)
 
-    runs <- .build_species_paragraph_runs(row, species_name_parts, char_meta,
-                                          font_family = font_family,
-                                          font_size = font_size,
-                                          species_bold = species_bold,
-                                          species_italic = species_italic,
-                                          group_bold = group_bold,
-                                          group_italic = group_italic,
-                                          description_bold = description_bold,
-                                          description_italic = description_italic)
+    desc_plain <- .build_species_description_plain(
+      row, species_name_parts, char_meta,
+      row_averages = row_averages,
+      approx_char = approx_char
+    )
+
+    paragraphs <- .build_species_paragraph_runs(
+      row, species_name_parts, char_meta,
+      font_family = font_family,
+      font_size = font_size,
+      species_bold = species_bold,
+      species_italic = species_italic,
+      group_bold = group_bold,
+      group_italic = group_italic,
+      description_bold = description_bold,
+      description_italic = description_italic,
+      row_averages = row_averages,
+      approx_char = approx_char
+    )
 
     out_tbl <- rbind(
       out_tbl,
@@ -382,28 +367,132 @@ barroso_write_taxon_descr <- function(xlsx_path,
                  stringsAsFactors = FALSE)
     )
 
-    # Add line break between species if not the first one
-    if (i > 1) {
-      doc <- officer::body_add_par(doc, "")
+    # Add blank line between species
+    if (i > 1) doc <- officer::body_add_par(doc, "")
+
+    # Add species name as its own paragraph
+    doc <- officer::body_add_fpar(doc, do.call(officer::fpar, paragraphs$name))
+
+    # Add description as a separate paragraph (this ensures it starts on a new line)
+    if (length(paragraphs$description) > 0) {
+      doc <- officer::body_add_fpar(doc, do.call(officer::fpar, paragraphs$description))
     }
-
-    # Use do.call to pass the list of runs as arguments to fpar
-    doc <- officer::body_add_fpar(doc, do.call(officer::fpar, runs))
-
   }
 
   print(doc, target = filename)
-
   invisible(out_tbl)
 }
 
-.resolve_cols <- function(df, cols, arg) {
-  if (is.null(cols) || length(cols) == 0L) {
-    stop(arg, " must be non-empty.", call. = FALSE)
+
+# ---------------------------------------------------------------------------
+# Number extraction helpers
+# ---------------------------------------------------------------------------
+
+#' Tokenise every numeric run in a string. Hyphens, en-dashes, commas, "or",
+#' "x" and "×" are all treated as separators. CRITICAL: this does NOT honour
+#' a leading "-" as a negative sign, because in morphological data the only
+#' real-world meaning of "-" between digits is a range separator. With the
+#' old regex \code{"-?\\d+\\.?\\d*"}, "12-21" extracted as 12 and -21
+#' (producing absurd means and ranges); we want 12 and 21.
+#' @keywords internal
+#' @noRd
+.tokenize_numbers <- function(s) {
+  if (is.null(s) || length(s) == 0L) return(numeric(0))
+  if (is.na(s) || !nzchar(s)) return(numeric(0))
+  m <- regmatches(s, gregexpr("\\d+\\.?\\d*", s))[[1]]
+  out <- suppressWarnings(as.numeric(m))
+  out[!is.na(out)]
+}
+
+#' Extract every numeric token across a vector of cell values.
+#' @keywords internal
+#' @noRd
+.extract_all_numerics <- function(vals) {
+  out <- numeric(0)
+  for (v in vals) {
+    if (is.null(v)) next
+    if (length(v) == 0L) next
+    if (is.na(v)) next
+    if (is.numeric(v)) {
+      out <- c(out, v)
+    } else {
+      out <- c(out, .tokenize_numbers(as.character(v)))
+    }
   }
+  out
+}
 
+
+# ---------------------------------------------------------------------------
+# Average computation
+# ---------------------------------------------------------------------------
+
+#' For each species, compute the mean of all numeric values in each avg_col.
+#' Only emit an average if the number of non-empty observations is strictly
+#' greater than \code{avg_min_n}.
+#' @keywords internal
+#' @noRd
+.compute_species_averages <- function(df, species_cols, avg_cols, avg_min_n = 3) {
+  if (is.null(avg_cols) || length(avg_cols) == 0L) return(list())
+
+  species_id <- df %>%
+    tidyr::unite("species_id", dplyr::all_of(species_cols),
+                 sep = " ", remove = FALSE, na.rm = TRUE) %>%
+    .$species_id
+  species_id <- barRoso::remove_authorship(species_id)
+
+  result <- list()
+  for (sp in unique(species_id)) {
+    idx <- which(species_id == sp)
+    avgs <- list()
+    for (col in avg_cols) {
+      raw_vals <- df[[col]][idx]
+      n_obs <- sum(!is.na(raw_vals) & nzchar(as.character(raw_vals)))
+      if (n_obs <= avg_min_n) next
+      nums <- .extract_all_numerics(raw_vals)
+      if (length(nums) == 0L) next
+      avgs[[col]] <- mean(nums, na.rm = TRUE)
+    }
+    if (length(avgs) > 0L) result[[sp]] <- avgs
+  }
+  result
+}
+
+#' Look up averages for the species in a given merged row.
+#' @keywords internal
+#' @noRd
+.get_row_averages <- function(row, species_cols, species_averages) {
+  if (is.null(species_averages) || length(species_averages) == 0L) return(list())
+  parts <- vapply(species_cols, function(cn) .cell_as_text(row[[cn]][[1]]),
+                  character(1))
+  parts <- parts[nzchar(parts)]
+  if (length(parts) == 0L) return(list())
+  sp_id <- paste(parts, collapse = " ")
+  sp_id <- barRoso::remove_authorship(sp_id)
+  if (sp_id %in% names(species_averages)) return(species_averages[[sp_id]])
+  list()
+}
+
+#' Format an average number for printing.
+#' @keywords internal
+#' @noRd
+.format_avg <- function(x, digits = 1) {
+  if (is.null(x) || length(x) == 0L) return("")
+  if (is.na(x) || !is.finite(x)) return("")
+  if (isTRUE(all.equal(x, round(x)))) return(as.character(as.integer(round(x))))
+  formatC(x, format = "f", digits = digits)
+}
+
+
+# ---------------------------------------------------------------------------
+# Column resolution / parsing
+# ---------------------------------------------------------------------------
+
+#' @keywords internal
+#' @noRd
+.resolve_cols <- function(df, cols, arg) {
+  if (is.null(cols) || length(cols) == 0L) stop(arg, " must be non-empty.", call. = FALSE)
   nms <- names(df)
-
   if (is.numeric(cols)) {
     idx <- as.integer(cols)
     if (anyNA(idx) || any(idx < 1L) || any(idx > length(nms))) {
@@ -411,27 +500,25 @@ barroso_write_taxon_descr <- function(xlsx_path,
     }
     return(nms[idx])
   }
-
   if (is.character(cols)) {
     missing <- setdiff(cols, nms)
     if (length(missing) > 0L) {
-      stop("Missing columns for ", arg, ": ", paste(missing, collapse = ", "), call. = FALSE)
+      stop("Missing columns for ", arg, ": ", paste(missing, collapse = ", "),
+           call. = FALSE)
     }
     return(cols)
   }
-
   stop(arg, " must be a character vector of names or numeric indices.", call. = FALSE)
 }
 
+#' @keywords internal
+#' @noRd
 .parse_character_columns <- function(character_cols) {
   main_terms <- vapply(character_cols, .extract_main_term, character(1))
   group_order <- unique(main_terms)
-
   groups <- lapply(group_order, function(main) {
     idx <- which(main_terms == main)
     cols <- character_cols[idx]
-
-    # Parse each column to extract its hierarchical structure
     parsed_cols <- lapply(cols, function(col) {
       list(
         name = col,
@@ -442,60 +529,45 @@ barroso_write_taxon_descr <- function(xlsx_path,
         unit = .extract_unit_from_colname(col, fallback = "")
       )
     })
-
-    # Extract subterm (deepest level) for backward compatibility
     subterm <- vapply(parsed_cols, function(p) {
       if (length(p$hierarchy) == 0) "" else p$hierarchy[length(p$hierarchy)]
     }, character(1))
-
     list(
       main = main,
       cols = cols,
-      parsed_cols = parsed_cols,  # Store full parsed structure
-      subterms = subterm,  # For backward compatibility
+      parsed_cols = parsed_cols,
+      subterms = subterm,
       is_length = vapply(parsed_cols, function(p) p$is_length, logical(1)),
       is_width = vapply(parsed_cols, function(p) p$is_width, logical(1)),
       is_height = vapply(parsed_cols, function(p) p$is_height, logical(1)),
       units = vapply(parsed_cols, function(p) p$unit, character(1))
     )
   })
-
   list(group_order = group_order, groups = groups)
 }
 
+#' @keywords internal
+#' @noRd
 .extract_hierarchy <- function(col_name) {
-  # Clean the column name
-  # Remove anything in parentheses (units)
   col_clean <- gsub("\\([^)]*\\)", "", col_name)
-  # Replace dots with spaces
   col_clean <- gsub("\\.", " ", col_clean)
-  # Split by spaces
   tokens <- stringr::str_split(stringr::str_squish(col_clean), "\\s+")[[1]]
-
   if (length(tokens) <= 1L) return(character(0))
-
-  # The main term is the first token
-  # Collect all subsequent tokens that are ALL CAPS
   hierarchy <- character(0)
-
-  # Skip the first token (main group term)
   for (i in 2:length(tokens)) {
     token <- tokens[i]
-
-    # Check if token is ALL CAPS (allowing for hyphens)
-    # Exclude common measurement words that might be in ALL CAPS
     if (grepl("^[A-Z][A-Z\\-]*$", token) &&
         !tolower(token) %in% c("length", "width", "height", "long", "wide", "tall")) {
       hierarchy <- c(hierarchy, token)
     } else {
-      # If we hit a lowercase word, stop collecting hierarchy
       break
     }
   }
-
   hierarchy
 }
 
+#' @keywords internal
+#' @noRd
 .extract_main_term <- function(col_name) {
   pre_dot <- stringr::str_split_fixed(col_name, "\\.", 2)[, 1]
   tokens <- stringr::str_split(stringr::str_trim(pre_dot), "\\s+")[[1]]
@@ -503,6 +575,8 @@ barroso_write_taxon_descr <- function(xlsx_path,
   if (length(tokens) == 0) col_name else tokens[[1]]
 }
 
+#' @keywords internal
+#' @noRd
 .extract_subterm <- function(col_name) {
   stripped <- stringr::str_replace_all(col_name, "[()]", " ")
   tokens <- stringr::str_split(stringr::str_squish(stripped), "\\s+")[[1]]
@@ -512,42 +586,46 @@ barroso_write_taxon_descr <- function(xlsx_path,
   if (length(hit) > 0L) hit[[1]] else ""
 }
 
+#' @keywords internal
+#' @noRd
 .is_height_col <- function(col_name) {
   stripped <- stringr::str_replace_all(col_name, "[()]", " ")
-  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)), "\\s+")[[1]]
+  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)),
+                               "\\s+")[[1]]
   any(tokens == "height")
 }
 
+#' @keywords internal
+#' @noRd
 .is_length_col <- function(col_name) {
   stripped <- stringr::str_replace_all(col_name, "[()]", " ")
-  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)), "\\s+")[[1]]
+  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)),
+                               "\\s+")[[1]]
   any(tokens == "length")
 }
 
+#' @keywords internal
+#' @noRd
 .is_width_col <- function(col_name) {
   stripped <- stringr::str_replace_all(col_name, "[()]", " ")
-  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)), "\\s+")[[1]]
+  tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)),
+                               "\\s+")[[1]]
   any(tokens == "width")
 }
 
+#' @keywords internal
+#' @noRd
 .build_species_name_parts <- function(row, species_cols) {
-  parts <- vapply(species_cols, function(cn) .cell_as_text(row[[cn]][[1]]), character(1))
+  parts <- vapply(species_cols, function(cn) .cell_as_text(row[[cn]][[1]]),
+                  character(1))
   parts <- parts[nzchar(parts)]
   if (length(parts) == 0) {
-    return(list(
-      genus_species = "Unknown species",
-      author = "",
-      full_name = "Unknown species"
-    ))
+    return(list(genus_species = "Unknown species", author = "",
+                full_name = "Unknown species"))
   }
-
-  # Try to identify genus+species and author parts
-  # Typically, the author is the last part if it contains parentheses or uppercase
   genus_species <- parts[1]
   author <- ""
-
   if (length(parts) > 1) {
-    # Check if the last part looks like an author (contains parentheses or uppercase letters)
     last_part <- parts[length(parts)]
     if (grepl("[()]", last_part) || grepl("^[A-Z]", last_part)) {
       author <- last_part
@@ -556,7 +634,6 @@ barroso_write_taxon_descr <- function(xlsx_path,
       genus_species <- paste(parts, collapse = " ")
     }
   }
-
   list(
     genus_species = genus_species,
     author = author,
@@ -564,43 +641,62 @@ barroso_write_taxon_descr <- function(xlsx_path,
   )
 }
 
-.build_species_description_plain <- function(row, species_name_parts, char_meta) {
+
+# ---------------------------------------------------------------------------
+# Description / runs builders
+# ---------------------------------------------------------------------------
+
+#' @keywords internal
+#' @noRd
+.build_species_description_plain <- function(row, species_name_parts, char_meta,
+                                             row_averages = list(),
+                                             approx_char = NULL) {
   sentences <- character(0)
   for (l in seq_along(char_meta$groups)) {
-
-    group = char_meta$groups[[l]]
-
+    group <- char_meta$groups[[l]]
     items <- .build_group_items(row, group$cols, group$parsed_cols,
                                 group$subterms, group$is_length,
                                 group$is_width, group$is_height,
-                                group$units)
+                                group$units,
+                                row_averages = row_averages,
+                                approx_char = approx_char)
     if (length(items) == 0L) next
-
-    # Format the group with semicolons between major items
     formatted_items <- .format_group_items(items)
-
-    # For Habit group, capitalize first letter
     if (l == 1) {
-      sentences <- c(sentences, paste0(toupper(substr(formatted_items, 1, 1)),
-                                       substr(formatted_items, 2, nchar(formatted_items)), "."))
+      # First group (Habit) is special: the very first trait is the habit
+      # value itself (e.g. "Tree", "Shrub") and the separator BETWEEN that
+      # trait and the next one is a single space — NOT a semicolon.
+      items_list <- strsplit(formatted_items, "; ")[[1]]
+      if (length(items_list) >= 2) {
+        rebuilt <- paste0(items_list[1], " ", items_list[2])
+        if (length(items_list) > 2) {
+          rebuilt <- paste0(rebuilt, "; ",
+                            paste(items_list[3:length(items_list)],
+                                  collapse = "; "))
+        }
+        formatted_items <- rebuilt
+      }
+      sentences <- c(sentences,
+                     paste0(toupper(substr(formatted_items, 1, 1)),
+                            substr(formatted_items, 2, nchar(formatted_items)),
+                            "."))
     } else {
-      sentences <- c(sentences, paste0(.upper_first_only(group$main), " ", formatted_items, "."))
+      sentences <- c(sentences,
+                     paste0(.upper_first_only(group$main), " ", formatted_items, "."))
     }
   }
-
   if (length(sentences) == 0L) return(paste0(species_name_parts$full_name))
   paste0(species_name_parts$full_name, "\n\n", paste(sentences, collapse = " "))
 }
 
+#' @keywords internal
+#' @noRd
 .format_group_items <- function(items) {
-  if (length(items) == 0) {
-    return("")
-  } else {
-    return(paste(items, collapse = "; "))
-  }
-
+  if (length(items) == 0) "" else paste(items, collapse = "; ")
 }
 
+#' @keywords internal
+#' @noRd
 .build_species_paragraph_runs <- function(row, species_name_parts, char_meta,
                                           font_family = "Arial",
                                           font_size = 11,
@@ -609,473 +705,423 @@ barroso_write_taxon_descr <- function(xlsx_path,
                                           group_bold = TRUE,
                                           group_italic = FALSE,
                                           description_bold = FALSE,
-                                          description_italic = FALSE) {
+                                          description_italic = FALSE,
+                                          row_averages = list(),
+                                          approx_char = NULL) {
+  species_prop <- officer::fp_text(font.family = font_family, font.size = font_size,
+                                   bold = species_bold, italic = species_italic)
+  author_prop <- officer::fp_text(font.family = font_family, font.size = font_size,
+                                  bold = FALSE, italic = FALSE)
+  group_prop <- officer::fp_text(font.family = font_family, font.size = font_size,
+                                 bold = group_bold, italic = group_italic)
+  description_prop <- officer::fp_text(font.family = font_family, font.size = font_size,
+                                       bold = description_bold,
+                                       italic = description_italic)
+  normal_prop <- officer::fp_text(font.family = font_family, font.size = font_size,
+                                  bold = FALSE, italic = FALSE)
 
-  # Create font properties with custom settings
-  species_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = species_bold,
-    italic = species_italic
-  )
-
-  author_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = FALSE,  # Author usually not bold
-    italic = FALSE  # Author usually not italic
-  )
-
-  group_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = group_bold,
-    italic = group_italic
-  )
-
-  description_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = description_bold,
-    italic = description_italic
-  )
-
-  normal_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = FALSE,
-    italic = FALSE
-  )
-
-  bold_prop <- officer::fp_text(
-    font.family = font_family,
-    font.size = font_size,
-    bold = TRUE,
-    italic = FALSE
-  )
-
-  runs <- list()
-
-  # Add genus+species with custom formatting
-  runs <- c(runs, list(officer::ftext(species_name_parts$genus_species, prop = species_prop)))
-
-  # Add author with custom formatting
+  # ---- Paragraph 1: species name + authorship ----
+  name_runs <- list(officer::ftext(species_name_parts$genus_species,
+                                   prop = species_prop))
   if (nzchar(species_name_parts$author)) {
-    runs <- c(runs, list(officer::ftext(paste0(" ", species_name_parts$author), prop = author_prop)))
+    name_runs <- c(name_runs,
+                   list(officer::ftext(paste0(" ", species_name_parts$author),
+                                       prop = author_prop)))
   }
+  # Add a line break after the species name
+  name_runs <- c(name_runs, list(officer::ftext("\n", prop = normal_prop)))
 
-  # Add newline (two line breaks for paragraph)
-  runs <- c(runs, list(officer::ftext("\n\n", prop = normal_prop)))
+  # ---- Paragraph 2: morphological description ----
+  desc_runs <- list()
 
-  # Build description runs
   for (group_idx in seq_along(char_meta$groups)) {
-
     group <- char_meta$groups[[group_idx]]
-
     items <- .build_group_items(row, group$cols, group$parsed_cols,
                                 group$subterms, group$is_length,
                                 group$is_width, group$is_height,
-                                group$units)
-
+                                group$units,
+                                row_averages = row_averages,
+                                approx_char = approx_char)
     if (length(items) == 0L) next
 
-    # Format the group with semicolons between major items
     formatted_items <- .format_group_items(items)
 
-    # For Habit group (first group), make first term bold and uppercase first letter
     if (group_idx == 1) {
-      # Split items and capitalize first term
       items_list <- strsplit(formatted_items, "; ")[[1]]
       if (length(items_list) > 0) {
-        # Capitalize first letter of first term
         first_item <- items_list[1]
         first_item <- paste0(toupper(substr(first_item, 1, 1)),
                              substr(first_item, 2, nchar(first_item)))
-
-        # Add first term in bold
-        runs <- c(runs, list(officer::ftext(first_item, prop = group_prop)))
-
-        # Add rest of items
-        if (length(items_list) > 1) {
-          runs <- c(runs, list(officer::ftext(paste0("; ", paste(items_list[-1], collapse = "; ")), prop = description_prop)))
+        desc_runs <- c(desc_runs,
+                       list(officer::ftext(first_item, prop = group_prop)))
+        if (length(items_list) >= 2) {
+          remainder <- paste0(" ", items_list[2])
+          if (length(items_list) > 2) {
+            remainder <- paste0(remainder, "; ",
+                                paste(items_list[3:length(items_list)],
+                                      collapse = "; "))
+          }
+          desc_runs <- c(desc_runs,
+                         list(officer::ftext(remainder, prop = description_prop)))
         }
       }
     } else {
-      # Add group name in bold for other groups
-      if (group_idx > 1) {
-      runs <- c(runs, list(officer::ftext(.upper_first_only(group$main), prop = group_prop)))
+      if (length(desc_runs) > 0) {
+        desc_runs <- c(desc_runs, list(officer::ftext(" ", prop = normal_prop)))
       }
-      runs <- c(runs, list(officer::ftext(" ", prop = normal_prop)))
-      runs <- c(runs, list(officer::ftext(formatted_items, prop = description_prop)))
+      desc_runs <- c(desc_runs,
+                     list(officer::ftext(.upper_first_only(group$main),
+                                         prop = group_prop)))
+      desc_runs <- c(desc_runs, list(officer::ftext(" ",
+                                                    prop = normal_prop)))
+      desc_runs <- c(desc_runs, list(officer::ftext(formatted_items,
+                                                    prop = description_prop)))
     }
-
-    runs <- c(runs, list(officer::ftext(". ", prop = normal_prop)))
+    desc_runs <- c(desc_runs, list(officer::ftext(".", prop = normal_prop)))
   }
 
-  runs
+  list(name = name_runs, description = desc_runs)
 }
 
-.build_group_items <- function(row, cols, parsed_cols, subterms, is_length, is_width, is_height, units) {
+#' @keywords internal
+#' @noRd
+.build_group_items <- function(row, cols, parsed_cols, subterms,
+                               is_length, is_width, is_height, units,
+                               row_averages = list(),
+                               approx_char = NULL) {
   items <- character(0)
-
-  # Track processed columns
   n <- length(cols)
   processed <- logical(n)
 
-  # Process columns in original order
   i <- 1
   while (i <= n) {
-    if (processed[i]) {
-      i <- i + 1
-      next
-    }
+    if (processed[i]) { i <- i + 1; next }
 
     cn <- cols[i]
-    if (!cn %in% names(row)) {
-      processed[i] <- TRUE
-      i <- i + 1
-      next
-    }
+    if (!cn %in% names(row)) { processed[i] <- TRUE; i <- i + 1; next }
 
     val <- .cell_as_text(row[[cn]][[1]])
-    if (!nzchar(val)) {
-      processed[i] <- TRUE
-      i <- i + 1
-      next
-    }
+    if (!nzchar(val)) { processed[i] <- TRUE; i <- i + 1; next }
 
     info <- parsed_cols[[i]]
     hierarchy <- info$hierarchy
 
-    # If column has hierarchy, group ALL columns with same first-level hierarchy
     if (length(hierarchy) > 0) {
-      # Get the first level of hierarchy (e.g., "SEPALS" from "SEPALS BASE")
       first_level <- hierarchy[1]
-
-      # Find ALL columns with the same first level (including measurements!)
       group_indices <- i
-
-      # Look ahead for columns with same first level
       if (i < n) {
-        for (j in (i+1):n) {
+        for (j in (i + 1):n) {
           if (processed[j]) next
-
           other_info <- parsed_cols[[j]]
-          other_hierarchy <- other_info$hierarchy
-
-          if (length(other_hierarchy) > 0 && other_hierarchy[1] == first_level) {
+          other_hi <- other_info$hierarchy
+          if (length(other_hi) > 0 && other_hi[1] == first_level) {
             group_indices <- c(group_indices, j)
           }
         }
       }
 
-      # Now process ALL columns in this group together
-      # We need to handle:
-      # 1. Main values (hierarchy length = 1, e.g., "SEPALS free")
-      # 2. Subgroup values (hierarchy length > 1, e.g., "SEPALS BASE truncate")
-      # 3. Measurements within this group (e.g., "SEPALS length (mm)")
-
       main_values <- character(0)
       subgroup_values <- list()
-      group_measurements <- list()  # Measurements within this hierarchy group
+      group_measurements <- list()
 
       for (idx in group_indices) {
         if (processed[idx]) next
-
         col_cn <- cols[idx]
-        if (!col_cn %in% names(row)) {
-          processed[idx] <- TRUE
-          next
-        }
+        if (!col_cn %in% names(row)) { processed[idx] <- TRUE; next }
 
         col_val <- .cell_as_text(row[[col_cn]][[1]])
-        if (!nzchar(col_val)) {
-          processed[idx] <- TRUE
-          next
-        }
+        if (!nzchar(col_val)) { processed[idx] <- TRUE; next }
 
         col_info <- parsed_cols[[idx]]
-        col_hierarchy <- col_info$hierarchy
+        col_hi <- col_info$hierarchy
 
-        # Check if it's a measurement column
         if (col_info$is_length || col_info$is_width || col_info$is_height) {
-          # Add to group measurements
-          group_measurements <- c(group_measurements, list(
-            list(
-              value = col_val,
-              is_length = col_info$is_length,
-              is_width = col_info$is_width,
-              is_height = col_info$is_height,
-              unit = col_info$unit,
-              sub_hierarchy = if (length(col_hierarchy) > 1) col_hierarchy[-1] else character(0)
-            )
-          ))
+          group_measurements <- c(group_measurements, list(list(
+            value = col_val,
+            is_length = col_info$is_length,
+            is_width = col_info$is_width,
+            is_height = col_info$is_height,
+            unit = col_info$unit,
+            sub_hierarchy = if (length(col_hi) > 1) col_hi[-1] else character(0),
+            col_name = col_cn,
+            avg = row_averages[[col_cn]]
+          )))
         } else {
-          # Non-measurement column
-          if (length(col_hierarchy) == 1) {
-            # Just the main term (e.g., "SEPALS")
+          if (length(col_hi) == 1) {
             main_values <- c(main_values, col_val)
           } else {
-            # Has sub-term (e.g., "SEPALS BASE")
-            subterm <- tolower(col_hierarchy[length(col_hierarchy)])  # "base"
-
-            # Initialize if needed
-            if (is.null(subgroup_values[[subterm]])) {
-              subgroup_values[[subterm]] <- character(0)
-            }
-
-            subgroup_values[[subterm]] <- c(subgroup_values[[subterm]], col_val)
+            sub <- tolower(col_hi[length(col_hi)])
+            if (is.null(subgroup_values[[sub]])) subgroup_values[[sub]] <- character(0)
+            subgroup_values[[sub]] <- c(subgroup_values[[sub]], col_val)
           }
         }
-
         processed[idx] <- TRUE
       }
 
-      # Now we need to handle measurements that might have their own sub-hierarchy
-      # For example: "SEPALS length (mm)" vs "STYLE length (mm)" vs "GYNOECIUM length (mm)"
-      # Within the SEPALS group, we only have "SEPALS length (mm)" which has no sub-hierarchy
-
-      # First, let's combine measurements that share the same context
-      # Measurements without sub-hierarchy go with main group
-      # Measurements with sub-hierarchy (like "STYLE length" within "GYNOECIUM") need special handling
-
       main_measurements <- list()
-      sub_measurements <- list()  # Measurements with sub-hierarchy, e.g., "STYLE" within "GYNOECIUM"
-
+      sub_measurements <- list()
       for (meas in group_measurements) {
         if (length(meas$sub_hierarchy) == 0) {
-          # No sub-hierarchy - goes with main group
           main_measurements <- c(main_measurements, list(meas))
         } else {
-          # Has sub-hierarchy (e.g., "STYLE" in "GYNOECIUM STYLE length")
-          sub_key <- tolower(paste(meas$sub_hierarchy, collapse = "."))
-
-          if (is.null(sub_measurements[[sub_key]])) {
-            sub_measurements[[sub_key]] <- list()
-          }
-          sub_measurements[[sub_key]] <- c(sub_measurements[[sub_key]], list(meas))
+          k <- tolower(paste(meas$sub_hierarchy, collapse = "."))
+          if (is.null(sub_measurements[[k]])) sub_measurements[[k]] <- list()
+          sub_measurements[[k]] <- c(sub_measurements[[k]], list(meas))
         }
       }
 
-      # Build the description for this group
       group_parts <- character(0)
+      if (length(main_values) > 0) group_parts <- c(group_parts, main_values)
 
-      # 1. Add main non-measurement values
-      if (length(main_values) > 0) {
-        group_parts <- c(group_parts, main_values)
-      }
-
-      # 2. Add main measurements (combined)
       if (length(main_measurements) > 0) {
-        # Combine all measurements without sub-hierarchy
-        len_val <- ""
-        wid_val <- ""
-        ht_val <- ""
-        len_unit <- ""
-        wid_unit <- ""
-        ht_unit <- ""
-
-        for (meas in main_measurements) {
-          if (meas$is_length) {
-            len_val <- meas$value
-            len_unit <- meas$unit
-          } else if (meas$is_width) {
-            wid_val <- meas$value
-            wid_unit <- meas$unit
-          } else if (meas$is_height) {
-            ht_val <- meas$value
-            ht_unit <- meas$unit
-          }
-        }
-
-        measurement_text <- .format_measurement_with_unit(len_val, wid_val, ht_val,
-                                                          len_unit, wid_unit, ht_unit)
-        if (nzchar(measurement_text)) {
-          group_parts <- c(group_parts, measurement_text)
-        }
+        dims <- .collect_dims(main_measurements)
+        measurement_text <- .format_measurement_with_unit(
+          dims$len_val, dims$wid_val, dims$ht_val,
+          dims$len_unit, dims$wid_unit, dims$ht_unit,
+          len_avg = dims$len_avg, wid_avg = dims$wid_avg, ht_avg = dims$ht_avg,
+          approx_char = approx_char
+        )
+        if (nzchar(measurement_text)) group_parts <- c(group_parts, measurement_text)
       }
 
-      # 3. Add subgroup non-measurement values
       if (length(subgroup_values) > 0) {
-        # Get subgroup names in alphabetical order for consistency
-        subgroup_names <- sort(names(subgroup_values))
-
-        for (subname in subgroup_names) {
-          sub_vals <- subgroup_values[[subname]]
-          if (length(sub_vals) > 0) {
-            group_parts <- c(group_parts, paste(subname, sub_vals))
-          }
+        for (subname in sort(names(subgroup_values))) {
+          sv <- subgroup_values[[subname]]
+          if (length(sv) > 0) group_parts <- c(group_parts, paste(subname, sv))
         }
       }
 
-      # 4. Add measurements with sub-hierarchy (e.g., "style 4 mm long")
       if (length(sub_measurements) > 0) {
-        for (sub_key in names(sub_measurements)) {
-          sub_ms <- sub_measurements[[sub_key]]
-
-          # Combine measurements for this sub-hierarchy
-          len_val <- ""
-          wid_val <- ""
-          ht_val <- ""
-          len_unit <- ""
-          wid_unit <- ""
-          ht_unit <- ""
-
-          for (meas in sub_ms) {
-            if (meas$is_length) {
-              len_val <- meas$value
-              len_unit <- meas$unit
-            } else if (meas$is_width) {
-              wid_val <- meas$value
-              wid_unit <- meas$unit
-            } else if (meas$is_height) {
-              ht_val <- meas$value
-              ht_unit <- meas$unit
-            }
-          }
-
-          measurement_text <- .format_measurement_with_unit(len_val, wid_val, ht_val,
-                                                            len_unit, wid_unit, ht_unit)
+        for (k in names(sub_measurements)) {
+          dims <- .collect_dims(sub_measurements[[k]])
+          measurement_text <- .format_measurement_with_unit(
+            dims$len_val, dims$wid_val, dims$ht_val,
+            dims$len_unit, dims$wid_unit, dims$ht_unit,
+            len_avg = dims$len_avg, wid_avg = dims$wid_avg, ht_avg = dims$ht_avg,
+            approx_char = approx_char
+          )
           if (nzchar(measurement_text)) {
-            # Add the sub-hierarchy as prefix
-            group_parts <- c(group_parts, paste(sub_key, measurement_text))
+            group_parts <- c(group_parts, paste(k, measurement_text))
           }
         }
       }
 
       if (length(group_parts) > 0) {
-        items <- c(items, paste(tolower(first_level), paste(group_parts, collapse = ", ")))
+        items <- c(items, paste(tolower(first_level),
+                                paste(group_parts, collapse = ", ")))
       }
-
       i <- i + 1
 
     } else {
       # No hierarchy - could be measurement or simple column
       if (info$is_length || info$is_width || info$is_height) {
-        # Single measurement without hierarchy
-        # Try to find related measurements using old logic
         base_name <- gsub("\\s*\\([^)]+\\)", "", cn)
-        base_name <- gsub("\\s*(length|width|height|long|wide|tall).*", "", base_name, ignore.case = TRUE)
+        base_name <- gsub("\\s*(length|width|height|long|wide|tall).*", "",
+                          base_name, ignore.case = TRUE)
         base_name <- stringr::str_squish(base_name)
 
         related_indices <- integer(0)
-
         for (j in seq_along(cols)) {
           if (j == i || processed[j]) next
-
           other_cn <- cols[j]
           other_base <- gsub("\\s*\\([^)]+\\)", "", other_cn)
-          other_base <- gsub("\\s*(length|width|height|long|wide|tall).*", "", other_base, ignore.case = TRUE)
+          other_base <- gsub("\\s*(length|width|height|long|wide|tall).*", "",
+                             other_base, ignore.case = TRUE)
           other_base <- stringr::str_squish(other_base)
-
           if (other_base == base_name &&
-              (parsed_cols[[j]]$is_length || parsed_cols[[j]]$is_width || parsed_cols[[j]]$is_height) &&
+              (parsed_cols[[j]]$is_length || parsed_cols[[j]]$is_width ||
+               parsed_cols[[j]]$is_height) &&
               length(parsed_cols[[j]]$hierarchy) == 0) {
             related_indices <- c(related_indices, j)
           }
         }
 
-        # Collect measurements
-        len_val <- ""
-        wid_val <- ""
-        ht_val <- ""
-        len_unit <- ""
-        wid_unit <- ""
-        ht_unit <- ""
+        len_val <- wid_val <- ht_val <- ""
+        len_unit <- wid_unit <- ht_unit <- ""
+        len_avg <- wid_avg <- ht_avg <- NA_real_
 
-        if (info$is_length) {
-          len_val <- val
-          len_unit <- info$unit
-        } else if (info$is_width) {
-          wid_val <- val
-          wid_unit <- info$unit
-        } else if (info$is_height) {
-          ht_val <- val
-          ht_unit <- info$unit
-        }
-
+        if (info$is_length) { len_val <- val; len_unit <- info$unit
+        len_avg <- row_averages[[cn]] %||% NA_real_ }
+        else if (info$is_width) { wid_val <- val; wid_unit <- info$unit
+        wid_avg <- row_averages[[cn]] %||% NA_real_ }
+        else if (info$is_height) { ht_val <- val; ht_unit <- info$unit
+        ht_avg <- row_averages[[cn]] %||% NA_real_ }
         processed[i] <- TRUE
 
         for (j in related_indices) {
-          if (!processed[j]) {
-            related_info <- parsed_cols[[j]]
-            related_val <- .cell_as_text(row[[cols[j]]][[1]])
-            if (nzchar(related_val)) {
-              if (related_info$is_length) {
-                len_val <- related_val
-                len_unit <- related_info$unit
-              } else if (related_info$is_width) {
-                wid_val <- related_val
-                wid_unit <- related_info$unit
-              } else if (related_info$is_height) {
-                ht_val <- related_val
-                ht_unit <- related_info$unit
-              }
-            }
-            processed[j] <- TRUE
+          if (processed[j]) next
+          ri <- parsed_cols[[j]]
+          rv <- .cell_as_text(row[[cols[j]]][[1]])
+          if (nzchar(rv)) {
+            if (ri$is_length) { len_val <- rv; len_unit <- ri$unit
+            len_avg <- row_averages[[cols[j]]] %||% NA_real_ }
+            else if (ri$is_width) { wid_val <- rv; wid_unit <- ri$unit
+            wid_avg <- row_averages[[cols[j]]] %||% NA_real_ }
+            else if (ri$is_height) { ht_val <- rv; ht_unit <- ri$unit
+            ht_avg <- row_averages[[cols[j]]] %||% NA_real_ }
           }
+          processed[j] <- TRUE
         }
 
-        measurement <- .format_measurement_with_unit(len_val, wid_val, ht_val, len_unit, wid_unit, ht_unit)
-        if (nzchar(measurement)) {
-          items <- c(items, measurement)
-        }
+        measurement <- .format_measurement_with_unit(
+          len_val, wid_val, ht_val, len_unit, wid_unit, ht_unit,
+          len_avg = len_avg, wid_avg = wid_avg, ht_avg = ht_avg,
+          approx_char = approx_char
+        )
+        if (nzchar(measurement)) items <- c(items, measurement)
 
       } else {
-        # Simple non-measurement column without hierarchy
         items <- c(items, val)
         processed[i] <- TRUE
       }
-
       i <- i + 1
     }
   }
-
   items[nzchar(items)]
 }
 
+#' Null-coalescing helper used above
+#' @keywords internal
+#' @noRd
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0L) b else a
+
+#' Helper function to detect if a measurement has variation
+#' @keywords internal
+#' @noRd
+.has_variation <- function(value_str) {
+  if (is.null(value_str) || !nzchar(value_str)) return(FALSE)
+  # Check for range indicators: en-dash, hyphen, "or", "to", comma with numbers
+  grepl("–|-|\\sor\\s|\\sto\\s|\\d+\\s*,\\s*\\d+", value_str)
+}
+
+#' Collect length/width/height values, units, and averages from a list of
+#' measurement structs.
+#' @keywords internal
+#' @noRd
+.collect_dims <- function(meas_list) {
+  len_val <- wid_val <- ht_val <- ""
+  len_unit <- wid_unit <- ht_unit <- ""
+  len_avg <- wid_avg <- ht_avg <- NA_real_
+  for (m in meas_list) {
+    if (isTRUE(m$is_length)) {
+      len_val <- m$value
+      len_unit <- m$unit
+      if (!is.null(m$avg) && length(m$avg) > 0L) len_avg <- m$avg
+    } else if (isTRUE(m$is_width)) {
+      wid_val <- m$value
+      wid_unit <- m$unit
+      if (!is.null(m$avg) && length(m$avg) > 0L) wid_avg <- m$avg
+    } else if (isTRUE(m$is_height)) {
+      ht_val <- m$value
+      ht_unit <- m$unit
+      if (!is.null(m$avg) && length(m$avg) > 0L) ht_avg <- m$avg
+    }
+  }
+  list(len_val = len_val, wid_val = wid_val, ht_val = ht_val,
+       len_unit = len_unit, wid_unit = wid_unit, ht_unit = ht_unit,
+       len_avg = len_avg, wid_avg = wid_avg, ht_avg = ht_avg)
+}
+
+#' @keywords internal
+#' @noRd
 .extract_unit_from_colname <- function(col_name, fallback = "") {
   m <- stringr::str_match(col_name, "\\(([^)]+)\\)")
   if (!is.na(m[, 2]) && nzchar(m[, 2])) stringr::str_trim(m[, 2]) else fallback
 }
 
-.format_measurement_with_unit <- function(len_val, wid_val, ht_val, len_unit, wid_unit, ht_unit) {
+#' Format a dimension expression from raw value strings (e.g. "3–8", "1–2")
+#' @keywords internal
+#' @noRd
+.format_dim_text <- function(len_val, wid_val, ht_val,
+                             len_unit, wid_unit, ht_unit,
+                             approx_char = NULL) {
   len_val <- stringr::str_squish(len_val)
   wid_val <- stringr::str_squish(wid_val)
   ht_val <- stringr::str_squish(ht_val)
 
-  # Determine the common unit - prioritize length, then width, then height
   unit <- ""
-  if (nzchar(len_unit)) unit <- len_unit
+  if (nzchar(len_unit))      unit <- len_unit
   else if (nzchar(wid_unit)) unit <- wid_unit
-  else if (nzchar(ht_unit)) unit <- ht_unit
+  else if (nzchar(ht_unit))  unit <- ht_unit
+
+  # Determine if we need to add approximation
+  needs_approx <- FALSE
+  if (!is.null(approx_char) && nzchar(approx_char)) {
+    # Check each dimension for variation
+    dims <- c(len_val, wid_val, ht_val)
+    dims <- dims[nzchar(dims)]
+    if (length(dims) > 0) {
+      # If any dimension has variation, don't add "ca."
+      has_var <- any(sapply(dims, .has_variation))
+      if (!has_var) {
+        needs_approx <- TRUE
+      }
+    }
+  }
+
+  # Build the prefix with approximation if needed
+  prefix <- if (needs_approx) paste0(approx_char, " ") else ""
 
   if (nzchar(len_val) && nzchar(wid_val) && nzchar(ht_val)) {
-    # All three dimensions
-    return(paste0(len_val, " × ", wid_val, " × ", ht_val, if (nzchar(unit)) paste0(" ", unit) else ""))
+    return(paste0(prefix, len_val, " × ", wid_val, " × ", ht_val,
+                  if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val) && nzchar(wid_val)) {
-    # Length and width
-    return(paste0(len_val, " × ", wid_val, if (nzchar(unit)) paste0(" ", unit) else ""))
+    return(paste0(prefix, len_val, " × ", wid_val,
+                  if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val) && nzchar(ht_val)) {
-    # Length and height
-    return(paste0(len_val, " × ", ht_val, if (nzchar(unit)) paste0(" ", unit) else ""))
+    return(paste0(prefix, len_val, " × ", ht_val,
+                  if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(wid_val) && nzchar(ht_val)) {
-    # Width and height
-    return(paste0(wid_val, " × ", ht_val, if (nzchar(unit)) paste0(" ", unit) else ""))
+    return(paste0(prefix, wid_val, " × ", ht_val,
+                  if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val)) {
-    # Only length
-    return(paste0(len_val, if (nzchar(unit)) paste0(" ", unit, " long") else " long"))
+    return(paste0(prefix, len_val,
+                  if (nzchar(unit)) paste0(" ", unit, " long") else " long"))
   } else if (nzchar(wid_val)) {
-    # Only width
-    return(paste0(wid_val, if (nzchar(unit)) paste0(" ", unit, " wide") else " wide"))
+    return(paste0(prefix, wid_val,
+                  if (nzchar(unit)) paste0(" ", unit, " wide") else " wide"))
   } else if (nzchar(ht_val)) {
-    # Only height
-    return(paste0(ht_val, if (nzchar(unit)) paste0(" ", unit, " tall") else " tall"))
+    return(paste0(prefix, ht_val,
+                  if (nzchar(unit)) paste0(" ", unit, " tall") else " tall"))
   } else {
     return("")
   }
 }
 
+#' Format a measurement with units, optionally appending an "average ..." clause.
+#' @keywords internal
+#' @noRd
+.format_measurement_with_unit <- function(len_val, wid_val, ht_val,
+                                          len_unit, wid_unit, ht_unit,
+                                          len_avg = NA_real_,
+                                          wid_avg = NA_real_,
+                                          ht_avg = NA_real_,
+                                          approx_char = NULL) {
+  base <- .format_dim_text(len_val, wid_val, ht_val,
+                           len_unit, wid_unit, ht_unit,
+                           approx_char = approx_char)
+  if (!nzchar(base)) return("")
+
+  has_avg <- (!is.na(len_avg) && is.finite(len_avg)) ||
+    (!is.na(wid_avg) && is.finite(wid_avg)) ||
+    (!is.na(ht_avg)  && is.finite(ht_avg))
+  if (!has_avg) return(base)
+
+  la <- if (nzchar(len_val) && !is.na(len_avg) && is.finite(len_avg))
+    .format_avg(len_avg, digits = 1) else ""
+  wa <- if (nzchar(wid_val) && !is.na(wid_avg) && is.finite(wid_avg))
+    .format_avg(wid_avg, digits = 1) else ""
+  ha <- if (nzchar(ht_val) && !is.na(ht_avg) && is.finite(ht_avg))
+    .format_avg(ht_avg,  digits = 1) else ""
+
+  avg_text <- .format_dim_text(la, wa, ha, len_unit, wid_unit, ht_unit,
+                               approx_char = NULL)  # Don't add "ca." to averages
+  if (!nzchar(avg_text)) return(base)
+  paste0(base, ", average ", avg_text)
+}
+
+#' @keywords internal
+#' @noRd
 .cell_as_text <- function(x) {
   if (is.null(x) || length(x) == 0) return("")
   if (length(x) > 1L) x <- x[!is.na(x)]
@@ -1083,134 +1129,113 @@ barroso_write_taxon_descr <- function(xlsx_path,
   if (is.na(x[[1]])) return("")
   if (is.logical(x[[1]])) return("")
   if (inherits(x[[1]], "POSIXt")) return(format(x[[1]], "%Y-%m-%d"))
-
   if (is.numeric(x[[1]])) {
-    if (length(x) == 1L && isTRUE(all.equal(x[[1]], round(x[[1]]))) && x[[1]] %in% 8:16) return("")
-    if (isTRUE(all.equal(x[[1]], round(x[[1]])))) return(as.character(as.integer(round(x[[1]]))))
+    if (length(x) == 1L && isTRUE(all.equal(x[[1]], round(x[[1]]))) &&
+        x[[1]] %in% 8:16) return("")
+    if (isTRUE(all.equal(x[[1]], round(x[[1]])))) {
+      return(as.character(as.integer(round(x[[1]]))))
+    }
     return(format(x[[1]], trim = TRUE, scientific = FALSE))
   }
-
   txt <- stringr::str_squish(as.character(x[[1]]))
   if (!nzchar(txt)) return("")
   if (txt %in% c("TRUE", "FALSE", "black", "Arial", "baseline", "transparent")) return("")
   txt
 }
 
-#' Merge duplicate species rows with special handling for measurements
-#'
-#' This version handles measurement columns (those with "length", "width", "height")
-#' differently by keeping ranges if they exist.
+
+# ---------------------------------------------------------------------------
+# Duplicate-species merging (FIXED measurement extraction)
+# ---------------------------------------------------------------------------
+
+#' @keywords internal
+#' @noRd
 .merge_duplicate_species <- function(df, species_cols, character_cols) {
-
-  # Store original column order
   original_cols <- names(df)
-
-  # Create a temporary species identifier column
   df_temp <- df %>%
-    tidyr::unite("_species_id", dplyr::all_of(species_cols), sep = " ", remove = FALSE, na.rm = TRUE)
+    tidyr::unite("_species_id", dplyr::all_of(species_cols),
+                 sep = " ", remove = FALSE, na.rm = TRUE)
   df_temp[[1]] <- barRoso::remove_authorship(df_temp[[1]])
-
-  # Identify character columns
   char_cols <- intersect(character_cols, names(df))
 
-  # Convert all character columns to character type to ensure consistency
   df_temp <- df_temp %>%
     dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), as.character))
 
-  # Identify measurement columns
   is_measurement_col <- function(col_name) {
     col_lower <- tolower(col_name)
-    any(stringr::str_detect(col_lower, c("length", "width", "height", "\\(cm\\)", "\\(mm\\)", "\\(m\\)")))
+    any(stringr::str_detect(col_lower,
+                            c("length", "width", "height",
+                              "\\(cm\\)", "\\(mm\\)", "\\(m\\)")))
   }
-
   measurement_cols <- char_cols[sapply(char_cols, is_measurement_col)]
   non_measurement_cols <- setdiff(char_cols, measurement_cols)
 
-  # Function to merge non-measurement values with proper punctuation
   merge_non_measurement <- function(x) {
     x_clean <- x[!is.na(x) & nzchar(as.character(x))]
-
-    if (length(x_clean) == 0) {
-      return(as.character(NA))
-    }
-
-    # Convert all to character
+    if (length(x_clean) == 0) return(as.character(NA))
     x_clean <- as.character(x_clean)
     unique_vals <- unique(x_clean)
-
-    if (length(unique_vals) == 1) {
-      return(unique_vals[1])
-    } else {
-      # Sort values
-      unique_vals <- sort(unique_vals)
-
-      # For 2 items: use "or"
-      if (length(unique_vals) == 2) {
-        return(paste(unique_vals, collapse = " or "))
-      }
-      # For 3 or more items: use commas and "or" before last item
-      else if (length(unique_vals) >= 3) {
-        all_but_last <- unique_vals[1:(length(unique_vals)-1)]
-        last_item <- unique_vals[length(unique_vals)]
-        return(paste(paste(all_but_last, collapse = ", "), "or", last_item))
-      }
+    if (length(unique_vals) == 1) return(unique_vals[1])
+    unique_vals <- sort(unique_vals)
+    if (length(unique_vals) == 2) return(paste(unique_vals, collapse = " or "))
+    if (length(unique_vals) >= 3) {
+      all_but_last <- unique_vals[1:(length(unique_vals) - 1)]
+      last_item <- unique_vals[length(unique_vals)]
+      return(paste(paste(all_but_last, collapse = ", "), "or", last_item))
     }
   }
 
-  # Function to merge measurement values with proper punctuation
+  # FIXED merger.
+  #
+  # Bug being fixed: the old implementation did
+  #   nums <- as.numeric(gsub("[^0-9.-]", "", x_clean))
+  # which, for a cell containing "12–21" (en-dash), STRIPPED the en-dash and
+  # parsed "1221", and for "12-21" (ASCII hyphen) failed to parse at all.
+  # Combined with a cell of "10" elsewhere in the same column it produced
+  # absurd merged ranges like "10–1221 × 9–718 cm".
+  #
+  # New behaviour: every numeric run in every cell is tokenised. "12-21" and
+  # "12–21" each yield {12, 21}; "10" yields {10}; "1.5" yields {1.5}. The
+  # merged range is then min..max over the pooled tokens, so {10, 12, 21}
+  # becomes "10–21" as expected.
   merge_measurement <- function(x) {
     x_clean <- x[!is.na(x) & nzchar(as.character(x))]
-
-    if (length(x_clean) == 0) {
-      return(as.character(NA))
-    }
-
-    # Convert to character
+    if (length(x_clean) == 0) return(as.character(NA))
     x_clean <- as.character(x_clean)
 
-    # Try to extract numeric values for ranges
-    nums <- suppressWarnings(as.numeric(gsub("[^0-9.-]", "", x_clean)))
-    nums <- nums[!is.na(nums)]
+    nums <- numeric(0)
+    for (val in x_clean) {
+      nums <- c(nums, .tokenize_numbers(val))
+    }
 
     if (length(nums) >= 2) {
-      # Create range
-      min_val <- min(nums)
-      max_val <- max(nums)
-
-      if (min_val == max_val) {
-        return(as.character(min_val))
-      } else {
-        return(paste0(min_val, "–", max_val))
-      }
+      min_val <- min(nums); max_val <- max(nums)
+      if (min_val == max_val) return(as.character(min_val))
+      return(paste0(min_val, "–", max_val))
+    } else if (length(nums) == 1) {
+      return(as.character(nums))
     } else if (length(x_clean) == 1) {
       return(x_clean[1])
     } else {
-      # Multiple non-numeric measurements
-      unique_vals <- unique(x_clean)
-      unique_vals <- sort(unique_vals)
-
-      if (length(unique_vals) == 2) {
-        return(paste(unique_vals, collapse = " or "))
-      } else if (length(unique_vals) >= 3) {
-        all_but_last <- unique_vals[1:(length(unique_vals)-1)]
+      unique_vals <- sort(unique(x_clean))
+      if (length(unique_vals) == 2) return(paste(unique_vals, collapse = " or "))
+      if (length(unique_vals) >= 3) {
+        all_but_last <- unique_vals[1:(length(unique_vals) - 1)]
         last_item <- unique_vals[length(unique_vals)]
         return(paste(paste(all_but_last, collapse = ", "), "or", last_item))
       }
     }
   }
 
-  # Group and merge
   df_merged <- df_temp %>%
     dplyr::group_by(`_species_id`) %>%
     dplyr::summarise(
-      # Species columns (take first, ensure character type)
-      dplyr::across(dplyr::all_of(species_cols), ~as.character(dplyr::first(na.omit(.)))),
-      # Non-measurement columns
+      dplyr::across(dplyr::all_of(species_cols),
+                    ~ as.character(dplyr::first(na.omit(.)))),
       dplyr::across(dplyr::all_of(non_measurement_cols),
-             ~merge_non_measurement(.)),
-      # Measurement columns
+                    ~ merge_non_measurement(.)),
       dplyr::across(dplyr::all_of(measurement_cols),
-             ~merge_measurement(.)),
+                    ~ merge_measurement(.)),
       .groups = "drop"
     ) %>%
     dplyr::select(-`_species_id`)
@@ -1218,53 +1243,27 @@ barroso_write_taxon_descr <- function(xlsx_path,
   for (i in seq_along(measurement_cols)) {
     tf <- grepl(",|or", df_merged[[measurement_cols[i]]])
     if (any(tf)) {
-      df_merged[[measurement_cols[i]]] <- .simplify_measurement_range(df_merged[[measurement_cols[i]]])
+      df_merged[[measurement_cols[i]]] <-
+        .simplify_measurement_range(df_merged[[measurement_cols[i]]])
     }
   }
 
-  # Ensure final order matches original
   df_merged <- df_merged[, original_cols]
-
   return(df_merged)
 }
 
-
+#' Reduce a string containing several numeric tokens (separated by commas,
+#' "or", hyphens, en-dashes, …) to "min–max". Uses the same tokeniser as the
+#' merger so range separators are never mistaken for negative signs.
+#' @keywords internal
+#' @noRd
 .simplify_measurement_range <- function(x, sep = "–", na_string = NA_character_) {
-
-  # Vectorized function
   sapply(x, function(str) {
-
-    # Handle NA and empty strings
-    if (is.na(str) || !nzchar(trimws(str))) {
-      return(na_string)
-    }
-
-    # Extract all numbers from the string (handles decimals)
-    # This regex captures numbers including: 1.4, 5.6, 3, 7, etc.
-    numbers <- regmatches(str, gregexpr("-?\\d+\\.?\\d*", str))[[1]]
-
-    # Convert to numeric
-    nums <- as.numeric(numbers)
-
-    # Remove any NA values that might have been created
-    nums <- nums[!is.na(nums)]
-
-    # If no numbers found, return the original string or NA
-    if (length(nums) == 0) {
-      return(na_string)
-    }
-
-    # Calculate min and max
-    min_val <- min(nums)
-    max_val <- max(nums)
-
-    # If min and max are the same, just return the value
-    if (min_val == max_val) {
-      return(as.character(min_val))
-    }
-
-    # Return as "min–max"
+    if (is.na(str) || !nzchar(trimws(str))) return(na_string)
+    nums <- .tokenize_numbers(str)
+    if (length(nums) == 0) return(na_string)
+    min_val <- min(nums); max_val <- max(nums)
+    if (min_val == max_val) return(as.character(min_val))
     paste0(min_val, sep, max_val)
-
   }, USE.NAMES = FALSE)
 }

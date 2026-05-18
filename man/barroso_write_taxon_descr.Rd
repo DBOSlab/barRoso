@@ -10,6 +10,9 @@ barroso_write_taxon_descr(
   character_cols,
   sheet = 1,
   species_filter = NULL,
+  avg_cols = NULL,
+  avg_min_n = 3,
+  approx_char = "ca.",
   font_family = "Times New Roman",
   font_size = 12,
   species_bold = TRUE,
@@ -19,21 +22,23 @@ barroso_write_taxon_descr(
   description_bold = FALSE,
   description_italic = FALSE,
   verbose = TRUE,
-  dir = NULL,
-  filename = NULL
+  filename = NULL,
+  dir = NULL
 )
 }
 \arguments{
-\item{xlsx_path}{Character string. Path to the .xlsx file containing
-morphological data.}
+\item{xlsx_path}{Character. Path to the .xlsx file containing morphological data
+with properly structured column names (see Details for naming conventions).}
 
-\item{species_cols}{Character vector or integer indices. Column names or
-indices used to build the species header (e.g., c("Genus", "Species",
-"Author") or 1:3).}
+\item{species_cols}{Character vector or integer indices. Column names or indices
+used to build the species header (e.g., c("Genus", "Species", "Author") or 1:3).
+These can be combined flexibly (e.g., a single "Scientific_name" column or
+separate Genus, Species, and Author columns).}
 
-\item{character_cols}{Character vector or integer indices. Column names or
-indices of morphological character columns (e.g., c("Habit", "Leaf.length",
-"Leaf.width") or 4:20).}
+\item{character_cols}{Character vector or integer indices. Column names or indices
+of morphological character columns (e.g., c("HABIT", "LEAF shape",
+"LEAF length (cm)") or 4:20). These must follow the naming conventions described
+in Details.}
 
 \item{sheet}{Character string or integer. Sheet name or index passed to
 \code{readxl::read_excel()}. Default is 1.}
@@ -42,6 +47,22 @@ indices of morphological character columns (e.g., c("Habit", "Leaf.length",
 Only species matching these names will have descriptions generated.
 The names should match the species name as it appears when concatenating
 the \code{species_cols} columns (without authorship).}
+
+\item{avg_cols}{Optional character vector or integer indices of columns for
+which an average should be reported, displayed immediately after the existing
+range (e.g. "3–8 × 1–2 cm, average 5.5 × 1.5 cm"). Must be a subset of
+\code{character_cols}. Default \code{NULL} (no averages reported).}
+
+\item{avg_min_n}{Integer. Minimum number of non-empty observations per species
+required for an average to be reported. Averages are emitted only when the
+number of observed values is strictly greater than \code{avg_min_n}.
+Default \code{3} (i.e., need at least 4 values for averaging).}
+
+\item{approx_char}{Character string to use for approximate measurements when
+no variation is present (e.g., "ca." or "c."). Default is "ca.".
+Set to \code{NULL} to disable adding approximation. Examples:
+\code{"ca. 0.1 × 0.1 cm"} (no variation) vs \code{"1.3–2.5 × 0.6–1.1 cm"}
+  (variation present, no "ca.").}
 
 \item{font_family}{Character string. Font family for the Word document.
 Default is "Times New Roman". Common options include "Arial", "Calibri",
@@ -67,16 +88,12 @@ Default is FALSE.}
 \item{description_italic}{Logical. Whether to make description text italic.
 Default is FALSE.}
 
-\item{verbose}{Logical. If \code{TRUE} (default), progress messages are
-printed to the console. Set to \code{FALSE} for silent operation.}
+\item{verbose}{Logical. Print progress messages. Default TRUE.}
 
-\item{dir}{Character string. Directory path where output will be saved.
-A date-stamped subfolder will be created inside this directory. If
-\code{NULL}, uses the Excel filename as directory name.}
+\item{filename}{Output file base name (without extension). Default NULL
+(uses Excel filename with "_descriptions" suffix).}
 
-\item{filename}{Character string. Basename for output files (without
-extension). If \code{NULL}, uses the Excel filename with "_descriptions"
-suffix.}
+\item{dir}{Output directory. Default NULL (uses Excel filename as directory name).}
 }
 \value{
 Invisibly returns a data.frame with two columns:
@@ -90,138 +107,105 @@ The main output is a Word document (.docx) saved to the specified directory.
 This function reads morphological data from an Excel spreadsheet,
 generates standardized species descriptions in plain text and Word document formats,
 and exports them to a Word (.docx) file. It handles complex morphological data
-structures including measurements, subterms, and grouping of related characters.
+structures including measurements, subterms and grouping of related characters.
 The function automatically detects measurement ranges and formats them with
-en dashes (e.g., "4.3–14.5 cm").
+en dashes (e.g., "4.3–14.5 cm"). Optionally, it can compute and print averages
+for user-selected measurement columns when a species has more than a threshold
+number of values (see \code{avg_cols} and \code{avg_min_n}).
 }
 \details{
-The function expects an Excel file with specific column naming conventions.
-Morphological characters should be grouped with consistent naming patterns:
-\itemize{
-\item Simple characters: "Habit", "LEAF shape", "LEAF margin"
-\item Measurements: "LEAF length (cm)", "LEAF width (mm)"
-\item Hierarchical structures: "FLOWER SEPALS length (mm)", "FLOWER SEPALS width (mm)"
-}
+\strong{Column naming conventions}
 
-The package includes an example dataset \code{morphological_dataset} containing
-morphological data for 15 species of \emph{Ouratea} (Ochnaceae) that demonstrates
-these naming conventions. This dataset can be used to test the function
-and understand the required data structure.
-
-The function automatically:
-\itemize{
-\item{Detects and groups related morphological characters}
-\item{Handles measurement ranges (e.g., "4.3-14.5" becomes "4.3–14.5")}
-\item{Merges duplicate species entries}
-\item{Formats descriptions with customizable text formatting}
-\item{Exports to Word with proper scientific typography}
-}
-
-Text formatting can be controlled via the \code{species_bold}, \code{group_bold},
-and related parameters. Species names are italicized by default following
-botanical conventions.
-}
-\section{Column naming conventions and text construction}{
-
-The function comprehensively parses column names to construct coherent descriptions.
-Capitalized terms in column names serve as organizational elements that are
-pulled out and used to structure the description text. Follow these conventions:
+The function relies on a structured column naming system to parse and organize
+morphological traits. Columns must follow these conventions:
 
 \describe{
-\item{Species columns}{One or more columns containing taxonomic information.
-Can be flexible combinations:
+\item{\strong{Main character groups}}{Use ALL CAPS for the primary category:
+\code{HABIT}, \code{STIPULE}, \code{LEAF}, \code{INFLORESCENCE},
+\code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers.}
+
+\item{\strong{Simple characters}}{Lowercase descriptive terms after the main group.
+Examples: \code{LEAF shape}, \code{LEAF margin}, \code{FLOWER symmetry}.
+These will be appended directly after the lowercase group name.}
+
+\item{\strong{Hierarchical characters}}{Use ALL CAPS for subgroup terms.
+Examples: \code{LEAF PETIOLE length (cm)}, \code{FLOWER SEPALS shape}.
+The capitalized term (\code{PETIOLE}, \code{SEPALS}) is extracted once
+and used as a subheading.}
+
+\item{\strong{Measurements}}{Include units in parentheses for automatic detection:
+\code{LEAF length (cm)}, \code{STIPULE width (mm)}, \code{HABIT height (m)}.
+Multiple measurements (e.g., length + width) are automatically combined
+with "×" and the unit is placed at the end.}
+
+\item{\strong{Column name flexibility}}{Spaces, dots, or underscores can be used
+as separators. All of the following are valid:
 \itemize{
-\item{Single column: "Species_name" (e.g., "Ouratea concinna")}
-\item{Two columns: "Genus" and "Species" (e.g., "Ouratea" and "concinna")}
-\item{Three columns: "Genus", "Species", and "Author" (e.g., "Ouratea",
-"concinna", and "(Mart.) Engl.")}
-\item{Any other combination needed for your data structure}
-}
-These are concatenated to form the species header.}
-\item{Main character groups}{Use ALL CAPS: "HABIT", "LEAF",
-"Flower". These become section headers in the description.}
-\item{Hierarchical structures}{Use ALL CAPS for sub-levels: "LEAF shape",
-"LEAF margin", "FLOWER PETALS color". The capitalized terms ("LEAF",
-"PETALS") are extracted once and the descriptive text from the cell is
-appended. For example, a column named "LEAF shape" with cell value
-"elliptic to ovate" produces: "leaf elliptic to ovate".}
-\item{Measurements}{Include units in parentheses: "LEAF length (cm)",
-"PETAL width (mm)". Measurements with multiple values (e.g., "4.3-14.5")
-are automatically formatted with en dashes: "4.3–14.5 cm".}
-\item{Related measurements}{Columns like "LEAF length (cm)" and
-"LEAF width (cm)" are automatically combined: "4.3–14.5 × 2.1–3.8 cm".}
-\item{Higher hierarchies}{Complex structures like "FLOWER SEPALS BASE shape"
-are parsed as: "flower sepals base" + cell value. This allows grouping
-related characters under common headings.}
-}
+\item \code{STIPULE length (mm)}
+\item \code{STIPULE.length.(mm)}
+\item \code{STIPULE_length_mm}
+\item \code{LEAF PETIOLE shape}
+\item \code{LEAF.PETIOLE.shape}
+}}
 }
 
-\section{Examples of species column flexibility}{
+\strong{Example dataset}
+
+The package includes an example dataset \code{morphological_dataset} containing
+morphological data for 15 species of \emph{Ouratea} (Ochnaceae) compiled from
+herbarium specimens and field observations for a taxonomic revision. This dataset
+demonstrates proper column naming conventions and can be used to test the function:
 
 \preformatted{
-# Example 1: Single species name column
-species_cols = "Species"  # Column contains "Ouratea concinna (Mart.) Engl."
-
-# Example 2: Separate genus and species
-species_cols = c("Genus", "Species")  # "Ouratea" + "concinna"
-
-# Example 3: With separate authorship
-species_cols = c("Genus", "Species", "Author")  # "Ouratea" + "concinna" + "(Mart.) Engl."
-
-# Example 4: With infraspecific rank
-species_cols = c("Genus", "Species", "Infrasp_rank", "Infrasp", "Author")
-# Produces: "Ouratea concinna subsp. coarctata (Mart.) Engl."
-}
+data(morphological_dataset)
+head(names(morphological_dataset))
 }
 
-\section{How descriptions are constructed}{
+\strong{Creating a template}
 
-For each species, the function:
-\enumerate{
-\item \strong{Parses column names} to extract hierarchical structure
-\item \strong{Groups related characters} based on capitalized terms
-\item \strong{Extracts capitalized terms once} to avoid repetition
-\item \strong{Appends cell values} to create natural language descriptions
-\item \strong{Formats measurements} with proper units and en dashes
-\item \strong{Organizes text} with appropriate punctuation
-}
+To create a properly formatted Excel template with all required columns for your
+plant group, use the companion function \code{\link{barroso_add_char_template}}.
+This function generates a ready-to-use template based on your species list and
+selected plant group (e.g., "Ochnaceae", "Asteraceae", "Orchidaceae",
+"Leguminosae-Papilionoideae"), saving hours of manual column creation.
 
-Example transformation:
 \preformatted{
-Column name: "LEAF shape" with cell value: "elliptic to ovate"
-Result in description: "leaf elliptic to ovate"
-
-Column names: "LEAF length (cm)" (value: "4.3-14.5") and
-              "LEAF width (cm)" (value: "2.1-3.8")
-Result in description: "leaf 4.3–14.5 × 2.1–3.8 cm"
-
-Column names: "FLOWER PETALS color" (value: "white") and
-              "FLOWER PETALS number" (value: "5")
-Result in description: "flower petals white, 5"
+# Create a template for Ochnaceae
+barroso_add_char_template(
+  species_df = my_species_list,
+  plant_group = "Ochnaceae",
+  filename = "Ochnaceae_template"
+)
 }
 }
-
-\section{Output structure}{
-
-The generated Word document contains:
-\itemize{
-\item{Species name with authorship (italicized by default)}
-\item{Morphological description organized by character groups}
-\item{Measurements formatted with proper units and en dashes for ranges}
-\item{Hierarchical characters grouped logically}
-}
-}
-
 \examples{
 \dontrun{
-# Basic usage - generate descriptions for all species
+# Basic usage with example dataset
+data(morphological_dataset)
+
+# First, save the example dataset to Excel
+library(openxlsx)
+write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
+
+# Generate descriptions using proper column selection
+barroso_write_taxon_descr(
+  xlsx_path = "morphological_dataset.xlsx",
+  species_cols = c("Genus", "Species", "Author"),  # Taxonomic identification
+  character_cols = 19:131,  # Morphological character columns
+  approx_char = "ca."  # Add "ca." to measurements without variation
+)
+
+# Generate descriptions with average calculation
 barroso_write_taxon_descr(
   xlsx_path = "morphological_data.xlsx",
   species_cols = c("Genus", "Species", "Author"),
-  character_cols = 4:20
+  character_cols = 4:20,
+  avg_cols = c("LEAF length (cm)", "FRUIT length (cm)"),
+  avg_min_n = 3,  # Calculate averages when n > 3 observations
+  approx_char = "ca."
 )
 
-# Generate descriptions only for specific species
+# Filter to specific species only
 barroso_write_taxon_descr(
   xlsx_path = "morphological_data.xlsx",
   species_cols = c("Genus", "Species"),
@@ -229,7 +213,7 @@ barroso_write_taxon_descr(
   species_filter = c("Ouratea concinna", "Ouratea coarctata")
 )
 
-# Customize formatting
+# Customize text formatting in Word output
 barroso_write_taxon_descr(
   xlsx_path = "morphological_data.xlsx",
   species_cols = 1:3,
@@ -245,29 +229,12 @@ barroso_write_taxon_descr(
   filename = "MySpeciesDescriptions",
   dir = "Output"
 )
-
-# Using column indices instead of names
-barroso_write_taxon_descr(
-  xlsx_path = "data.xlsx",
-  species_cols = 1:2,          # First two columns: Genus and Species
-  character_cols = 3:18        # Columns 3-18: morphological characters
-)
 }
 
-# Using the included morphological_dataset
-\dontrun{
-# First save the dataset to Excel format=
-library(openxlsx)
-openxlsx::write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
-
-# Generate descriptions using the example dataset
-barroso_write_taxon_descr(
-  xlsx_path = "morphological_dataset.xlsx",
-  species_cols = c("Genus", "Species", "Author"),
-  character_cols = 19:131  # Morphological character columns
-)
 }
-
+\seealso{
+\code{\link{barroso_add_char_template}} for creating properly formatted Excel templates,
+\code{\link{morphological_dataset}} for an example dataset showing correct column naming
 }
 \author{
 Domingos Cardoso
