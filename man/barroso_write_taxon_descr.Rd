@@ -62,7 +62,7 @@ Default \code{3} (i.e., need at least 4 values for averaging).}
 no variation is present (e.g., "ca." or "c."). Default is "ca.".
 Set to \code{NULL} to disable adding approximation. Examples:
 \code{"ca. 0.1 × 0.1 cm"} (no variation) vs \code{"1.3–2.5 × 0.6–1.1 cm"}
-  (variation present, no "ca.").}
+(variation present, no "ca.").}
 
 \item{font_family}{Character string. Font family for the Word document.
 Default is "Times New Roman". Common options include "Arial", "Calibri",

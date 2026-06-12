@@ -875,8 +875,7 @@ barroso_add_char_template <- function(species_df,
 #'
 #' @return Invisibly returns the file path.
 #'
-#' @importFrom openxlsx createWorkbook addWorksheet modifyBaseFont writeData
-#'   freezePane setColWidths saveWorkbook addStyle createStyle addFilter
+#' @importFrom openxlsx createWorkbook addWorksheet modifyBaseFont writeData freezePane setColWidths saveWorkbook addStyle createStyle addFilter
 #'
 #' @keywords internal
 #' @noRd
