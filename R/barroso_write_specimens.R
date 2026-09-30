@@ -227,19 +227,24 @@ barroso_write_specimens <- function(xlsx_path,
 
   # Format coordinates if columns exist
   if (col_mapping$decimalLatitude %in% names(df) && col_mapping$decimalLongitude %in% names(df)) {
-    df$coords <- .format_coordinates(df[[col_mapping$decimalLatitude]],
-                                     df[[col_mapping$decimalLongitude]])
+    # The helpers format one specimen at a time
+    df$coords <- mapply(.format_coordinates,
+                        suppressWarnings(as.numeric(df[[col_mapping$decimalLatitude]])),
+                        suppressWarnings(as.numeric(df[[col_mapping$decimalLongitude]])),
+                        USE.NAMES = FALSE)
   } else {
     df$coords <- ""
   }
 
   # Format date if columns exist
   if (col_mapping$year %in% names(df)) {
-    df$date <- .format_date(
+    df$date <- mapply(
+      .format_date,
       if (col_mapping$day %in% names(df)) df[[col_mapping$day]] else NA,
       if (col_mapping$month %in% names(df)) df[[col_mapping$month]] else NA,
       df[[col_mapping$year]],
-      language = language
+      MoreArgs = list(language = language),
+      USE.NAMES = FALSE
     )
   } else {
     df$date <- ""
@@ -287,6 +292,10 @@ barroso_write_specimens <- function(xlsx_path,
         unique(geo_df[[col_mapping$municipality]])[1]
       } else { "" }
 
+      country <- .na_to_empty(country)
+      state <- .na_to_empty(state)
+      municipality <- .na_to_empty(municipality)
+
       # Translate country if needed
       if (language == "pt" && nzchar(country)) {
         country <- .translate_country(country)
@@ -316,15 +325,23 @@ barroso_write_specimens <- function(xlsx_path,
           unique(coll_df[[col_mapping$locality]])[1]
         } else { "" }
 
-        coords <- unique(coll_df$coords)[1]
-        date <- unique(coll_df$date)[1]
-        type_status <- unique(coll_df$type_status)[1]
+        locality <- .na_to_empty(locality)
+        coords <- .na_to_empty(unique(coll_df$coords)[1])
+        date <- .na_to_empty(unique(coll_df$date)[1])
 
-        # Add type status if present
-        if (nzchar(type_status)) {
-          type_text <- paste0("[", type_status, "] ")
-        } else {
+        # Add type status if present, with the herbarium of each type when
+        # duplicates have different status, e.g. "[holotype HUEFS, isotype RB]"
+        types <- .na_to_empty(coll_df$type_status)
+        has_type <- nzchar(types)
+        if (!any(has_type)) {
           type_text <- ""
+        } else if (length(unique(types[has_type])) == 1 ||
+                   !col_mapping$collectionCode %in% names(df)) {
+          type_text <- paste0("[", paste(unique(types[has_type]), collapse = ", "), "]")
+        } else {
+          herb <- .na_to_empty(coll_df[[col_mapping$collectionCode]])[has_type]
+          type_text <- paste0("[", paste(unique(trimws(paste(types[has_type], herb))),
+                                         collapse = ", "), "]")
         }
 
         # Build specimen entry
@@ -335,6 +352,9 @@ barroso_write_specimens <- function(xlsx_path,
         collector_num <- if (col_mapping$recordNumber %in% names(df)) {
           unique(coll_df[[col_mapping$recordNumber]])[1]
         } else { "" }
+        collector_name <- .na_to_empty(collector_name)
+        collector_num <- .na_to_empty(collector_num)
+        if (!nzchar(collector_num)) collector_num <- "s.n."
 
         specimen_entry <- .format_specimen_entry(
           locality = locality,
@@ -517,23 +537,24 @@ barroso_write_specimens <- function(xlsx_path,
 #' @noRd
 .format_coordinates <- function(lat, lon) {
   if (is.na(lat) || is.na(lon)) return("")
-  if (abs(lat) > 90) return("")
+  if (abs(lat) > 90 || abs(lon) > 180) return("")
 
   lat_dir <- ifelse(lat >= 0, "N", "S")
   lon_dir <- ifelse(lon >= 0, "E", "W")
 
-  lat_abs <- abs(lat)
-  lon_abs <- abs(lon)
-
-  lat_deg <- floor(lat_abs)
-  lat_min_float <- (lat_abs - lat_deg) * 60
-  lat_min <- floor(lat_min_float)
-  lat_sec <- round((lat_min_float - lat_min) * 60, 1)
-
-  lon_deg <- floor(lon_abs)
-  lon_min_float <- (lon_abs - lon_deg) * 60
-  lon_min <- floor(lon_min_float)
-  lon_sec <- round((lon_min_float - lon_min) * 60, 1)
+  # Degrees, minutes and seconds from the rounded total of seconds, so that
+  # 59.96 seconds become the next minute instead of "60.0 seconds"
+  dms <- function(x) {
+    total <- round(abs(x) * 3600, 1)
+    deg <- floor(total / 3600)
+    min <- floor((total - deg * 3600) / 60)
+    sec <- round(total - deg * 3600 - min * 60, 1)
+    c(deg, min, sec)
+  }
+  lat_dms <- dms(lat)
+  lon_dms <- dms(lon)
+  lat_deg <- lat_dms[1]; lat_min <- lat_dms[2]; lat_sec <- lat_dms[3]
+  lon_deg <- lon_dms[1]; lon_min <- lon_dms[2]; lon_sec <- lon_dms[3]
 
   if (lat_sec > 0 || lon_sec > 0) {
     return(sprintf("%d°%d′%.1f″%s, %d°%d′%.1f″%s",
@@ -564,6 +585,8 @@ barroso_write_specimens <- function(xlsx_path,
   month_num <- suppressWarnings(as.numeric(month))
   if (!is.na(month_num) && month_num >= 1 && month_num <= 12) {
     month_abbr <- months[month_num]
+  } else if (is.na(month) || !nzchar(month)) {
+    return(as.character(year))
   } else {
     month_abbr <- as.character(month)
   }
@@ -573,6 +596,15 @@ barroso_write_specimens <- function(xlsx_path,
   } else {
     return(paste(month_abbr, year))
   }
+}
+
+#' Missing values as empty strings
+#' @keywords internal
+#' @noRd
+.na_to_empty <- function(x) {
+  x <- as.character(x)
+  x[is.na(x)] <- ""
+  x
 }
 
 #' Translate country names to Portuguese

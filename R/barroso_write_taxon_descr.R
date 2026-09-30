@@ -321,8 +321,8 @@ barroso_write_taxon_descr <- function(xlsx_path,
   if (is.null(filename)) {
     base <- tools::file_path_sans_ext(basename(xlsx_path))
     filename <- paste0(foldername, "/", base, "_descriptions.docx")
-  } else if (tools::file_ext(filename) == "") {
-    filename <- paste0(foldername, "/", filename, ".docx")
+  } else {
+    filename <- paste0(foldername, "/", tools::file_path_sans_ext(basename(filename)), ".docx")
   }
 
   out_tbl <- data.frame(
@@ -1107,8 +1107,6 @@ barroso_write_taxon_descr <- function(xlsx_path,
   if (is.logical(x[[1]])) return("")
   if (inherits(x[[1]], "POSIXt")) return(format(x[[1]], "%Y-%m-%d"))
   if (is.numeric(x[[1]])) {
-    if (length(x) == 1L && isTRUE(all.equal(x[[1]], round(x[[1]]))) &&
-        x[[1]] %in% 8:16) return("")
     if (isTRUE(all.equal(x[[1]], round(x[[1]])))) {
       return(as.character(as.integer(round(x[[1]]))))
     }
@@ -1116,7 +1114,6 @@ barroso_write_taxon_descr <- function(xlsx_path,
   }
   txt <- stringr::str_squish(as.character(x[[1]]))
   if (!nzchar(txt)) return("")
-  if (txt %in% c("TRUE", "FALSE", "black", "Arial", "baseline", "transparent")) return("")
   txt
 }
 

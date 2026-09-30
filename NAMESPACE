@@ -7,77 +7,98 @@ export(barroso_labels)
 export(barroso_std)
 export(barroso_write_specimens)
 export(barroso_write_taxon_descr)
+export(dms_to_decimal)
 export(remove_authorship)
 export(std_collection)
+export(std_coordinates)
+export(std_identifiedBy)
 export(std_place)
 export(std_recordedBy)
 export(std_taxa)
 export(std_types)
-importFrom(countrycode,countrycode)
-importFrom(countrycode,countryname)
-importFrom(cowplot,draw_plot)
-importFrom(cowplot,ggdraw)
-importFrom(cowplot,plot_grid)
-importFrom(cowplot,save_plot)
-importFrom(dplyr,across)
-importFrom(dplyr,all_of)
-importFrom(dplyr,arrange)
-importFrom(dplyr,bind_rows)
-importFrom(dplyr,filter)
-importFrom(dplyr,first)
-importFrom(dplyr,group_by)
-importFrom(dplyr,mutate)
-importFrom(dplyr,select)
-importFrom(dplyr,summarise)
-importFrom(ggplot2,aes)
-importFrom(ggplot2,annotate)
-importFrom(ggplot2,element_rect)
-importFrom(ggplot2,geom_point)
-importFrom(ggplot2,geom_sf)
-importFrom(ggplot2,ggplot)
-importFrom(ggplot2,theme)
+importFrom(countrycode,
+  countrycode,
+  countryname
+)
+importFrom(cowplot,
+  draw_plot,
+  ggdraw,
+  plot_grid,
+  save_plot
+)
+importFrom(dplyr,
+  across,
+  all_of,
+  arrange,
+  bind_rows,
+  filter,
+  first,
+  group_by,
+  mutate,
+  select,
+  summarise
+)
+importFrom(ggplot2,
+  aes,
+  annotate,
+  element_rect,
+  geom_point,
+  geom_sf,
+  ggplot,
+  theme
+)
 importFrom(ggspatial,layer_spatial)
 importFrom(ggthemes,theme_map)
 importFrom(lcvplants,lcvp_search)
 importFrom(magrittr,"%>%")
 importFrom(maps,map)
-importFrom(officer,body_add_fpar)
-importFrom(officer,body_add_par)
-importFrom(officer,fp_text)
-importFrom(officer,fpar)
-importFrom(officer,ftext)
-importFrom(officer,read_docx)
-importFrom(openxlsx,addFilter)
-importFrom(openxlsx,addStyle)
-importFrom(openxlsx,addWorksheet)
-importFrom(openxlsx,createStyle)
-importFrom(openxlsx,createWorkbook)
-importFrom(openxlsx,freezePane)
-importFrom(openxlsx,modifyBaseFont)
-importFrom(openxlsx,saveWorkbook)
-importFrom(openxlsx,setColWidths)
-importFrom(openxlsx,write.xlsx)
-importFrom(openxlsx,writeData)
+importFrom(officer,
+  body_add_fpar,
+  body_add_par,
+  fp_text,
+  fpar,
+  ftext,
+  read_docx
+)
+importFrom(openxlsx,
+  addFilter,
+  addStyle,
+  addWorksheet,
+  createStyle,
+  createWorkbook,
+  freezePane,
+  modifyBaseFont,
+  saveWorkbook,
+  setColWidths,
+  write.xlsx,
+  writeData
+)
 importFrom(readxl,read_excel)
-importFrom(sf,st_as_sf)
-importFrom(sf,st_bbox)
+importFrom(sf,
+  st_as_sf,
+  st_bbox
+)
 importFrom(stats,na.omit)
-importFrom(stringi,stri_replace_first_regex)
-importFrom(stringi,stri_trans_general)
-importFrom(stringr,str_detect)
-importFrom(stringr,str_extract_all)
-importFrom(stringr,str_match)
-importFrom(stringr,str_replace)
-importFrom(stringr,str_replace_all)
-importFrom(stringr,str_split)
-importFrom(stringr,str_split_fixed)
-importFrom(stringr,str_squish)
-importFrom(stringr,str_to_lower)
-importFrom(stringr,str_trim)
+importFrom(stringi,
+  stri_replace_first_regex,
+  stri_trans_general,
+  stri_unescape_unicode
+)
+importFrom(stringr,
+  str_detect,
+  str_extract,
+  str_match,
+  str_replace_all,
+  str_split,
+  str_split_fixed,
+  str_squish,
+  str_to_lower,
+  str_trim
+)
 importFrom(tibble,add_column)
 importFrom(tidyr,unite)
-importFrom(tmcn,strextract)
-importFrom(tmcn,toPinyin)
-importFrom(tools,file_ext)
-importFrom(tools,file_path_sans_ext)
-importFrom(tools,toTitleCase)
+importFrom(tools,
+  file_ext,
+  file_path_sans_ext,
+  toTitleCase
+)

@@ -147,9 +147,9 @@ barroso_labels <- function(fieldbook = NULL,
     } else {
       authority <- paste(fieldbook_temp$genus, fieldbook_temp$species, fieldbook_temp$infraspecies)
     }
-    authority <- lcvplants::lcvp_search(authority)
+    authority <- suppressWarnings(lcvplants::lcvp_search(authority))
 
-    if (!is.null(authority)) {
+    if (!is.null(authority) && !is.na(authority$Output.Taxon[1])) {
       if (is.na(fieldbook_temp$infraspecies)) {
         taxon <- sub("^(\\S*\\s+\\S+).*", "\\1", authority$Output.Taxon)
         authority <- gsub(".*^(\\S*\\s+\\S+)", "", authority$Output.Taxon)
@@ -159,11 +159,16 @@ barroso_labels <- function(fieldbook = NULL,
           fieldbook_temp$species <- gsub(".*\\s", "", taxon)
         }
       } else {
-        taxon <- sub("^(\\S*\\s+\\S+\\s+\\S+\\s+\\S+).*", "\\1", authority$Output.Taxon)
-        authority <- gsub(".*^(\\S*\\s+\\S+\\s+\\S+\\s+\\S+)", "", authority$Output.Taxon)
+        # LCVP may return the infraspecific name or just the species name,
+        # e.g. "Dalea purpurea Vent." for "Dalea purpurea var. purpurea"
+        taxon <- sub("^(\\S+\\s+\\S+(\\s+(var|subsp|ssp|f)[.]\\s+\\S+)?).*", "\\1",
+                     authority$Output.Taxon)
+        authority <- trimws(substring(authority$Output.Taxon, nchar(taxon) + 1))
       }
     } else {
+      # Name not found in LCVP, e.g. "Ormosia sp.": keep the name of the field book
       authority <- " "
+      taxon <- paste(fieldbook_temp$genus, fieldbook_temp$species)
     }
 
     #_______________________________________________________________________________
@@ -277,7 +282,7 @@ barroso_labels <- function(fieldbook = NULL,
                         label = paste0(ifelse(is.na(fieldbook_temp$stateProvince),
                                               toupper(fieldbook_temp$country),
                                               toupper(fieldbook_temp$stateProvince)),
-                                       ifelse(is.na(fieldbook_temp$county), ".", ", "),
+                                       ifelse(is.na(fieldbook_temp$county), ". ", ", "),
 
                                        ifelse(is.na(fieldbook_temp$county), "",
                                               paste(fieldbook_temp$county,

@@ -127,13 +127,6 @@ std_place <- function(df = NULL,
     # Fix country names such as put them in English ####
     df <- .fix_country_names(df)
 
-    # Put original country name back ####
-    if (colname_country != "country") {
-      names(df)[names(df) %in% "country"] <- colname_country
-      if (rm_original_column == FALSE) {
-        names(df)[names(df) %in% "countryOriginal"] <- paste0(colname_country, "Original")
-      }
-    }
 
   }
 
@@ -174,16 +167,12 @@ std_place <- function(df = NULL,
                                              "Pe","Pi","Rj","Rn","Rs","Ro","RR","Sc",
                                              "Sp","Se","To"))
 
-      for (i in BrazilStates$acronyms1) {
-        df$stateProvince <- ifelse(df$stateProvince == i,
-                                   as.character(BrazilStates$states[which(BrazilStates$acronyms1 == i)]),
-                                   as.character(df$stateProvince))
-      }
-
-      for (i in BrazilStates$acronyms2) {
-        df$stateProvince <- ifelse(df$stateProvince == i,
-                                   as.character(BrazilStates$states[which(BrazilStates$acronyms2 == i)]),
-                                   as.character(df$stateProvince))
+      # Only for Brazilian records, as acronyms like "AL" or "PA" are also
+      # used for states of other countries
+      brazil <- df$country %in% "Brazil"
+      for (acronyms in list(BrazilStates$acronyms1, BrazilStates$acronyms2)) {
+        tf <- brazil & df$stateProvince %in% acronyms
+        df$stateProvince[tf] <- BrazilStates$states[match(df$stateProvince[tf], acronyms)]
       }
 
       # Further standardizing Brazilian states
@@ -196,40 +185,15 @@ std_place <- function(df = NULL,
                                  "Rondônia", as.character(df$stateProvince))
     }
 
-    if (any(df$country %in% "United States of America")) {
+    usa <- df$country %in% c("United States", "United States of America", "USA")
+    if (any(usa)) {
       # Converting USA states acronyms into complete name states
-      USAStates <- data.frame(states=c("Alabama", "Alaska", "American Samoa", "Arizona",
-                                       "Arkansas", "California", "Colorado", "Connecticut",
-                                       "Delaware", "District of Columbia", "Florida",
-                                       "Georgia", "Guam", "Hawaii", "Idaho", "Illinois",
-                                       "Indiana", "Iowa", "Kansas", "Kentucky",
-                                       "Louisiana", "Maine", "Maryland", "Massachusetts",
-                                       "Michigan", "Minnesota", "Minor Outlying Islands",
-                                       "Mississippi", "Missouri", "Montana", "Nebraska",
-                                       "Nevada", "New Hampshire", "New Jersey", "New Mexico",
-                                       "New York", "North Carolina", "North Dakota",
-                                       "Northern Mariana Islands", "Ohio", "Oklahoma",
-                                       "Oregon", "Pennsylvania", "Puerto Rico",
-                                       "Rhode Island", "South Carolina", "South Dakota",
-                                       "Tennessee", "Texas", "U.S. Virgin Islands",
-                                       "Utah", "Vermont", "Virginia", "Washington",
-                                       "West Virginia", "Wisconsin", "Wyoming"),
-                              acronyms=c("AK", "AL", "AR", "AS", "AZ", "CA", "CO",
-                                         "CT", "DC", "DE", "FL", "GA", "GU", "HI",
-                                         "IA", "ID", "IL", "IN", "KS", "KY", "LA",
-                                         "MA", "MD", "ME", "MI", "MN", "MO", "MP",
-                                         "MS", "MT", "NC", "ND", "NE", "NH", "NJ",
-                                         "NM", "NV", "NY", "OH", "OK", "OR", "PA",
-                                         "PR", "RI", "SC", "SD", "TN", "TX", "UM",
-                                         "UT", "VA", "VI", "VT", "WA", "WI", "WV",
-                                         "WY"))
-
-      for (i in USAStates$acronyms) {
-        df$stateProvince <- ifelse(df$stateProvince == i,
-                                   as.character(USAStates$states[which(USAStates$acronyms == i)]),
-                                   as.character(df$stateProvince))
-      }
-
+      usa_states <- c(stats::setNames(datasets::state.name, datasets::state.abb),
+                      DC = "District of Columbia", AS = "American Samoa", GU = "Guam",
+                      MP = "Northern Mariana Islands", PR = "Puerto Rico",
+                      UM = "Minor Outlying Islands", VI = "U.S. Virgin Islands")
+      tf <- usa & df$stateProvince %in% names(usa_states)
+      df$stateProvince[tf] <- usa_states[df$stateProvince[tf]]
     }
 
     # Further standardizing the state/province
@@ -303,7 +267,7 @@ std_place <- function(df = NULL,
 
     # Deleting state/province name from the locality
     tf <- !is.na(df$stateProvince)
-    tft <- grepl("^Dept[.]", df$locality[tf])
+    tftf <- grepl("^Dept[.]", df$locality[tf])
     if (any(tftf)) {
       df$locality[tf][tftf] <- sub(".*?[:]\\s", "",
                                    df$locality[tf][tftf])
@@ -355,7 +319,8 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_continent, "' column removed"))
     }
 
-    if (any(!is.na(df$continent))) {
+    # Also when all continents are missing, so they are added from the country
+    {
       # Cleaning the names in the column continent
       df$continent <- ifelse(df$continent %in% "Asia-Temperate", "Asia", as.character(df$continent))
       df$continent <- ifelse(df$continent %in% c("América", "AMERIQUE DU SUD",
@@ -372,7 +337,7 @@ std_place <- function(df = NULL,
 
       # Adding continent names when lacking in the database
       Africa <- c('Algeria','Angola','Benin','Botswana','Burkina Faso','Burundi','Cabo Verde','Cameroon','Central African Republic','Chad','Comoros','Democratic Republic of the Congo','Republic of the Congo','Cote d\'Ivoire','Djibouti','Egypt','Equatorial Guinea','Eritrea','Ethiopia','Gabon','Gambia','Ghana','Guinea','Guinea Bissau','Kenya','Lesotho','Liberia','Libya','Madagascar','Malawi','Mali','Mauritania','Mauritius','Morocco','Mozambique','Namibia','Niger','Nigeria','Rwanda','Sao Tome and Principe','Senegal','Seychelles','Sierra Leone','Somalia','South Africa','South Sudan','Sudan','Swaziland','Tanzania','Togo','Tunisia','Uganda','Zambia','Zimbabwe')
-      NorthAmerica<- c('Antigua and Barbuda','Puerto Rico','Trinidad & Tobago','Bahamas','Barbados','Belize','Canada','Costa Rica','Cuba','Dominica','Dominican Republic','El Salvador','Grenada','Guatemala','Haiti','Honduras','Jamaica','Mexico','Nicaragua','Panama','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Trinidad and Tobago','United States of America')
+      NorthAmerica<- c('Antigua and Barbuda','Puerto Rico','Trinidad & Tobago','Bahamas','Barbados','Belize','Canada','Costa Rica','Cuba','Dominica','Dominican Republic','El Salvador','Grenada','Guatemala','Haiti','Honduras','Jamaica','Mexico','Nicaragua','Panama','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Trinidad and Tobago','United States of America','United States')
       SouthAmerica<- c('Argentina', 'Bolivia','Brazil','Chile','Colombia','Ecuador','French Guiana','Guyana','Paraguay','Peru','Suriname','Uruguay','Venezuela')
       Europe <- c('Albania','Andorra','Armenia','Austria','Azerbaijan','Belarus','Belgium','Bosnia and Herzegovina','Bulgaria','Croatia','Cyprus','Czech Republic','Denmark','Estonia','Finland','France','Georgia','Germany','Greece','Iceland','Ireland','Italy','Kazakhstan','Kosovo','Latvia','Liechtenstein','Lithuania','Luxembourg','Macedonia','Malta','Moldova','Monaco','Montenegro','Netherlands','Norway','Poland','Portugal','Romania','Russia','San Marino','Serbia','Slovakia','Slovenia','Spain','Sweden','Switzerland','Turkey','Ukraine','United Kingdom','Vatican City')
       Asia <- c('Armenia','Hong Kong','Azerbaijan','Bahrain','Bangladesh','Bhutan','Brunei', 'Cambodia','China','Cyprus','Georgia','India','Indonesia','Iran','Iraq','Israel', 'Japan','Jordan','Kazakhstan','Kuwait','Kyrgyzstan','Laos','Lebanon','Malaysia','Maldives','Mongolia','Myanmar','Nepal','North Korea','Oman','Pakistan','Palestine','Philippines','Qatar','Russia','Saudi Arabia','Singapore','South Korea','Sri Lanka','Syria','Taiwan','Tajikistan','Thailand','Timor Leste','Turkey','Turkmenistan','United Arab Emirates','Uzbekistan','Vietnam','Yemen')
@@ -461,9 +426,9 @@ std_place <- function(df = NULL,
     # Remove original municipality and locality columns ####
     if (rm_original_column == FALSE) {
       df <- df %>%
-        tibble::add_column(countyOriginal = df$municipality,
+        tibble::add_column(municipalityOriginal = df$municipality,
                            .before = "municipality") %>%
-        tibble::add_column(countyOriginal = df$locality,
+        tibble::add_column(localityOriginal = df$locality,
                            .before = "locality")
     } else {
       message(paste0("Original uncleaned '", colname_municipality, "' and ", colname_locality, "' columns removed"))
@@ -550,10 +515,19 @@ std_place <- function(df = NULL,
     if (colname_locality != "locality") {
       names(df)[names(df) %in% "locality"] <- colname_locality
       if (rm_original_column == FALSE) {
-        names(df)[names(df) %in% "countyOriginal"] <- paste0(colname_locality, "Original")
+        names(df)[names(df) %in% "localityOriginal"] <- paste0(colname_locality, "Original")
       }
     }
 
+  }
+
+  # Put original country name back ####
+  # Only at the end, as the steps for state and continent need the country
+  if (colname_country != "country") {
+    names(df)[names(df) %in% "country"] <- colname_country
+    if (rm_original_column == FALSE) {
+      names(df)[names(df) %in% "countryOriginal"] <- paste0(colname_country, "Original")
+    }
   }
 
   return(df)
@@ -623,7 +597,7 @@ std_place <- function(df = NULL,
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
-    df$country[tf] <- "Venezula"
+    df$country[tf] <- "Venezuela"
   }
 
   # NORTH AMERICA ####

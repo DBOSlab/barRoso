@@ -5,37 +5,101 @@
 \title{Flag or Remove Duplicate Specimens}
 \usage{
 barroso_flag_duplicates(df,
-                        rm_duplicates = FALSE)
+                        rm_duplicates = FALSE,
+                        colname_recordedBy = "recordedBy",
+                        colname_recordNumber = "recordNumber",
+                        colname_genus = "genus",
+                        colname_specificEpithet = "specificEpithet",
+                        colname_collectionCode = "collectionCode",
+                        colname_catalogNumber = "catalogNumber",
+                        colname_decimalLatitude = "decimalLatitude",
+                        colname_decimalLongitude = "decimalLongitude")
 }
 \arguments{
 \item{df}{A data frame with biodiversity specimen records.}
 
-\item{rm_duplicates}{Logical; if \code{TRUE}, removes duplicates and retains one record
-per duplicated group (default: \code{FALSE}).}
+\item{rm_duplicates}{Logical; if \code{TRUE}, keeps just one record per block of
+duplicates (default: \code{FALSE}).}
+
+\item{colname_recordedBy}{Column name for the collector (default: \code{"recordedBy"}).}
+
+\item{colname_recordNumber}{Column name for the collector number (default: \code{"recordNumber"}).}
+
+\item{colname_genus}{Column name for the genus (default: \code{"genus"}).}
+
+\item{colname_specificEpithet}{Column name for the specific epithet (default: \code{"specificEpithet"}).}
+
+\item{colname_collectionCode}{Column name for the herbarium acronym (default: \code{"collectionCode"}).}
+
+\item{colname_catalogNumber}{Column name for the catalog number (default: \code{"catalogNumber"}).}
+
+\item{colname_decimalLatitude}{Column name for latitude (default: \code{"decimalLatitude"}).}
+
+\item{colname_decimalLongitude}{Column name for longitude (default: \code{"decimalLongitude"}).}
 }
 \value{
-A data frame with an added \code{duplicate} column. If \code{rm_duplicates = TRUE},
-duplicated entries are removed based on standardized logic.
+A data frame with the duplicate columns described above. If
+\code{rm_duplicates = TRUE}, only one record per block of duplicates is kept.
 }
 \description{
 Identifies and optionally removes duplicate herbarium specimen records based on
-collector name and number, or—when these are missing—by species name and date.
-Adds a logical \code{duplicate} column to indicate flagged duplicates.
+collector name and number, or—when the number is missing—by species name, collector
+and date. Duplicates are grouped into blocks, and blocks with conflicting
+identifications are highlighted. The herbaria and catalog numbers of all
+duplicates are stored together, so no information is lost when duplicates are
+removed.
 }
 \details{
 This function is part of the internal workflow of the \code{barRoso} package, supporting
-record reconciliation and dataset cleaning. It uses combinations of collector names
-(\code{recordedBy}), collection numbers (\code{recordNumber}), and collection dates (\code{year},
-\code{month}, \code{day}) to identify duplicate entries. When \code{rm_duplicates = TRUE}, one
-record from each duplicated group is retained, and all others are removed.
-Specimens missing collector numbers are handled in a separate logic pass using
-additional fields (\code{species}, \code{recordedBy}, \code{year}, \code{month}, \code{day}) to detect
-duplicates.
+record reconciliation and dataset cleaning. Duplicates are records with the same
+collector (\code{recordedBy}) and collector number (\code{recordNumber}). For records
+without collector number, duplicates must share the species name, the collector
+and the full collection date (\code{year}, \code{month}, \code{day}). Records with unknown
+collector (\code{NA} or \code{"Unknown"}) are never treated as duplicates.
+
+The following columns are added after the collector number:
+\itemize{
+\item \code{duplicate}: \code{TRUE} for records belonging to a block of duplicates.
+\item \code{duplicateGroup}: an identifier of each block of duplicates.
+\item \code{identificationConflict}: \code{TRUE} when the duplicates of a block are identified
+as different species (e.g. \code{"Ormosia arborea"} and \code{"Ormosia fastigiata"}) or
+genera. A duplicate identified just to genus (e.g. \code{"Ormosia"}) does not conflict
+with a complete name of the same genus. Names are compared exactly, so spelling
+variants (e.g. \code{"Ormosia trifoliata"} and \code{"Ormosia trifoliolata"}) are also
+flagged as conflicts, which helps finding misspelled names.
+\item \code{duplicateIdentifications}: all names found in the block, e.g.
+\code{"Ormosia arborea | Ormosia fastigiata"}.
+\item \code{duplicateCollectionCodes}: all herbaria of the block, e.g. \code{"MO | JBB"}.
+\item \code{duplicateCatalogNumbers}: all catalog numbers of the block with their herbarium,
+e.g. \code{"MO 2839102 | JBB 13548"}.
+}
+
+The specific epithet is taken from \code{specificEpithet} or, when missing, from a
+binomial in the column \code{species} (as in GBIF downloads).
+
+When \code{rm_duplicates = TRUE}, one record per block is kept, chosen as follows:
+\enumerate{
+\item Records identified to species are preferred over those identified just to genus.
+\item Among them, records with the most frequent identification in the block are
+preferred (e.g. the name given by two duplicates rather than by one). When
+names are equally frequent, all of them go to the next rule.
+\item Among them, records with latitude and longitude, and then records with more
+filled columns, are preferred. If records are still tied, the first one in
+the data is kept.
+}
+
+The kept record still has \code{identificationConflict} and all the names, herbaria and
+catalog numbers of its block, so conflicting identifications remain visible
+after removing the duplicates.
 }
 \examples{
 \dontrun{
 df <- read.csv("herbarium_data.csv")
 df_flagged <- barroso_flag_duplicates(df)
+
+# Blocks of duplicates with conflicting identifications
+df_flagged[df_flagged$identificationConflict \%in\% TRUE, ]
+
 df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE)
 }
 

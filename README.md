@@ -1,283 +1,252 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# barroso <img src="inst/figures/barroso_hex_sticker.png" align="right" alt="" width="120" />
+# barRoso <img src="inst/figures/barroso_hex_sticker.png" align="right" alt="" width="120" />
 
 <!-- badges: start -->
 
 [![Codecov test
-coverage](https://codecov.io/gh/DBOSlab/barroso/graph/badge.svg)](https://app.codecov.io/gh/DBOSlab/barroso)
+coverage](https://codecov.io/gh/DBOSlab/barRoso/graph/badge.svg)](https://app.codecov.io/gh/DBOSlab/barRoso)
 [![Test
-Coverage](https://github.com/DBOSlab/barroso/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/DBOSlab/barroso/actions/workflows/test-coverage.yaml)
-[![CRAN
-Downloads](https://cranlogs.r-pkg.org/badges/grand-total/barroso)](https://cran.r-project.org/package=barroso)
-[![R-CMD-check](https://github.com/DBOSlab/barroso/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DBOSlab/barroso/actions/workflows/R-CMD-check.yaml)
+Coverage](https://github.com/DBOSlab/barRoso/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/DBOSlab/barRoso/actions/workflows/test-coverage.yaml)
+[![R-CMD-check](https://github.com/DBOSlab/barRoso/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DBOSlab/barRoso/actions/workflows/R-CMD-check.yaml)
 [![License:
 MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 <!-- badges: end -->
 
-Biodiversity Analysis and Record Reconciliation for Organizing Specimen
-Observations.  
-  
-  
+**B**iodiversity **A**nalysis and **R**ecord **R**econciliation for
+**O**rganizing **S**pecimen **O**bservations
 
 ## Overview
 
-`barroso` is an R package designed to clean, standardize, and reconcile
-biodiversity collection records—especially those from herbaria and
-virtual databases. Named in honor of Brazilian botanist [Graziela Maciel
-Barroso](https://www.gov.br/jbrj/pt-br/assuntos/colecoes/arquivistica/graziela-maciel-barroso),
-this toolkit provides flexible functions to harmonize specimen data
-across diverse sources. The package also supports the generation of
-standardized taxonomic descriptions from morphological character data,
-facilitating the writing of taxonomic treatments. The name BARROSO also
-stands for: **B**iodiversity **A**nalysis and **R**ecord
-**R**econciliation for **O**rganizing **S**pecimen **O**bservations.
-This acronym also subtly highlights its close connection to the R
-programming language, as a symbolic nod to the R ecosystem in which the
-package is developed.
-
-The package automates the cleaning and standardization of herbarium
-records from public biodiversity databases such as
-[GBIF](https://www.gbif.org),
-[SEINet](https://swbiodiversity.org/seinet/), [REFLORA Virtual
+`barRoso` is an R package to combine, clean, standardize and reconcile
+herbarium specimen records from public biodiversity databases such as
+[GBIF](https://www.gbif.org), [speciesLink](https://specieslink.net),
+the [REFLORA Virtual
 Herbarium](https://floradobrasil.jbrj.gov.br/reflora/herbarioVirtual/),
-Rio de Janeiro Botanical Gardens’s
-[JABOT](https://jabot.jbrj.gov.br/v3/consulta.php) herbarium
-collections, and [speciesLink](https://specieslink.net). It is
-particularly useful for standardizing collector names and collection
-numbers across herbarium datasets, helping resolve long-standing issues
-in biodiversity informatics, such as identifying duplicate specimens
-distributed among different herbaria.
+the [JABOT](https://jabot.jbrj.gov.br/v3/consulta.php) collections of
+the Rio de Janeiro Botanical Garden, and
+[SEINet](https://swbiodiversity.org/seinet/). It is named in honor of
+the Brazilian botanist [Graziela Maciel
+Barroso](https://www.gov.br/jbrj/pt-br/assuntos/colecoes/arquivistica/graziela-maciel-barroso),
+and the capital **R** in its name is a nod to the R ecosystem in which
+it is developed.
 
-In addition, `barroso` supports the generation of herbarium labels from
-field notebooks or observation data.
+The same collection is often distributed to several herbaria, and each
+database writes it differently: `"Cardoso, D.B.O.S."` in one,
+`"D. Cardoso"` in another, sometimes with a different identification or
+without coordinates. By standardizing collector names and numbers,
+herbarium acronyms, geographic and taxonomic fields, `barRoso` makes
+these duplicates comparable, so they can be found across herbaria, and
+their conflicting identifications and missing information can be
+revealed.
 
-Unlike many packages that rely on static dictionaries to clean collector
-names, `barroso` uses a robust set of regular expressions (regex) to
-dynamically identify and standardize collector patterns across datasets.
-This approach allows `barroso` to generalize better across sources and
-spelling variations — even when names are inconsistently formatted.
-Combined with harmonization of geographic and taxonomic fields, this
-makes the package especially powerful for detecting duplicates and
-preparing data for downstream analysis.
+Instead of static dictionaries, `barRoso` uses an extensive set of
+regular expressions tested on real datasets, which generalizes across
+sources and spelling variations. It also generates herbarium labels from
+field books and taxonomic descriptions from morphological data.
+
+### Data preservation philosophy
 
 While many data tools prioritize aggressive cleaning, often at the cost
-of discarding valuable records, `barroso` takes a different approach.
-Its philosophy centers on standardization rather than removal. All
-herbarium specimens carry potential scientific value, even when
-incomplete or inconsistently entered. Instead of omitting such records,
-barroso focuses on harmonizing fields to enhance comparability across
-collections. By standardizing collector names, geographic fields, and
-taxonomic labels, barroso allows users to flag rather than erase
-inconsistencies—enabling more transparent workflows and empowering users
-to trace potential misidentifications, especially across distributed
-duplicates. This inclusive approach honors the archival role of herbaria
-while facilitating reproducible biodiversity research.  
-  
-  
+of discarding valuable records, `barRoso` centers on **standardization
+rather than removal**. All herbarium specimens carry potential
+scientific value, even when incomplete or inconsistently entered. So,
+`barRoso` keeps the original values next to the standardized ones, and
+**flags rather than erases** problems — conflicting identifications
+among duplicates, or coordinates falling outside the informed country —
+leaving the final decision to the user. This inclusive approach honors
+the archival role of herbaria while facilitating reproducible
+biodiversity research.
+
+## Workflow
+
+<img src="inst/figures/barRoso_workflow.svg" alt="barRoso workflow diagram" width="100%" />
 
 ## Key Features
 
-✅ Harmonize collector names and collection numbers
+✅ Combine records from GBIF, speciesLink and other sources into Darwin
+Core columns
 
-✅ Detect and reconcile duplicate specimens across datasets
+✅ Standardize collector and determiner names and collection numbers,
+including Chinese names written in unicode
 
-✅ Clean geographic, taxonomic, and temporal fields
+✅ Clean herbarium acronyms and geographic, taxonomic and type status
+fields
 
-✅ Generate standardized herbarium labels from field records
+✅ Detect duplicate specimens across herbaria, highlighting conflicting
+identifications
 
-✅ Integrate with public plant taxonomic portals such as World Flora
-Online and Flora, LCVP, and Funga of Brasil
+✅ Fix and flag geographic coordinates, following the workflow of the
+[bdc](https://brunobrr.github.io/bdc/) package
 
-✅ Generate automated taxonomic descriptions from morphological data
+✅ Generate herbarium labels from field books, with maps and taxon
+authorities from [LCVP](https://github.com/idiv-biodiversity/LCVP)
+
+✅ Generate taxonomic descriptions from morphological data
 
 ## Installation
 
-You can install the development version of `barroso` from
-[GitHub](https://github.com/) directly from R using the `install_github`
-function of devtools (you may need to install that one first). To fully
-use `barroso` you also need to install the
+You can install the development version of `barRoso` from
+[GitHub](https://github.com/DBOSlab/barRoso). To fully use `barRoso`,
+you also need to install the
 [lcvplants](https://idiv-biodiversity.github.io/lcvplants/) and
 [LCVP](https://github.com/idiv-biodiversity/LCVP) packages first.
 
 ``` r
-# install.packages("devtools")
+if (!requireNamespace("devtools", quietly = TRUE))
+  install.packages("devtools")
 
 devtools::install_github("idiv-biodiversity/LCVP")
 devtools::install_github("idiv-biodiversity/lcvplants")
 
-devtools::install_github("DBOSlab/barroso")
+# Install the development version of barRoso from GitHub,
+# together with its required dependencies
+devtools::install_github("DBOSlab/barRoso", dependencies = TRUE)
+```
+
+To fix and flag geographic coordinates with `std_coordinates()`, also
+install:
+
+``` r
+install.packages(c("bdc", "CoordinateCleaner", "rnaturalearth", "rnaturalearthdata"))
+install.packages("rnaturalearthhires", repos = "https://ropensci.r-universe.dev")
 ```
 
 ``` r
-library(barroso)
+library(barRoso)
 ```
-
-  
-  
 
 ## Usage
 
-Below are the key functions provided by the barroso package for working
-with biodiversity and herbarium specimen
-<a href="data:.\" class="uri">data:.\</a>  
-  
+The functions below follow the order of the [workflow](#workflow).
 
-#### *1. `barroso_std()`: Standardize Herbarium Records*
+### 1. `barroso_cat()`: Combine Herbarium Sources
 
-This function serves as the core standardization pipeline for cleaning
-herbarium specimen records. It accepts raw data frames from any
-herbarium source and applies a series of cleaning and harmonization
-steps, including:
-
-Standardizing collector names and collection numbers Cleaning and
-unifying geographic fields (country, state, locality, etc.) Harmonizing
-taxonomic names using authority sources Normalizing type status entries
-Optionally detecting and removing duplicates It accepts flexible column
-naming via arguments and can handle large datasets in chunks to avoid
-memory issues.  
-  
-
-##### Example of using `barroso_std`:
+Merges records from two or more sources into a single data frame. Raw
+speciesLink columns (e.g. `collector`, `collectornumber`) are renamed
+into Darwin Core terms (`recordedBy`, `recordNumber`), and a column
+`datasource` stores the source of each record. With `keep_source`, the
+records of herbaria also present in the preferred source are removed
+from the other sources.
 
 ``` r
-library(barroso)
-
-df <- read.csv("raw_herbarium_data.csv")
-cleaned_df <- barroso_std(df,
-                          unvouchered = TRUE,
-                          delunkcoll = FALSE,
-                          flag_missid = TRUE,
-                          flag_duplicates = TRUE,
-                          rm_duplicates = TRUE,
-                          colname_recordedBy = "recordedBy",
-                          colname_recordNumber = "recordNumber",
-                          colname_continent = "continent", 
-                          colname_country = "country",
-                          colname_stateProvince = "stateProvince",
-                          colname_county = "county",
-                          colname_municipality = "municipality",
-                          colname_locality = "locality",
-                          colname_collectionCode = "collectionCode",
-                          colname_institutionCode = "institutionCode",
-                          colname_typeStatus = "typeStatus",
-                          colname_family = "family",
-                          colname_genus = "genus",
-                          colname_specificEpithet = "specificEpithet", 
-                          rm_original_column = TRUE)
+combined <- barroso_cat(list_sources = list(GBIF = gbif,
+                                            speciesLink = splink),
+                        keep_source = "GBIF")
 ```
 
-  
-  
-  
+### 2. `barroso_std()`: Standardize Herbarium Records
 
-#### *2. `barroso_flag_duplicates()`: Detect Duplicate Specimens*
+The core standardization pipeline. In one call, it runs the following
+functions, which can also be used alone:
 
-This function flags potential duplicate specimens in a dataset by
-comparing key fields such as recordedBy, recordNumber, species, and
-collection date (year, month, day). It assigns a duplicate = TRUE/FALSE
-flag to each row.
+| Function | Standardizes | Example |
+|----|----|----|
+| `std_recordedBy()` | collector names and numbers; additional collectors go to `addCollector` | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
+| `std_identifiedBy()` | determiner names, all kept in the same cell | `Lobato, LC; Soares, CRA` → `L. C. Lobato & C. R. A. Soares` |
+| `std_collection()` | herbarium acronyms | `MOBOT_BR` → `MO` |
+| `std_place()` | continent, country, state, county, municipality and locality | `BRASIL` → `Brazil` |
+| `std_taxa()` | family, genus and specific epithet | `Leguminosae` → `Fabaceae` |
+| `std_types()` | type status | `Fotografia do Tipo` → removed |
 
-You can use this function standalone to identify duplicates or integrate
-it via barroso_std()  
-  
-
-##### Example of using `barroso_flag_duplicates`:
+Chinese names written as unicode escapes
+(e.g. `<U+674E><U+5149><U+7167>`, 李光照) are converted as Chinese
+authors cite themselves in publications (e.g. `G. Z. Li`). The original
+values are kept in columns with the suffix `Original`, and all column
+names can be customized (e.g. `colname_recordedBy = "coletor"`).
 
 ``` r
-library(barroso)
-
-flagged_df <- barroso_flag_duplicates(df,
-                                      rm_duplicates = FALSE)
+cleaned <- barroso_std(combined,
+                       flag_duplicates = TRUE,
+                       rm_duplicates = FALSE,
+                       rm_original_column = FALSE)
 ```
 
-  
-  
-  
+### 3. `barroso_flag_duplicates()`: Detect Duplicate Specimens
 
-#### *3. `barroso_labels()`: Generate Herbarium Labels from Field Data*
+Groups duplicates into blocks by collector and collector number (or by
+species, collector and date when the number is missing), and adds the
+columns:
 
-This function makes herbarium labels from field book in spreadsheet CSV
-format. It is currently more comprehensive for making herbarium labels
-from specimens collected in the USA, because it will display geographic
-maps also at county level. For specimens collected in all other
-countries, the label will display only the country level map. If
-geographic coordinates are provided, then the specimen record is also
-plotted in the map. The function also insert taxon authorities and
-nomenclatural updates automatically, by implementing an internal
-function from
-[lcvplants](https://idiv-biodiversity.github.io/lcvplants/).  
-  
+- `duplicate` and `duplicateGroup`: the records of each block of
+  duplicates
+- `identificationConflict` and `duplicateIdentifications`: blocks whose
+  duplicates were identified as different species or genera,
+  e.g. `Ormosia arborea | Swartzia apetala`
+- `duplicateCollectionCodes` and `duplicateCatalogNumbers`: all herbaria
+  and catalog numbers of each block, e.g. `MO 2839102 | JBB 13548`
 
-##### Example of using `barroso_labels`:
+With `rm_duplicates = TRUE`, one record per block is kept: first the
+records identified to species, then those with the most frequent
+identification of the block, and then the one with coordinates and the
+most complete information.
 
 ``` r
-library(barroso)
+flagged <- barroso_flag_duplicates(cleaned)
 
-df <- read.csv("Data/MSU_duplicates_to_HUEFS.csv", sep = ",")
+# Blocks of duplicates with conflicting identifications
+subset(flagged, identificationConflict %in% TRUE)
+```
+
+### 4. `std_coordinates()`: Fix and Flag Geographic Coordinates
+
+Following the workflow of the [bdc](https://brunobrr.github.io/bdc/)
+package, fixes coordinates with latitude and longitude transposed or
+with inverted signs, and flags empty, out of range, low precision and
+country-inconsistent coordinates, as well as coordinates at country
+capitals, centroids and biodiversity institutions. The original
+coordinates are kept, and the column `coordinateIssues` describes what
+was fixed or flagged in each record.
+
+``` r
+checked <- std_coordinates(flagged)
+table(checked$coordinateIssues)
+```
+
+### 5. `barroso_labels()`: Generate Herbarium Labels
+
+Makes herbarium labels from a field book in CSV format, with a map of
+the collection site and taxon authorities and nomenclatural updates from
+[lcvplants](https://idiv-biodiversity.github.io/lcvplants/). For
+specimens collected in the USA, the map is displayed at county level.
+
+``` r
+df <- read.csv("MSU_duplicates_to_HUEFS.csv")
 
 barroso_labels(fieldbook = df,
                dir_create = "results_herbarium_labels",
                file_label = "herbarium_labels.pdf")
 ```
 
-  
-  
-  
+### 6. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
 
-#### *4. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions from Morphological Data*
-
-This function builds standardized species morphological descriptions
-from an Excel spreadsheet containing morphological character data. It
-reads morphological data, generates standardized descriptions in plain
-text and Word document formats, and exports them to a Word (.docx) file.
-The function handles complex morphological data structures including
-measurements, subterms, and grouping of related characters.
-
-##### Example of using `barroso_write_taxon_descr`:
+Builds standardized species descriptions from a spreadsheet of
+morphological characters, and exports them to a Word (.docx) file. The
+function `barroso_add_char_template()` creates a blank template of
+morphological characters for a plant group, to be filled in.
 
 ``` r
-library(barroso)
-
-# Generate descriptions for all species in the Excel file
-barroso_write_taxon_descr(
-  xlsx_path = "morphological_data.xlsx",
-  species_cols = c("Genus", "Species", "Author"),
-  character_cols = 4:20
-)
-
-# Generate descriptions only for specific species
-barroso_write_taxon_descr(
-  xlsx_path = "morphological_data.xlsx",
-  species_cols = c("Genus", "Species"),
-  character_cols = 3:15,
-  species_filter = c("Ouratea concinna", "Ouratea coarctata")
-)
+barroso_write_taxon_descr(xlsx_path = "morphological_data.xlsx",
+                          species_cols = c("Genus", "Species", "Author"),
+                          character_cols = 4:20)
 ```
-
-  
-  
-  
 
 ## Documentation
 
-A detailed description of the `barroso`’s full functionality is
-available in different [articles](https://dboslab.github.io/barroso/).  
-  
-  
+A detailed description of the `barRoso`’s full functionality is
+available in the
+[articles](https://dboslab.github.io/barRoso-website/articles/) of the
+[barRoso website](https://dboslab.github.io/barRoso-website/).
 
 ## Acknowledgments
 
 This package is named in honor of Graziela Maciel Barroso (1912–2003), a
 pioneer of Brazilian botany. Her contributions to plant taxonomy and
-herbarium science inspire this tool.  
-  
+herbarium science inspire this tool.
 
 ## Citation
 
-Cardoso, D. (2025). *barroso*: Biodiversity Analysis and Record
+Cardoso, D. (2025). *barRoso*: Biodiversity Analysis and Record
 Reconciliation for Organizing Specimen Observations.
-<https://github.com/dboslab/barroso>
-
-<img src="inst/figures/DBOSlab_logo.png" align="left" alt="" width="150" />
+<https://github.com/DBOSlab/barRoso>

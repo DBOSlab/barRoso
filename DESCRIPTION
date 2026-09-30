@@ -24,16 +24,29 @@ Imports:
     stringr,
     countrycode,
     tools,
-    tmcn  
+    officer,
+    openxlsx,
+    readxl,
+    tidyr,
+    lcvplants
 Suggests:
-    lcvplants,
+    bdc,
+    CoordinateCleaner,
+    rnaturalearth,
+    rnaturalearthdata,
+    rnaturalearthhires,
     LCVP,
     quarto,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    withr
+Remotes:
+    idiv-biodiversity/LCVP,
+    idiv-biodiversity/lcvplants
+Additional_repositories: https://ropensci.r-universe.dev
 URL: 
     https://dboslab.github.io/barRoso-website/,
     https://github.com/dboslab/barRoso
 BugReports: https://github.com/DBOSlab/barRoso/issues
 Config/testthat/edition: 3
 LazyData: true
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0

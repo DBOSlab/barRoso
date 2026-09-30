@@ -9,13 +9,13 @@
 #' @return Character vector of scientific names without authors.
 #'
 #' @examples
-#' remove_authors("Quercus alba L.")
+#' remove_authorship("Quercus alba L.")
 #' # Returns: "Quercus alba"
 #'
-#' remove_authors("Quercus rubra var. borealis (F.Michx.) Farw.")
+#' remove_authorship("Quercus rubra var. borealis (F.Michx.) Farw.")
 #' # Returns: "Quercus rubra var. borealis" (if keep_infraspecific = TRUE)
 #'
-#' remove_authors(c("Acer saccharum Marshall", "Pinus strobus L."))
+#' remove_authorship(c("Acer saccharum Marshall", "Pinus strobus L."))
 #' # Returns: c("Acer saccharum", "Pinus strobus")
 #'
 #' @export
@@ -41,14 +41,31 @@ remove_authorship <- function(scientific_names, keep_infraspecific = TRUE) {
     # Multiple authors with "&", "et", "ex"
     "\\s+[A-Z].*?(?:\\s+(?:&|et|ex)\\s+[A-Z].*?)+",
     # Authors starting with capital letter, possibly with apostrophes, hyphens
-    "\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ'\\-]*?(?:\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ'\\-]*?)*"
+    "\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*?(?:\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*?)*"
   )
 
   # Combine patterns
   full_pattern <- paste0("(", paste(author_patterns, collapse = "|"), ")$")
 
-  # Remove authors
-  clean_names <- gsub(full_pattern, "", scientific_names)
+  # Remove authors, block by block from the end, e.g. "(Vell.) Harms"
+  strip_authors <- function(x) {
+    for (i in 1:5) {
+      previous <- x
+      x <- gsub(full_pattern, "", x)
+      if (identical(x, previous)) break
+    }
+    trimws(x)
+  }
+
+  # Infraspecific names may have authors before and after the rank, e.g.
+  # "Swartzia apetala Raddi var. glabra (Vogel) R.S.Cowan", so each part
+  # is cleaned separately
+  rank <- "\\s+(?=(subsp|ssp|var|subvar|f|forma|nothosubsp)\\.\\s)"
+  clean_names <- vapply(scientific_names, function(x) {
+    if (is.na(x)) return(NA_character_)
+    parts <- strsplit(x, rank, perl = TRUE)[[1]]
+    paste(vapply(parts, strip_authors, character(1)), collapse = " ")
+  }, character(1), USE.NAMES = FALSE)
 
   # Trim whitespace
   clean_names <- trimws(clean_names)

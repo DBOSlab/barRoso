@@ -56,7 +56,7 @@ std_collection <- function(df = NULL,
     names(df)[colnames_df %in% colname_collectionCode] <- "collectionCode"
   }
   if (colname_institutionCode != "institutionCode") {
-    names(df)[colnames_df %in% colname_collectionCode] <- "institutionCode"
+    names(df)[colnames_df %in% colname_institutionCode] <- "institutionCode"
   }
 
   if ("collectionCode" %in% names(df) &&
@@ -160,7 +160,7 @@ std_collection <- function(df = NULL,
   }
   # Put original institutionCode name back ####
   if (colname_institutionCode != "institutionCode") {
-    names(df)[names(df) %in% "genus"] <- colname_institutionCode
+    names(df)[names(df) %in% "institutionCode"] <- colname_institutionCode
     if (rm_original_column == FALSE) {
       names(df)[names(df) %in% "institutionCodeOriginal"] <- paste0(colname_institutionCode, "Original")
     }

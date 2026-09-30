@@ -62,9 +62,16 @@ std_types <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_typeStatus, "' column removed"))
     }
 
-    df$typeStatus <- gsub("^não$", NA, df$typeStatus)
-    df$typeStatus <- gsub("^sim\\s-\\s", "", df$typeStatus)
-    df$typeStatus <- gsub("Rabo de macaco|Fotografia do Tipo|Epítipo|^NOTATYPE|Neótipo|Cotipo|Merotypus|Possible type|EPITYPE", NA, df$typeStatus)
+    x <- as.character(df$typeStatus)
+    x[trimws(x) %in% c("", "NA", "n\u00e3o")] <- NA
+    x <- gsub("^sim\\s-\\s", "", x)
+    not_type <- paste("Rabo de macaco|Fotografia do Tipo|Ep\u00edtipo|^NOTATYPE|Ne\u00f3tipo|Cotipo",
+                      "Merotypus|Possible type|EPITYPE", sep = "|")
+    x[grepl(not_type, x, ignore.case = TRUE)] <- NA
+
+    # Same term in English, Latin or Portuguese and in any case, e.g. "ISOTYPE",
+    # "Isotypus" and "isótipo" into "isotype"
+    df$typeStatus <- .std_type_terms(x)
   }
 
   # Put original typeStatus name back ####
@@ -76,4 +83,25 @@ std_types <- function(df = NULL,
   }
 
   return(df)
+}
+
+
+#_______________________________________________________________________________
+# Type status terms into lowercase Darwin Core terms in English, keeping the
+# name after "of", e.g. "ISOTYPUS of Ormosia amazonica Ducke" into
+# "isotype of Ormosia amazonica Ducke" ####
+.std_type_terms <- function(x) {
+  has_name <- grepl("\\s+of\\s+", x)
+  name <- ifelse(has_name, sub("^.*?\\s+of\\s+", " of ", x, perl = TRUE), "")
+  term <- sub("\\s+of\\s+.*$", "", x)
+  term <- tolower(stringi::stri_trans_general(trimws(term), "Latin-ASCII"))
+
+  # Latin "-typus" and Portuguese "-tipo" into "-type"
+  term <- sub("typus$", "type", term)
+  term <- sub("tipo$", "type", term)
+  # Portuguese "sintipo" into "syntype"
+  term <- sub("^(iso)?sin(?=type$)", "\\1syn", term, perl = TRUE)
+  term <- sub("^originalmaterial$", "original material", term)
+
+  ifelse(is.na(x), NA_character_, paste0(term, name))
 }

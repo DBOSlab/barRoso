@@ -17,7 +17,8 @@
 #' columns can be preserved or overwritten.
 #'
 #' Specifically, this function performs extensive string cleaning including:
-#' - Converting unicode (e.g., Chinese) to Latin names
+#' - Converting Chinese names written as unicode escapes (e.g. `"<U+674E><U+5149><U+7167>"`)
+#'   into abbreviated Latin names, as Chinese authors cite themselves (e.g. `"G. Z. Li"`)
 #' - Parsing and normalizing collector names split by `&`, `and`, `e`, `y`, `;`, `|`, etc.
 #' - Handling cases of one, two, or more collectors
 #' - Cleaning spacing, punctuation, and known collector aliases
@@ -49,9 +50,8 @@
 #'
 #' @importFrom magrittr %>%
 #' @importFrom tibble add_column
-#' @importFrom stringr str_detect str_extract_all str_replace
-#' @importFrom stringi stri_replace_first_regex
-#' @importFrom tmcn toPinyin strextract
+#' @importFrom stringr str_extract
+#' @importFrom stringi stri_replace_first_regex stri_trans_general stri_unescape_unicode
 #'
 #' @export
 
@@ -78,35 +78,39 @@ std_recordedBy <- function(df = NULL,
     tibble::add_column(addCollector = NA,
                        .after = "recordedBy")
 
-
   # Make the column recordedBy as character before using grepl and gsub
   df$recordedBy <- as.character(df$recordedBy)
 
-  # Get number of specimens in the dataset
-  l_rows <- nrow(df)
+  # Decode HTML entities like "Co&#234;lho" and drop prefixes like "Collector(s): "
+  df$recordedBy <- .decode_html(df$recordedBy)
+  df$recordedBy <- gsub("^Collector[(]s[)]:\\s*(unknown,\\s*)?", "", df$recordedBy)
 
   # Links to useful codes and regular expressions for filtering char patterns
   # by using regular expressions [regex]
   # https://rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
-  # https://cran.r-project.org/web/packages/stringr/vignettes/regular-expressions.html
   # https://stringr.tidyverse.org/articles/regular-expressions.html
-  # http://www.endmemo.com/program/R/grepl.php
-  # https://rstudio-pubs-static.s3.amazonaws.com/74603_76cd14d5983f47408fdf0b323550b846.html
 
   #_____________________________________________________________________________
-  # Preliminary cleaning of Asian-like names when they are in unicode characters ####
-  # from "UTF-8" encoding. Then  at the end of this script we translate the Chinese
-  # characters into Latin alphabet
-  tf <- grepl("[+]", df$recordedBy)
+  # Asian-like names written as unicode escapes, e.g. "<U+674E><U+5149><U+7167>" ####
+  # Split multiple collectors and convert them into Latin names before any other
+  # cleaning, as the steps below would otherwise break the escape codes
+  # The converted names like "L. G. Zhao" are kept aside and put back after
+  # cleaning, so the steps for Latin names do not change them
+  tf <- grepl("<U[+][0-9A-Fa-f]{4}>", df$recordedBy)
+  han <- han_add <- rep(FALSE, nrow(df))
   if (any(tf)) {
     df <- .preunicodeclean(df, tf)
+    han <- .is_han(df$recordedBy)
+    han_add <- .is_han(df$addCollector)
+    df <- .unicodeclean(df)
+    han_names <- df$recordedBy[han]
+    han_addnames <- df$addCollector[han_add]
   }
 
   #_____________________________________________________________________________
   # When there are MORE THAN TWO COLLECTORS
   # Keep just the main collector and remove all other additional collectors
   # but paste ET AL. in the the newly created $addCollector
-  # Adding et al. at $addCollector when $recordedBy has for more than two collectors
   df <- .deletal(df)
 
   #_____________________________________________________________________________
@@ -119,1211 +123,56 @@ std_recordedBy <- function(df = NULL,
 
   #_____________________________________________________________________________
   # When there are ONLY TWO COLLECTORS
-  # Keep just the main collector
-  # but put the additional collector in newly created at $addCollector
-
-  # Clean e.g. "Cardoso, D.|Santos, Q."
-  pos <- which(grepl("[|]", df$recordedBy))
-  if (length(pos) > 0) {
-    extract_pattern = "[|].+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  # Clean e.g. "Olga Kotchetkoff Henriques e Andrei Furlan"
-  pos <- which(grepl("\\s[[:upper:]][[:lower:]]+\\s[e]\\s[[:upper:]][[:lower:]]+\\s",
-                     df$recordedBy))
-  if (length(pos) > 0) {
-    extract_pattern = "\\s[e]\\s.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  # Clean two collectors separated by "y"
-  pos <- which(grepl("\\sy\\s", df$recordedBy))
-  if (length(pos) > 0) {
-    extract_pattern = "\\sy\\s.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  # Examples of collectors not separated by symbols (,  ;  &)
-  # Extracting just examples like "Teraoka, W. Baker, R."
-  tf <- grepl(".*,.*,", df$recordedBy)
-  tfa <- !grepl(";", df$recordedBy[tf])
-  tfb <- !grepl("&", df$recordedBy[tf][tfa])
-  pos <- which(tf)[tfa][tfb]
-  # Extracting just examples like "Teraoka, W. Baker, R."
-  if (length(pos) > 0) {
-    extract_pattern = "(\\S*\\s+\\S+)$"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
+  # Keep just the main collector but put the additional one at $addCollector
+  df <- .split_two_collectors(df)
 
   #_____________________________________________________________________________
-  # Extracting the collector names when there are only two collectors
-  # Collectors separated by ; but without any comma , separating initials and surnames
-  tf <- grepl(".*;", df$recordedBy)
-  tfa <- !grepl(".*,", df$recordedBy[tf])
-  pos <- which(tf)[tfa]
-  if (length(pos) > 0) {
-    extract_pattern = ";.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  # Clean remaining examples of two collectors separated by semicolon
-  pos <- which(grepl(".*;", df$recordedBy))
-  if (length(pos) > 0) {
-    extract_pattern = ";.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-
-    # Before next grepl we need to delete the remaining semicolon ";"
-    df$recordedBy <- gsub("[;]", "", df$recordedBy)
-  }
-
-  # Clean two collectors separated by "&"
-  # Lets first edit examples like this "J. Campbell-Snelling, M. Chambers"
-  tf <- grepl("[[:lower:]]+[-][[:upper:]][[:lower:]]+,\\s[[:upper:]][.]\\s[[:upper:]]",
-              df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <-  gsub(",", " &", df$recordedBy[tf])
-  }
-
-  # Clean two collectors separated by "&"
-  pos <- which(grepl("&", df$recordedBy))
-  if (length(pos) > 0) {
-    extract_pattern = "&.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  #_____________________________________________________________________________
-  # NEED TO WORK MORE HERE; I might get some problems as mentioned below
-  # Finding two collectors like
-  # "C. H. Dodson, P. M. Dodson" or "P.P. Wan, K.S. Chow"
-  # "Robert F. Thorne, Geoff Tracey"
-  # I need to work on this so as make it more general and grab the following names
-  # "Robert Thorne, Geoff Tracey"
-  # "C.Farney, G.Byer"
-
-  pos <- which(grepl("([[:upper:]][.]){1,}\\s*[[:upper:]][[:lower:]]+[,]\\s",
-                     df$recordedBy))
-  #"P.P. Wan, K.S. Chow" %in% df$recordedBy[tf]
-  #"C. H. Dodson, P. M. Dodson" %in% df$recordedBy[tf]
-  #"C.Farney" %in% df$recordedBy[tf]
-  #"Robert F. Thorne, Geoff Tracey" %in% df$recordedBy[tf]
-  if (length(pos) > 0) {
-    extract_pattern = ",.+"
-    df <- .deepcollclean(df, pos, extract_pattern, l_rows)
-  }
-
-  #_____________________________________________________________________________
-  # Before next grepl we need to delete particles like de, da, do, dos
-  tf <- grepl(" de", df$recordedBy)
-  tfa <- grepl(paste(c("van den", "van der"), collapse = "|"), df$recordedBy)
-  df$recordedBy[which(tf - tfa == T)] <-
-    gsub(" de", " ", df$recordedBy[which(tf - tfa == T)])
-  tf <- grepl("[.]de", df$recordedBy)
-  df$recordedBy[tf] <- gsub("de", " ", df$recordedBy[tf])
-  tf <- grepl(" De ", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" De ", " ", df$recordedBy[tf])
-  tf <- grepl(" DE ", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" DE ", " ", df$recordedBy[tf])
-  tf <- grepl("^De ", df$recordedBy)
-  df$recordedBy[tf] <- gsub("^De ", "", df$recordedBy[tf])
-  tf <- grepl("^de ", df$recordedBy)
-  df$recordedBy[tf] <- gsub("^de ", "", df$recordedBy[tf])
-  tf <- grepl(" De$", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" De$", "", df$recordedBy[tf])
-  tf <- grepl("[.]\\sDE$", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" DE$", "", df$recordedBy[tf])
-
-  tf <- grepl("[[:space:]]da$", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" da", "", df$recordedBy[tf])
-  tf <- grepl(" da ", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" da ", " ", df$recordedBy[tf])
-  tf <- grepl(" da;", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" da;", " ", df$recordedBy[tf])
-  tf <- grepl("[.]da", df$recordedBy)
-  df$recordedBy[tf] <- gsub("da", " ", df$recordedBy[tf])
-  tf <- grepl("[.]\\sDA\\s", df$recordedBy)
-  df$recordedBy[tf] <- gsub("DA\\s", "", df$recordedBy[tf])
-  # I might need to exclude the next step for names like "WALMOR DA FONSECA"
-  tf <- grepl("[[:upper:]]+\\sDA\\s[[:upper:]]+", df$recordedBy)
-  df$recordedBy[tf] <- gsub("DA\\s", "", df$recordedBy[tf])
-
-  tf <- grepl(" dos", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" dos", " ", df$recordedBy[tf])
-  tf <- grepl(" do", df$recordedBy)
-  df$recordedBy[tf] <- gsub(" do", " ", df$recordedBy[tf])
-  tf <- grepl("[.]dos", df$recordedBy)
-  df$recordedBy[tf] <- gsub("dos", " ", df$recordedBy[tf])
-  tf <- grepl("[.]do", df$recordedBy)
-  df$recordedBy[tf] <- gsub("do", " ", df$recordedBy[tf])
-
-  df$recordedBy <- gsub("[[:space:]]{2}", " ", df$recordedBy)
+  # Delete particles like de, da, do, dos
+  df$recordedBy <- .rm_particles(df$recordedBy)
 
   #_____________________________________________________________________________
   # Cleaning some unusual formats of collector names at specific collections ####
-  if (any(df$collectionCode %in% "CEN")|
+  if (any(df$collectionCode %in% "CEN") |
       any(df$institutionCode %in% "UTEP")) {
-    message(".precollherb $recordedBy in specific herbaria")
     df <- .precollherb(df)
   }
 
   #_____________________________________________________________________________
-  # Cleaning when there is only ONE COLLECTOR at $recordedBy
-
-  #_____________________________________________________________________________
-  # General cleaning of collector initials
-  # Clean e.g. "Arbo M .M."
-  tf <- grepl("\\s[.][[:upper:]][.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s[.]", ".", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("[.][.]", ".", df$recordedBy[tf])
-  }
-
-  # Clean e.g. "Meira, Neto J A"
-  tf <- grepl("^[[:upper:]][[:lower:]]+[-](Filho|Sobrinho|Neto)\\s([[:upper:]]{1,}|[[:upper:]]\\s)", df$recordedBy)
-  if (any(tf)) {
-    # Replace first space with a comma into the string
-    df$recordedBy[tf] <- sub("\\s+", ", ", df$recordedBy[tf])
-  }
-
-  # Clean e.g. "Roberto Paulo Orlandi.", "Adonias Araujo."
-  tf <- grepl("([[:upper:]][[:lower:]]+\\s){1,}[[:upper:]]([[:lower:]]){2,}[.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("[.]$", "", df$recordedBy[tf])
-  }
-
-  # Clean e.g. "Elton. M. C. Leme", "Franco. I.M."
-  tf <- grepl("[[:upper:]][[:lower:]]+[.]\\s[[:upper:]][.]", df$recordedBy)
-  if (any(tf)) {
-    # Replace only first match of a word
-    df$recordedBy[tf] <-
-      stringi::stri_replace_first_regex(df$recordedBy[tf], "[.]{1}", "")
-    #stringi::stri_replace_first_fixed("21st-August-2017", "st", "xx")
-
-  }
-
-  tf <- grepl("^[[:upper:]]+{2,}[.]\\s[[:upper:]]", df$recordedBy)
-  #df$recordedBy[tf]
-  if (any(tf)) {
-    # replace only first match of a word
-    df$recordedBy[tf] <-
-      stringi::stri_replace_first_regex(df$recordedBy[tf], "[.]{1}", "")
-  }
-
-  #_____________________________________________________________________________
-  # Extracting collector initials that are separated by COMMA
-  tf <- grepl(",", df$recordedBy)
-  # Grabbing and inserting back first names with at least one abbreviation
-  # so, initials like..." C.F.P. von ", " J.E.L.S.", " R.", " Terence D."
-  tfa <- grepl("([[:upper:]][.]){1}", df$recordedBy[tf])
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #1")
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, ",.+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf][tfa] <-
-      gsub(",", "", temp_df$initials[tf][tfa])
-    temp_df$initials[tf][tfa] <-
-      gsub("^\\s", "", temp_df$initials[tf][tfa])
-    # Then delete all initials from the main column recordedBy
-    df$recordedBy[tf][tfa] <-
-      gsub(",.+", "", df$recordedBy[tf][tfa])
-    df$recordedBy[tf][tfa] <-
-      paste(as.character(temp_df$initials[tf][tfa]),
-            as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Extracting collector initials that are separated by COMMA
-  tf <- grepl(",", df$recordedBy)
-  # Grabbing and inserting back first names with at least two abbreviation and no dot
-  # so, initials like..."Padgurschi, MCG", "Oliveira, AA"
-  tfa <- grepl("([[:upper:]]){2}", df$recordedBy[tf])
-
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #2")
-    df$recordedBy[tf][tfa] <-
-      gsub("^\\s", "", df$recordedBy[tf][tfa])
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, ",.+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    temp_df$initials[tf][tfa] <-
-      gsub(",", "", temp_df$initials[tf][tfa])
-    temp_df$initials[tf][tfa] <-
-      gsub(" ", "", temp_df$initials[tf][tfa])
-
-    # Then delete all initials from the main column recordedBy
-    df$recordedBy[tf][tfa] <-
-      gsub(",.+", "", df$recordedBy[tf][tfa])
-
-    df$recordedBy[tf][tfa] <-
-      paste(as.character(temp_df$initials[tf][tfa]),
-            as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Extracting collector initials that are separated by COMMA ####
-
-  tf <- grepl(",", df$recordedBy)
-  # Grabbing and inserting back first names with at least two abbreviation and no dot
-  # so, initials like..."Cardoso, D", "Oliveira, A"
-  tfa <- !grepl("[[:upper:]][[:lower:]]+[,]\\s*[[:upper:]][[:lower:]]+",
-                df$recordedBy[tf])
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #3")
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, ",.+", simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf][tfa] <-
-      gsub(",", "", temp_df$initials[tf][tfa])
-    temp_df$initials[tf][tfa] <-
-      gsub(" ", "", temp_df$initials[tf][tfa])
-    df$recordedBy[tf][tfa] <-
-      gsub(",.+", "", df$recordedBy[tf][tfa])
-    df$recordedBy[tf][tfa] <-
-      paste(as.character(temp_df$initials[tf][tfa]),
-            as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  tf <- grepl(",", df$recordedBy)
-  #This step will be enough to grab and insert back the non abbreaviated names
-  # like "Estrada, Armando", "Sellow, Friedrich", "Pierre, Jean Baptiste Louis"
-  # Find positions of names inside the main database
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #4")
-    df$recordedBy[tf] <- gsub(",$", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("[.]$", "", df$recordedBy[tf])
-
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, ",.+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf] <- gsub(",", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- gsub("^\\s", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- gsub("\\s$", "", temp_df$initials[tf])
-    # Then delete all initials from the main column recordedBy
-    df$recordedBy[tf] <- gsub(",.+", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- paste(as.character(temp_df$initials[tf]),
-                               as.character(df$recordedBy[tf]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # BEFORE next grepl...
-  # deleting blank space at the begining and end of the cell
-  df$recordedBy <- gsub("^[[:space:]]", "", df$recordedBy)
-  df$recordedBy <- gsub("[[:space:]]{2}", " ", df$recordedBy)
-  df$recordedBy <- gsub("[[:space:]]$", "", df$recordedBy)
-  #pos.non.punct <- grepl("[!:punct:]", herb.database$collector)
-  #herb.database$collector[pos.non.punct] <- gsub(" ", ".", herb.database$collector[pos.non.punct])
-
-  #_____________________________________________________________________________
-  # Now cleaning collector names with initials NOT separated by comma ####
-  # or semicolon like "Callejas R.", "Schultes R.E.", "Krukoff BA" "Sergio M Faria"
-
-  # Marking names like "Cardoso D", "Maas PJM", "Maas P.J.M.", "Cardoso D."
-  # "Zwaan CJ van der", "Martius CFP von"
-  # these names are not separated by comma or full period in the initials
-
-  # We do in a series of steps otherwise we will erase others based on the patterns
-
-  # Mark the word with just surnames
-  tf <- !grepl("[[:space:]]|[.]", df$recordedBy)
-  if (any(tf)) {
-    # Make them in just the first letter capitalized
-    df$recordedBy[tf] <- gsub("\\b([a-z])", "\\U\\1",
-                              tolower(df$recordedBy[tf]), perl = TRUE)
-  }
-
-  #_____________________________________________________________________________
-  # Mark the first word in capital letters
-  tf <- grepl("[[:upper:]]+{2,}\\s[[:upper:]][.]", df$recordedBy)
-  if (any(tf)) {
-    # Make them in just the first letter capitalized
-    df$recordedBy[tf] <- gsub("\\b([a-z])", "\\U\\1",
-                              tolower(df$recordedBy[tf]), perl = TRUE)
-  }
-
-  #_____________________________________________________________________________
-  # "Zwaan CJ van der", "Martius CFP von"
-  # these names are not separated by comma or full period in the initials
-  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", df$recordedBy)
-  if (any(tf)) {
-    # Marking names with "van den", etc
-    # like "Zwaan CJ van der", "Martius CFP von"
-    tfa <- grepl(paste(c("van den", "van der", " von", " van", " bin"), collapse = "|"),
-                 df$recordedBy[tf])
-    if (any(tfa)) {
-      message("std_recordedBy $recordedBy initials #5")
-      tfb <- df$recordedBy[tf][tfa]
-      tfc <- grepl(paste(tfb, collapse = "|"), df$recordedBy)
-      # Extracting collector initials
-      temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, " .+",
-                                                              simplify = TRUE))
-      if (length(temp_df) == 0) {
-        temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-      }
-      temp_df$initials <- as.character(temp_df$initials)
-      temp_df$initials[!tfc] <- NA
-      df$recordedBy[tfc] <- gsub(" .+", "", df$recordedBy[tfc])
-      df$recordedBy <- ifelse(!is.na(temp_df$initials == TRUE),
-                              paste(as.character(temp_df$initials),
-                                    as.character(df$recordedBy), sep=" "),
-                              as.character(df$recordedBy))
-      df$recordedBy[tfc] <- gsub("^[[:space:]]", "", df$recordedBy[tfc])
-    }
-  }
-
-  #_____________________________________________________________________________
-  # Abbreviate first name
-  # Mark the names like "Sergio M Faria", "Domingos S Cardoso", "Marcelo T Nascimento"
-  # these names are not separated by comma or full period in the initials
-  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #6")
-    # Extracting collector initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-
-    temp_df$initials <- as.character(temp_df$initials)
-
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <- gsub("^ ", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- abbreviate(temp_df$initials[tf],
-                                       minlength = 1, strict = T, dot = F, use.classes = F)
-    # Deleting first name, which is before first space
-    df$recordedBy[tf] <- gsub("^(\\S*\\s+)", "", df$recordedBy[tf])
-    df$recordedBy <- ifelse(!is.na(temp_df$initials == TRUE),
-                            paste(as.character(temp_df$initials),
-                                  as.character(df$recordedBy), sep=""),
-                            as.character(df$recordedBy))
-  }
-
-  #_____________________________________________________________________________
-  # Mark the names like "Domingos S. Cardoso", "Domingos S.M. Cardoso", "Domingos S.M.G. Cardoso"
-  # Let's first find names in capital letter like "JORGE  C.A. LIMA"
-  # and then abbreviate the first name
-  tf <- grepl("[[:upper:]]+\\s+([[:upper:]]+[.]{1,})+\\s+[[:upper:]]{3}", df$recordedBy)
-  # Make them in just the first letter capitalized
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\b([a-z])", "\\U\\1",
-                              tolower(df$recordedBy[tf]),
-                              perl = TRUE)
-  }
-
-  #_____________________________________________________________________________
-  # finding examples like "Roberto P.Orlandi", "Jorge C.A.Lima"
-  # and open spaces between abreaviated initials
-  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]+[.]){1,}[[:upper:]][[:lower:]]+",
-              df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("[.]", ". ", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # "David J.N. Hind", "Jorge C. A. Lima", "Grady L. Webster", "Charles M. Ek"
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s+(.*[[:upper:]][.]){1,}\\s+[[:alpha:]]{2,}",
-              df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #7")
-    # Cleaning possible presence of space in the begining of the name
-    df$recordedBy[tf] <- gsub("^\\s", "", df$recordedBy[tf])
-    # Cleaning  possible presence of comma at the end of the name
-    df$recordedBy[tf] <- gsub(",$", "", df$recordedBy[tf])
-
-    # Extracting collector initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <- gsub("^ ", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- abbreviate(temp_df$initials[tf],
-                                       minlength = 1, strict = T, dot = T, use.classes = F)
-    # Deleting first name, which is before first space
-    df$recordedBy[tf] <- gsub("^(\\S*\\s+)", "", df$recordedBy[tf])
-    df$recordedBy <- ifelse(!is.na(temp_df$initials == TRUE),
-                            paste(as.character(temp_df$initials),
-                                  as.character(df$recordedBy), sep=" "),
-                            as.character(df$recordedBy))
-  }
-
-  #_____________________________________________________________________________
-  # Finding collector names like "Schultes R.E.", "Soejarto D.", "Maas P.J.M."
-  tf <- grepl("^\\S[[:lower:]]+\\s([[:upper:]]+[.]){1,}", df$recordedBy)
-  tfa <- !grepl("\\s+[[:upper:]][[:lower:]]+", df$recordedBy[tf])
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #8")
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy[tf][tfa], " .+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    df$recordedBy[tf][tfa] <- gsub(" .+", "", df$recordedBy[tf][tfa])
-
-    df$recordedBy[tf][tfa] <- paste(as.character(temp_df$initials),
-                                    as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collector names like "Croat TB", "Kostermans AJGH"
-  # No comma separating and more than two initials without full period
-  tf <- grepl("^\\S[[:lower:]]+\\s([[:upper:]]{2,})", df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #9")
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, " .+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    df$recordedBy[tf] <- gsub(" .+", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- paste(as.character(temp_df$initials[tf]),
-                               as.character(df$recordedBy[tf]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Getting rid of the last abbreviated initial in Spanish-like names
-  # "Percy Núñez V.", "P. Nuñez V.", "Mario Sousa S.", "G. Ibarra M."
-
-  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]+[.]{1})", df$recordedBy)
-  tfa <- grepl("(\\s+[[:upper:]]+[[:lower:]]+\\s+([[:upper:]]+[.]$))",
-               df$recordedBy[tf])
-  if (any(tfa)) {
-    # Remove everything after last space
-    df$recordedBy[tf][tfa] <-
-      gsub("\\s[^ ]+$", "", df$recordedBy[tf][tfa])
-  }
-
-  #_____________________________________________________________________________
-  # Getting rid of the last abbreviated initial in Spanish-like names
-  # "N. Castaño-A." "W. Trujillo-C."
-  tf <- grepl("[[:upper:]][[:lower:]]+[-]+([[:upper:]]+[.]{1})", df$recordedBy)
-  if (any(tf)) {
-    # Remove everything after the hyphen at the end
-    df$recordedBy[tf] <- gsub("-[^-]+$", "", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # Finding collector names like "Uribe Uribe AL", ""Cid Ferreira CA"
-  # Then separate the last names by an hiphen
-  tf <- grepl("[[:lower:]]+[[:space:]]([[:upper:]]{2,})", df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #10")
-    # extract all AFTER second space
-    #str_extract_all("Uribe Uribe AL", " [^ ]+$", simplify = TRUE)
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, " [^ ]+$",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-
-    temp_df$initials <- as.character(temp_df$initials)
-
-    # Removing all after last space
-    df$recordedBy[tf] <- gsub("\\s[^ ]+$", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub(" ", "-", df$recordedBy[tf])
-    df$recordedBy[tf] <- paste(as.character(temp_df$initials[tf]),
-                               as.character(df$recordedBy[tf]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collector names like "Cardenas D", "Ferreira L"
-  # Only one surname and one initial
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]]", df$recordedBy)
-
-  tfa <- !grepl("[.]", df$recordedBy[tf])
-
-  tfb <- !grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+",
-                df$recordedBy[tf][tfa])
-  if (any(tfb)) {
-    message("std_recordedBy $recordedBy initials #11")
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, " .+",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-
-    temp_df$initials <- as.character(temp_df$initials)
-    # adding a full period at the end of the initials
-    temp_df$initials[tf][tfa][tfb] <-
-      gsub("$", ".", temp_df$initials[tf][tfa][tfb])
-    temp_df$initials[tf][tfa][tfb] <-
-      gsub("^\\s", "", temp_df$initials[tf][tfa][tfb])
-
-    df$recordedBy[tf][tfa][tfb] <-
-      gsub(" .+", "", df$recordedBy[tf][tfa][tfb])
-
-    df$recordedBy[tf][tfa][tfb] <-
-      paste(as.character(temp_df$initials[tf][tfa][tfb]),
-            as.character(df$recordedBy[tf][tfa][tfb]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Adding full period in names like D Cardoso, DD Cardoso, DDD Cardoso
-  # This step could have been done by searching first with
-  # grepl("^[[:upper:]]{2}", df$recordedBy)
-  df$recordedBy <- gsub("^ ", "", df$recordedBy)
-
-  tf <- grepl("[[[:upper:]]{2}", df$recordedBy)
-  tfa <- !grepl("[.]", df$recordedBy[tf])
-  tfb <- !grepl("[[:upper:]]{5,}", df$recordedBy[tf][tfa])
-
-  if (any(tfb)) {
-    message("std_recordedBy $recordedBy initials #12")
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    temp_df$initials[tf][tfa][tfb] <-
-      gsub(" $", "", temp_df$initials[tf][tfa][tfb])
-    # adding a space between all initials
-    temp_df$initials[tf][tfa][tfb] <-
-      lapply(temp_df$initials[tf][tfa][tfb],
-             function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials[tf][tfa][tfb] <-
-      gsub("$", " ", temp_df$initials[tf][tfa][tfb])
-    # replace space by full periods
-    temp_df$initials[tf][tfa][tfb] <-
-      gsub(" ", ".", temp_df$initials[tf][tfa][tfb])
-    # adding space between each initials now with full period
-    # put the space after the "\\1 "
-    temp_df$initials[tf][tfa][tfb] <-
-      lapply(temp_df$initials[tf][tfa][tfb],
-             function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    # Remove first words before first space
-    df$recordedBy[tf][tfa][tfb] <-
-      gsub("^(\\S*)", "", df$recordedBy[tf][tfa][tfb])
-    df$recordedBy[tf][tfa][tfb] <-
-      gsub("^.", "", df$recordedBy[tf][tfa][tfb])
-
-    df$recordedBy[tf][tfa][tfb] <-
-      paste(as.character(temp_df$initials[tf][tfa][tfb]),
-            as.character(df$recordedBy[tf][tfa][tfb]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Abbreviating and adding points to names like
-  # "Dionisio Constantino"
-  tf <- !grepl("[.]", df$recordedBy)
-  tfa <- !grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+\\s",
-                df$recordedBy[tf])
-  tfb <- grepl("\\s", df$recordedBy[tf][tfa])
-  tfc <- !grepl("-", df$recordedBy[tf][tfa][tfb])
-
-  # From these we grab the first word and then abbreviate
-  if (any(tfc)) {
-    message("std_recordedBy $recordedBy initials #13")
-    # Extracting the first word before first space
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    # Remove space at the end
-    temp_df$initials[tf][tfa][tfb][tfc] <-
-      gsub(" $", "", temp_df$initials[tf][tfa][tfb][tfc])
-    temp_df$initials[tf][tfa][tfb][tfc] <-
-      abbreviate(temp_df$initials[tf][tfa][tfb][tfc], minlength = 1, strict = T, dot = T, use.classes = F)
-
-    # Remove first words before first space
-    df$recordedBy[tf][tfa][tfb][tfc] <-
-      gsub("^(\\S*)", "", df$recordedBy[tf][tfa][tfb][tfc])
-    df$recordedBy[tf][tfa][tfb][tfc] <-
-      gsub("^.", "", df$recordedBy[tf][tfa][tfb][tfc])
-
-    # Combining initials with surname
-    df$recordedBy[tf][tfa][tfb][tfc] <-
-      paste(as.character(temp_df$initials[tf][tfa][tfb][tfc]),
-            as.character(df$recordedBy[tf][tfa][tfb][tfc]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # "T S SANTOS", "A Ducke", or errors like "A .Ducke" "G .T. Prance" "L W. Williams"
-
-  tf <- grepl("^[[:upper:]]\\s", df$recordedBy)
-  if (any(tf)) {
-    # Correct errors like "A .Ducke" "G .T. Prance"
-    df$recordedBy[tf] <-
-      gsub(" [.]", ". ", df$recordedBy[tf])
-  }
-
-  # Correcting errors like "L W. Williams"
-  tf <- grepl("^[[:upper:]]\\s", df$recordedBy)
-  tfa <- grepl("[.]", df$recordedBy[tf])
-  if (any(tfa)) {
-    df$recordedBy[tf][tfa] <-
-      gsub("[.]", "", df$recordedBy[tf][tfa])
-    df$recordedBy[tf][tfa] <-
-      gsub(" ", ". ", df$recordedBy[tf][tfa])
-  }
-
-  # Now searching just # "T S SANTOS", "A Ducke",
-  tf <- grepl("^[[:upper:]]\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <-
-      gsub(" ", ". ", df$recordedBy[tf])
-    df$recordedBy[tf] <-
-      gsub("bin.", "bin", df$recordedBy[tf])
-    df$recordedBy[tf] <-
-      gsub("van.", "van", df$recordedBy[tf])
-
-    tfa <- grepl("[[:upper:]][[:lower:]]+[.]\\s[[:upper:]][[:lower:]]+",
-                 df$recordedBy[tf])
-    if (any(tfa)) {
-
-      df$recordedBy[tf][tfa] <-
-        gsub("[.] ", " ", df$recordedBy[tf][tfa])
-      # Add point after the first word
-      df$recordedBy[tf][tfa] <-
-        gsub("^(\\w)", "\\1.", df$recordedBy[tf][tfa])
-    }
-
-  }
-
-  #_____________________________________________________________________________
-  # Finding collector names like "Monod Froideville C"
-  # How to find names with just one upper letter at the end "[[:upper:]]$"
-  # And delete last letter
-  tf <- grepl("[[:upper:]]$", df$recordedBy)
-  tfa <- !grepl("[.]", df$recordedBy[tf])
-  if (any(tfa)) {
-    # Remove last word after the last space
-    #df$recordedBy[tf][tfa] <-
-    #gsub("\\s\\w$", "", df$recordedBy[tf][tfa])
-    # "(-|\\s)[A-Z]+$" will remove last words after the last space OR an hiphen
-    df$recordedBy[tf][tfa] <-
-      gsub("(-|\\s)[A-Z]+$", "", df$recordedBy[tf][tfa])
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors with all uppercase letters
-  alluppercase <- grepl("[[:upper:]]{3,}", df$recordedBy)
-  #df$recordedBy[which(alluppercase == T)]
-
-  # Make them in just the first letter capitalized
-  df$recordedBy[alluppercase] <- gsub("\\b([a-z])", "\\U\\1",
-                                      tolower(df$recordedBy[alluppercase]),
-                                      perl = TRUE)
-
-  #_____________________________________________________________________________
-  # Finding collectors with more than four names and abbreviate first two names
-  # "Alexánder Francisco Rodríguez González"
-  tf <- !grepl("[.]", df$recordedBy)
-  tfa <- grepl(".*\\s.*\\s.*\\s", df$recordedBy[tf])
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #14")
-    # Extracting the first two names to abbreviate
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$recordedBy,
-                                                            "^(\\S*\\s\\S*\\s+)",
-                                                            simplify = TRUE))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf][tfa] <-
-      gsub(" $", "", temp_df$initials[tf][tfa])
-    # First abbreviate without dots then put space between the initials
-    temp_df$initials[tf][tfa] <-
-      abbreviate(temp_df$initials[tf][tfa],
-                 minlength = 1, strict = F, dot = F, use.classes = F)
-    # adding a space between all initials
-    temp_df$initials[tf][tfa] <-
-      lapply(temp_df$initials[tf][tfa],
-             function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials[tf][tfa] <-
-      gsub("$", " ", temp_df$initials[tf][tfa])
-    # replace space by full periods
-    temp_df$initials[tf][tfa] <-
-      gsub(" ", ".", temp_df$initials[tf][tfa])
-    # adding space between each inicials now with full period
-    # put the space after the "\\1 "
-    temp_df$initials[tf][tfa] <-
-      lapply(temp_df$initials[tf][tfa],
-             function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    # Deleting first two names, i.e. those before second space
-    df$recordedBy[tf][tfa] <-
-      gsub("^(\\S*\\s\\S*\\s+)", "", df$recordedBy[tf][tfa])
-
-    # Combining initials with surname
-    df$recordedBy[tf][tfa] <-
-      paste(as.character(temp_df$initials[tf][tfa]),
-            as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors with initials not separated by comma
-  # "H.C. Lima", "D.B.O.S. Cardoso" and "F.C.How"
-  # Removing double spaces
-  df$recordedBy <- gsub("[[:space:]]{2}", " ", df$recordedBy)
-
-  tf <- grepl("([[:upper:]][.]){2,}", df$recordedBy)
-  # Until here the vector ex_fullnames contains names like
-  # "J.A. Lombardi", "Jorge C.A. Lima"
-  # But we need to exclude the "Jorge C.A. Lima"
-  # I HAVE ALREADY EXCLUDED "Jorge C.A. Lima" BEFORE, SO SOME STEPS HERE RE REDUNDANT
-  # The grepl tfa is redundant
-  tfa <- grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][.]", df$recordedBy[tf])
-  #"Jorge C.A. Lima" %in% df$recordedBy[tf][tfa]
-  tfb <- !grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][.]", df$recordedBy[tf])
-  #"Jorge C.A. Lima" %in% df$recordedBy[tf][tfb]
-  #"Jorge C.A. Lima" %in% df$recordedBy[tf][which(tfb - tfa == T)]
-  #"J.A. Lombardi" %in% df$recordedBy[tf][which(tfb - tfa == T)]
-  #"F.C.How" %in% df$recordedBy[tf][which(tfb - tfa == T)]
-
-  if (any(tfb)) {
-    message("std_recordedBy $recordedBy initials #15")
-    # Extract all before first space
-    #str_extract_all(c("P.E.E. Sintenis", "H.C. Lima", "D.B.O.S. Cardoso"), "^([\\S*]+)", simplify = TRUE)
-    # Remove all after last dot
-    #sub("[^.]+$", "", c("P.E. E. Sintenis", "H.C.Lima", "D.B. O.S. Cardoso"))
-    # Extracting the first two names after the last [.]
-    # We can do this withoud the function str_extract_all
-    temp_df <- data.frame(initials=df$recordedBy)
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    temp_df$initials[tf][which(tfb - tfa == T)] <-
-      sub("[^.]+$", "", temp_df$initials[tf][which(tfb - tfa == T)])
-    # After the previous step we may have initials like "J. L.G."
-    # So, lets remove spaces and then onpe just one spaces using lapply function
-    temp_df$initials[tf][which(tfb - tfa == T)] <-
-      sub(" ", "", temp_df$initials[tf][which(tfb - tfa == T)])
-    # Adding space between each inicials now with full period
-    # Put the space after the "\\1 "
-    temp_df$initials[tf][which(tfb - tfa == T)] <-
-      lapply(temp_df$initials[tf][which(tfb - tfa == T)],
-             function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    # Removing all initials/names BEFORE last dot
-    # Then remove first space
-    df$recordedBy[tf][which(tfb - tfa == T)] <-
-      gsub(".*\\.", "", df$recordedBy[tf][which(tfb - tfa == T)])
-    df$recordedBy[tf][which(tfb - tfa == T)] <-
-      gsub("^ ", "", df$recordedBy[tf][which(tfb - tfa == T)])
-    # Combining initials with surname
-    df$recordedBy[tf][which(tfb - tfa == T)] <-
-      paste(as.character(temp_df$initials[tf][which(tfb - tfa == T)]),
-            as.character(df$recordedBy[tf][which(tfb - tfa == T)]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors like "N. Marquete F. Silva"
-  # and abbreviate the second name
-  tf <- grepl("([[:upper:]][.])\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.])", df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #16")
-    # extract all before before first space
-    #str_extract_all(c("P.E.E. Sintenis", "H.C. Lima", "D.B.O.S. Cardoso"), "^([\\S*]+)", simplify = TRUE)
-    # remove all after last dot
-    #sub("[^.]+$", "", c("P.E. E. Sintenis", "H.C.Lima", "D.B. O.S. Cardoso"))
-    # Extracting the first two names after the second space
-    # We can do this withoud the function str_extract_all
-    temp_df <- data.frame(initials=df$recordedBy)
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <-
-      sub("(\\S*\\s+\\S+)$", "", temp_df$initials[tf])
-    temp_df$initials[tf] <-
-      sub(" $", "", temp_df$initials[tf])
-    temp_df$initials[tf] <-
-      abbreviate(temp_df$initials[tf],
-                 minlength = 1, strict = F, dot = F, use.classes = F)
-    # adding a space between all initials
-    temp_df$initials[tf] <-
-      lapply(temp_df$initials[tf],
-             function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials[tf] <-
-      gsub("$", " ", temp_df$initials[tf])
-    # replace space by full periods
-    temp_df$initials[tf] <-
-      gsub(" ", ".", temp_df$initials[tf])
-    # adding space between each inicials now with full period
-    # put the space after the "\\1 "
-    temp_df$initials[tf] <-
-      lapply(temp_df$initials[tf],
-             function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    # Removing all initials/names BEFORE second space
-    # Then remove first space
-    df$recordedBy[tf] <- gsub("^(\\S*\\s+\\S+)", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("^ ", "", df$recordedBy[tf])
-
-    # Combining initials with surname
-    df$recordedBy[tf] <- paste(as.character(temp_df$initials[tf]),
-                               as.character(df$recordedBy[tf]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors like "J. A.S. Santos", M.Oliveira
-  # separate abbreviations like "J. A. S. Santos", M. Oliveira
-
-  tf <- grepl("[[:upper:]][.][[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("[.]", ". ", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors like "G.D Colletta", "E. M.B Prata", "C.E Zartman"
-
-  tf <- grepl("[[:upper:]][.][[:upper:]]\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s", ". ", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("[.]", ". ", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub(" [.] ", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\s\\s", " ", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # Finding ALL remaining collectors without full period
-  tf <- !grepl("[.]", df$recordedBy)
-  tfa <- grepl("\\s", df$recordedBy[tf])
-  if (any(tfa)) {
-    message("std_recordedBy $recordedBy initials #17")
-    # Codes to find first words
-    temp_df <- data.frame(fullnames=df$recordedBy)
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$fullnames <- as.character(temp_df$fullnames)
-    # Perhaps we need to take out the accents before using the function abbreviate
-    # See this link where I found the function stri_trans_general
-    # https://stackoverflow.com/questions/39148759/remove-accents-from-a-dataframe-column-in-r
-    # And here an interesting way on the use of the symbol := to parse data from a data table structure
-    # https://stackoverflow.com/questions/45651394/what-does-symbol-mean-in-r
-    temp_df$fullnames <-
-      stri_trans_general(temp_df$fullnames, "Latin-ASCII")
-
-    # Grab the first word into a new column
-    temp_df$coll.abbrev <- gsub("([A-Za-z]+).*", "\\1",
-                                temp_df$fullnames)
-
-    # I had some troube when using abbreviate function after doing a gsub like the one bellow
-    # To get first names that include accent, like "Sérgio Miana Faria)
-    #temp_df$coll.abbrev <- gsub("([A-Za-zéáí]+).*", "\\1", temp_df$fullnames)
-
-    temp_df$coll.abbrev[tf][tfa] <-
-      abbreviate(temp_df$coll.abbrev[tf][tfa],
-                 minlength = 1, strict = T, dot = T, use.classes = F)
-    # Removing all initials/names BEFORE second space
-    # gsub("^(\\S*\\s+)", "", df$recordedBy[tf][tfa]) # Remove words before first space
-    # gsub("^(\\w+)", "", df$recordedBy[tf][tfa]) # Remove first word
-    # Then remove first space
-    df$recordedBy[tf][tfa] <-
-      gsub("^(\\w+)", "", df$recordedBy[tf][tfa])
-    df$recordedBy[tf][tfa] <-
-      gsub("^ ", "", df$recordedBy[tf][tfa])
-    # Combining initials with surname
-    df$recordedBy[tf][tfa] <-
-      paste(as.character(temp_df$coll.abbrev[tf][tfa]),
-            as.character(df$recordedBy[tf][tfa]), sep=" ")
-  }
-
-  #_____________________________________________________________________________
-  # Finding collectors like "C. -Ming Tan"
-  tf <- grepl("[[:upper:]][.]\\s[-][[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    message("std_recordedBy $recordedBy initials #18")
-    # Codes to find first words
-    temp_df <- data.frame(fullnames=df$recordedBy)
-    if (length(temp_df) == 0) {
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$fullnames <- as.character(temp_df$fullnames)
-    # Deleting last name after second space
-    temp_df$coll.abbrev <- gsub("(\\w+)$", "", temp_df$fullnames)
-    # to abbreviate words like this "C. -Ming" into C.-M.
-    # use args minlength = 4, strict = T, dot = T
-    temp_df$coll.abbrev[tf] <-
-      abbreviate(temp_df$coll.abbrev[tf],
-                 minlength = 4, strict = T, dot = T, use.classes = F)
-    temp_df$coll.abbrev[!tf] <- NA
-    # Removing all initials/names BEFORE second space
-    # gsub("^(\\S*\\s\\S*\\s+)", "", df$recordedBy[abbrev.pos]) # Remove words before first space
-    # gsub("^(\\w+)", "", df$recordedBy[abbrev.pos]) # Remove first word
-    # Then remove first space
-    df$recordedBy[tf] <- gsub("^(\\S*\\s\\S*\\s+)", "", df$recordedBy[tf])
-    # Combining initials with surname
-    df$recordedBy[tf] <-
-      paste(as.character(temp_df$coll.abbrev[tf]),
-            as.character(df$recordedBy[tf]), sep=" ")
-  }
+  # Standardize the collector name into the format "D. B. O. S. Cardoso" ####
+  df$recordedBy <- .std_initials(df$recordedBy)
 
   #_____________________________________________________________________________
   # Putting back original collectors when written as "Expeditions", etc
-
-  tf <- grepl("\\sExpedition", df$recordedByOriginal)
-  if (any(tf)) {
-    df$recordedBy[tf] <- df$recordedByOriginal[tf]
-    df$recordNumber[tf] <- df$recordNumberOriginal[tf]
-  }
-
-  tf <- grepl("^Flora\\sof\\s", df$recordedByOriginal)
-  if (any(tf)) {
-    df$recordedBy[tf] <- df$recordedByOriginal[tf]
-    df$recordNumber[tf] <- df$recordNumberOriginal[tf]
-  }
-
-  tf <- grepl("\\sProject", df$recordedByOriginal)
+  tf <- grepl("\\sExpedition|^Flora\\sof\\s|\\sProject", df$recordedByOriginal)
   if (any(tf)) {
     df$recordedBy[tf] <- df$recordedByOriginal[tf]
     df$recordNumber[tf] <- df$recordNumberOriginal[tf]
   }
 
   #_____________________________________________________________________________
-  # Finding collectors that has " de la " like " de la Cruz"
-
-  dela <- grepl(" de la ", df$recordedByOriginal)
-  #df$recordedBy[dela]
-  #df$recordedByOriginal[dela]
-
-  # before grepl with the original, lets clean the second authors
-  dela.original <- df$recordedByOriginal[dela]
-  dela.original.cleaned <- gsub("(;.+)|([|].+)", "", dela.original)
-
-  dela.1 <- grepl(" de la ", dela.original.cleaned)
-  dela.names <- df$recordedByOriginal[dela][dela.1]
-
-  pos.dela.names <- grepl(paste(paste("^", dela.names, "$", sep = ""),
-                                collapse = "|"), df$recordedByOriginal)
-
-  if (any(pos.dela.names)) {
-    message("std_recordedBy $recordedBy particles before surname #1")
-    df$recordedBy[pos.dela.names] <- gsub(" la ", " de la ", df$recordedBy[pos.dela.names])
-  }
+  # Particles before surnames, based on the original collector column ####
+  df$recordedBy <- .std_particles(df$recordedBy, df$recordedByOriginal)
 
   #_____________________________________________________________________________
-  # Abbreviating second names if there exists particles like
-  # "de" do" "dos" in the original collector column
-
-  de <- grepl("[.]\\s[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+", df$recordedBy)
-
-  # Before grepl with the original, lets clean the second authors
-  de.original <- df$recordedByOriginal[de]
-  de.original.cleaned <- gsub("(;.+)|([|].+)", "", de.original)
-
-  de.1 <- grepl(" de ", de.original.cleaned)
-  de.2 <- grepl(" DE ", de.original.cleaned)
-  de.3 <- grepl(" De ", de.original.cleaned)
-  do.1 <- grepl(" do ", de.original.cleaned)
-  do.2 <- grepl(" DO ", de.original.cleaned)
-  do.3 <- grepl(" Do ", de.original.cleaned)
-  dos.1 <- grepl(" dos ", de.original.cleaned)
-  dos.2 <- grepl(" DOS ", de.original.cleaned)
-  da.1 <- grepl(" da ", de.original.cleaned)
-  da.2 <- grepl(" DA ", de.original.cleaned)
-
-  if (any(de.1) |
-      any(de.2) |
-      any(de.3) |
-      any(do.1) |
-      any(do.2) |
-      any(do.3) |
-      any(dos.1) |
-      any(dos.2) |
-      any(da.1) |
-      any(da.2)) {
-    message("std_recordedBy $recordedBy particles before surname #2")
-    de.names <- df$recordedByOriginal[de][which(de.1 + de.2 + de.3 +
-                                                  do.1 + do.2 + do.3 +
-                                                  dos.1 + dos.2 +
-                                                  da.1 + da.2 == T)]
-    de.names <- gsub("[(]", "[(]", de.names)
-    de.names <- gsub("[)]", "[)]", de.names)
-    pos.de.1.names <- grepl(paste(paste("^", de.names, "$", sep = ""),
-                                  collapse = "|"), df$recordedByOriginal)
-
-    #df$recordedBy[pos.de.1.names]
-
-    # Codes to find first words
-    temp_df <- data.frame(df$recordedBy)
-    colnames(temp_df) <- "fullnames"
-    temp_df$fullnames <- as.character(temp_df$fullnames)
-
-    # extracting each collum to abbreviate just the second
-    temp_df$coll.abbrev1 <- gsub("[^.]+$", "", temp_df$fullnames)
-    temp_df$coll.abbrevtemp <- gsub(".*\\.", "", temp_df$fullnames)
-    temp_df$coll.abbrev2 <- gsub("(\\S*\\S+)$", "", temp_df$coll.abbrevtemp)
-    temp_df$coll.abbrevlast <- gsub("^(\\S*\\s+\\S+)", "", temp_df$coll.abbrevtemp)
-    temp_df$coll.abbrev2[pos.de.1.names] <-
-      abbreviate(temp_df$coll.abbrev2[pos.de.1.names],
-                 minlength = 1, strict = T, dot = T, use.classes = F)
-
-    temp_df$coll.abbrev1[!pos.de.1.names] <- NA
-    temp_df$coll.abbrev2[!pos.de.1.names] <- NA
-    temp_df$coll.abbrevlast[!pos.de.1.names] <- NA
-
-    df$recordedBy <- ifelse(!is.na(temp_df$coll.abbrev2 == TRUE),
-                            paste(as.character(temp_df$coll.abbrev1),
-                                  as.character(temp_df$coll.abbrev2),
-                                  as.character(temp_df$coll.abbrevlast),
-                                  sep=" "),
-                            as.character(df$recordedBy))
-  }
-
-  # Finding possible examples like these "B. T. P. M Góes", "M. P Dias"
-  tf <- grepl("\\s[[:upper:]]\\s[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s", ". ", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("[.][.]", ".", df$recordedBy[tf])
-  }
-
-  # Removing dots and comma at the end of surnames like:
-  # "V. O. Amorim."	"J. H. C. Ribeiro," from RB collections or "A...S... Flores"
-  df$recordedBy <- gsub("[.]$", "", as.character(df$recordedBy))
-  df$recordedBy <- gsub(",$", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[.]\\s", " ", df$recordedBy)
-  df$recordedBy <- gsub("[.][.][.]", ". ", df$recordedBy)
-
-  # Removing final double spaces
-  df$recordedBy <- gsub("[[:space:]]{2}", " ", df$recordedBy)
-
-  # Removing de, da etc when they are not separated from the surnames
-  tf <- grepl("\\sde[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" de", " ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\sda[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" da", " ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\sdas[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" das", " ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\sdo[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" do", " ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\sdos[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" dos", " ", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # Correcting tilde accents; this might be a problem with tolower function when
-  # using with words that have tilde accents.
-  # "G. O. RomãO"
-  # get the codes for tilde or any characters here
-  # https://en.wikipedia.org/wiki/ISO/IEC_8859-1
-  tf <- grepl("\\xe3O|\\xe3OS|\\xe3E|\\xe3ES|\\xf5ES", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\xe3O", "\\xe3o", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\xe3OS", "\\xe3os", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\xe3E", "\\xe3e", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\xe3ES", "\\xe3es", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\xf5ES", "\\xf5es", df$recordedBy[tf])
-  }
-
-  #_____________________________________________________________________________
-  # Further cleaning Asian-like names when they are in unicode characters ####
-  # from "UTF-8" encoding
-  #tf <- grepl("[+][0-9]", "<U+8983><U+704F><U+5BCC>")
-  tf <- grepl("[+][0-9]", df$recordedBy)
-  if (any(tf)) {
-    df <- .unicodeclean(df, tf)
-  }
-
-  #_____________________________________________________________________________
-  # Adding Unknown collector to empty cells
-  df$recordedBy <- gsub("^$", "Unknown", trimws(df$recordedBy))
-
-  #_____________________________________________________________________________
-  # Further cleaning
-  tf <- grepl("[?]$", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("[?]$", "", df$recordedBy[tf])
-  }
-
-  df$recordedBy <- gsub("\\s$", "", df$recordedBy)
-  df$recordedBy <- gsub("^[.]\\s", "", df$recordedBy)
-
-  tf <- grepl("^[\177][[:upper:]][.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("^[\177]", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("[.]\\s,\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s,", "", df$recordedBy[tf])
-  }
-
+  # Final cleaning of the collector names
+  df$recordedBy <- .final_collclean(df$recordedBy)
+  if (any(han)) df$recordedBy[han] <- han_names
 
   #_____________________________________________________________________________
   # Cleaning specific collector names ####
   df <- .std_specific_coll(df)
 
-
   #_____________________________________________________________________________
   # Clean the newly created column of additional collectors
   df <- .addcollclean(df)
-
+  if (any(han_add)) df$addCollector[han_add] <- han_addnames
 
   #_____________________________________________________________________________
   # Furthern cleaning numbers at $recordNumber
-  df <- .std_recordNumber(df = df,
-                          colnames_df = colnames_df,
-                          colname_recordNumber = colname_recordNumber)
-
+  df <- .std_recordNumber(df)
 
   #_____________________________________________________________________________
   # Put original names back ####
-
   if (colname_recordedBy != "recordedBy") {
     names(df)[names(df) %in% "recordedBy"] <- colname_recordedBy
     names(df)[names(df) %in% "recordedByOriginal"] <- paste0(colname_recordedBy, "Original")
@@ -1345,32 +194,149 @@ std_recordedBy <- function(df = NULL,
 
 
 #_______________________________________________________________________________
+# Small helpers for recurrent string operations ####
+
+# Extract the first match of a pattern, with "" when there is no match
+.extract <- function(x, pattern) {
+  out <- stringr::str_extract(x, pattern)
+  out[is.na(out)] <- ""
+  out
+}
+
+# Replace a pattern only in the elements where `detect` is found. When several
+# patterns are given, they are applied in sequence to the same elements
+.gsub_if <- function(x, detect, pattern = detect, replacement = "") {
+  tf <- grepl(detect, x)
+  if (any(tf)) {
+    replacement <- rep_len(replacement, length(pattern))
+    for (i in seq_along(pattern)) {
+      x[tf] <- gsub(pattern[i], replacement[i], x[tf])
+    }
+  }
+  x
+}
+
+# Apply a sequence of gsub, given as c("pattern" = "replacement", ...)
+.gsub_all <- function(x, rules) {
+  for (i in seq_along(rules)) {
+    x <- gsub(names(rules)[i], rules[[i]], x)
+  }
+  x
+}
+
+# Put a part of a name (e.g. the initials after a comma in "Cardoso, D.")
+# in front of the remaining name (e.g. "D. Cardoso")
+#   idx     logical or numeric positions of the names to rearrange
+#   pattern the part to be moved to the front
+#   fun     function to format the moved part
+#   remove  pattern to delete the moved part from the remaining name
+.move_to_front <- function(x, idx, pattern, fun = identity, sep = " ",
+                           remove = pattern, msg = NULL) {
+  if (is.logical(idx)) idx <- which(idx)
+  if (length(idx) == 0) return(x)
+  if (!is.null(msg)) message("std_recordedBy $recordedBy ", msg)
+  front <- fun(.extract(x[idx], pattern))
+  x[idx] <- paste(front, sub(remove, "", x[idx]), sep = sep)
+  x
+}
+
+# Join initials after a comma, e.g. ", M C G" into "MCG", but keeping
+# particles apart, e.g. ", CFP von" into "CFP von"
+.join_initials <- function(i) {
+  trimws(gsub("([[:upper:]])\\s+(?=[[:upper:]])", "\\1", gsub(",", "", i), perl = TRUE))
+}
+
+# Abbreviate names, e.g. "Domingos" into "D." or "Domingos Benicio" into "DB"
+# strict = TRUE keeps each abbreviation independent from the other names in
+# the vector, otherwise abbreviate() lengthens duplicates, e.g. "ME" into "MarE"
+.abbrev <- function(x, dot = TRUE) {
+  abbreviate(x, minlength = 1, strict = TRUE, dot = dot, use.classes = FALSE)
+}
+
+# Abbreviate the leading name(s) and put them back in front of the surname
+.abbrev_to_front <- function(x, idx, pattern = "^(\\S*\\s+)", dot = TRUE,
+                             sep = " ", remove = pattern, msg = NULL) {
+  .move_to_front(x, idx, pattern, sep = sep, remove = remove, msg = msg,
+                 fun = function(i) .abbrev(gsub("^ ", "", i), dot = dot))
+}
+
+# Separate initials with full period and space, e.g. "DBOS" into "D. B. O. S."
+.spell_initials <- function(x) {
+  x <- trimws(gsub("([[:alpha:]])", " \\1", x))
+  x <- gsub(" ", ".", paste0(x, " "))
+  trimws(gsub("([[:punct:]])", "\\1 ", x))
+}
+
+# Make names in just the first letter capitalized, e.g. "CARDOSO" into "Cardoso"
+# (*UCP) makes accented letters part of words, avoiding e.g. "DuséN", "FróEs"
+.title_case <- function(x) {
+  gsub("(*UCP)\\b(\\p{Ll})", "\\U\\1", tolower(x), perl = TRUE)
+}
+
+# Decode numeric HTML entities, e.g. "Co&#234;lho" into "Coêlho"
+.decode_html <- function(x) {
+  tf <- grepl("&#[0-9]+;", x)
+  if (any(tf)) {
+    m <- gregexpr("&#[0-9]+;", x[tf])
+    regmatches(x[tf], m) <- lapply(regmatches(x[tf], m), function(e) {
+      vapply(as.integer(gsub("\\D", "", e)), intToUtf8, character(1))
+    })
+  }
+  x
+}
+
+# Remove particles like de, da, do, dos from collector names
+.rm_particles <- function(x, squish = TRUE) {
+  tf <- grepl(" de", x) & !grepl("van den|van der", x)
+  x[tf] <- gsub(" de", " ", x[tf])
+
+  # detect, pattern, replacement
+  rules <- list(c("[.]de", "de", " "),
+                c(" De ", " De ", " "),
+                c(" DE ", " DE ", " "),
+                c("^De ", "^De ", ""),
+                c("^de ", "^de ", ""),
+                c(" De$", " De$", ""),
+                c("[.]\\sDE$", " DE$", ""),
+                c("[[:space:]]da$", " da", ""),
+                c(" da ", " da ", " "),
+                c(" da;", " da;", " "),
+                c("[.]da", "da", " "),
+                c("[.]\\sDA\\s", "DA\\s", ""),
+                # I might need to exclude the next step for names like "WALMOR DA FONSECA"
+                c("[[:upper:]]+\\sDA\\s[[:upper:]]+", "DA\\s", ""),
+                c(" dos", " dos", " "),
+                c(" do", " do", " "),
+                c("[.]dos", "dos", " "),
+                c("[.]do", "do", " "))
+  for (r in rules) {
+    x <- .gsub_if(x, r[1], r[2], r[3])
+  }
+
+  if (squish) x <- gsub("[[:space:]]{2}", " ", x)
+  x
+}
+
+
+#_______________________________________________________________________________
 # Extract secondary collectors and keep only the principal ####
 .deepcollclean <- function(df,
                            pos,
-                           extract_pattern,
-                           l_rows) {
+                           extract_pattern) {
 
-  temp_df <- data.frame(collector=stringr::str_extract_all(df$recordedBy,
-                                                           extract_pattern,
-                                                           simplify = TRUE))
+  if (is.logical(pos)) pos <- which(pos)
+  if (length(pos) == 0) return(df)
 
-  if (length(temp_df) == 0) {
-    temp_df <- data.frame(collector=rep(NA, l_rows))
-  }
-  temp_df$collector <- as.character(temp_df$collector)
+  collector <- .extract(df$recordedBy[pos], extract_pattern)
 
-  temp_df$collector[-pos] <- NA
-
-  tf <- grepl("[$]$", extract_pattern)
-  if (tf) {
+  if (grepl("[$]$", extract_pattern)) {
     extract_pattern <- gsub("[$]|[.][+]", "", extract_pattern)
     df$recordedBy[pos] <- gsub(paste0(extract_pattern, ".*"), "\\1", df$recordedBy[pos])
-    df$addCollector[pos] <- temp_df$collector[pos]
+    df$addCollector[pos] <- collector
   } else {
     df$recordedBy[pos] <- gsub(extract_pattern, "", df$recordedBy[pos])
     extract_pattern <- gsub("[$]|[.][+]", "", extract_pattern)
-    df$addCollector[pos] <- gsub(extract_pattern, "", temp_df$collector[pos])
+    df$addCollector[pos] <- gsub(extract_pattern, "", collector)
   }
 
   df$recordedBy[pos] <- gsub("^\\s|\\s$", "", df$recordedBy[pos])
@@ -1381,157 +347,412 @@ std_recordedBy <- function(df = NULL,
 
 
 #_______________________________________________________________________________
+# Cleaning $recordedBy with ONLY TWO COLLECTORS ####
+.split_two_collectors <- function(df) {
+
+  x <- df$recordedBy
+
+  # Clean e.g. "Cardoso, D.|Santos, Q."
+  df <- .deepcollclean(df, grepl("[|]", x), "[|].+")
+
+  # Clean e.g. "Olga Kotchetkoff Henriques e Andrei Furlan"
+  df <- .deepcollclean(df, grepl("\\s[[:upper:]][[:lower:]]+\\s[e]\\s[[:upper:]][[:lower:]]+\\s",
+                                 df$recordedBy), "\\s[e]\\s.+")
+
+  # Clean two collectors separated by "y"
+  df <- .deepcollclean(df, grepl("\\sy\\s", df$recordedBy), "\\sy\\s.+")
+
+  # Examples of collectors not separated by symbols (,  ;  &)
+  # Extracting just examples like "Teraoka, W. Baker, R."
+  tf <- grepl(".*,.*,", df$recordedBy)
+  tfa <- !grepl(";", df$recordedBy[tf])
+  tfb <- !grepl("&", df$recordedBy[tf][tfa])
+  df <- .deepcollclean(df, which(tf)[tfa][tfb], "(\\S*\\s+\\S+)$")
+
+  # Collectors separated by ; but without any comma , separating initials and surnames
+  tf <- grepl(".*;", df$recordedBy)
+  tfa <- !grepl(".*,", df$recordedBy[tf])
+  df <- .deepcollclean(df, which(tf)[tfa], ";.+")
+
+  # Clean remaining examples of two collectors separated by semicolon
+  tf <- grepl(".*;", df$recordedBy)
+  if (any(tf)) {
+    df <- .deepcollclean(df, tf, ";.+")
+    # Before next grepl we need to delete the remaining semicolon ";"
+    df$recordedBy <- gsub("[;]", "", df$recordedBy)
+  }
+
+  # Lets first edit examples like this "J. Campbell-Snelling, M. Chambers"
+  df$recordedBy <- .gsub_if(df$recordedBy,
+                            "[[:lower:]]+[-][[:upper:]][[:lower:]]+,\\s[[:upper:]][.]\\s[[:upper:]]",
+                            ",", " &")
+
+  # Clean two collectors separated by "&"
+  df <- .deepcollclean(df, grepl("&", df$recordedBy), "&.+")
+
+  # NEED TO WORK MORE HERE; I might get some problems as mentioned below
+  # Finding two collectors like
+  # "C. H. Dodson, P. M. Dodson" or "P.P. Wan, K.S. Chow"
+  # "Robert F. Thorne, Geoff Tracey"
+  # I need to work on this so as make it more general and grab the following names
+  # "Robert Thorne, Geoff Tracey"
+  # "C.Farney, G.Byer"
+  df <- .deepcollclean(df, grepl("([[:upper:]][.]){1,}\\s*[[:upper:]][[:lower:]]+[,]\\s",
+                                 df$recordedBy), ",.+")
+
+  return(df)
+}
+
+
+#_______________________________________________________________________________
+# Standardize the collector name into the format "D. B. O. S. Cardoso" ####
+# When there is only ONE COLLECTOR at $recordedBy
+.std_initials <- function(x) {
+
+  #_____________________________________________________________________________
+  # General cleaning of collector initials
+  # Clean e.g. "Arbo M .M."
+  x <- .gsub_if(x, "\\s[.][[:upper:]][.]", c("\\s[.]", "[.][.]"), ".")
+
+  # Clean e.g. "Meira, Neto J A": replace first space with a comma
+  tf <- grepl("^[[:upper:]][[:lower:]]+[-](Filho|Sobrinho|Neto)\\s([[:upper:]]{1,}|[[:upper:]]\\s)", x)
+  x[tf] <- sub("\\s+", ", ", x[tf])
+
+  # Clean e.g. "Roberto Paulo Orlandi.", "Adonias Araujo."
+  x <- .gsub_if(x, "([[:upper:]][[:lower:]]+\\s){1,}[[:upper:]]([[:lower:]]){2,}[.]", "[.]$", "")
+
+  # Clean e.g. "Elton. M. C. Leme", "Franco. I.M.": remove only the first dot
+  for (p in c("[[:upper:]][[:lower:]]+[.]\\s[[:upper:]][.]", "^[[:upper:]]+{2,}[.]\\s[[:upper:]]")) {
+    tf <- grepl(p, x)
+    x[tf] <- stringi::stri_replace_first_regex(x[tf], "[.]{1}", "")
+  }
+
+  #_____________________________________________________________________________
+  # Extracting collector initials that are separated by COMMA
+  # Grabbing and inserting back first names with at least one abbreviation
+  # so, initials like..." C.F.P. von ", " J.E.L.S.", " R.", " Terence D."
+  tf <- grepl(",", x)
+  tfa <- grepl("([[:upper:]][.]){1}", x[tf])
+  x <- .move_to_front(x, which(tf)[tfa], ",.+", msg = "initials #1",
+                      fun = function(i) gsub("^\\s", "", gsub(",", "", i)))
+
+  # Grabbing and inserting back first names with at least two abbreviation and no dot
+  # so, initials like..."Padgurschi, MCG", "Oliveira, AA"
+  tf <- grepl(",", x)
+  idx <- which(tf)[grepl("([[:upper:]]){2}", x[tf])]
+  x[idx] <- gsub("^\\s", "", x[idx])
+  x <- .move_to_front(x, idx, ",.+", msg = "initials #2", fun = .join_initials)
+
+  # Grabbing and inserting back first names with just one initial and no dot
+  # so, initials like..."Cardoso, D", "Oliveira, A"
+  tf <- grepl(",", x)
+  tfa <- !grepl("[[:upper:]][[:lower:]]+[,]\\s*[[:upper:]][[:lower:]]+", x[tf])
+  x <- .move_to_front(x, which(tf)[tfa], ",.+", msg = "initials #3", fun = .join_initials)
+
+  # This step will be enough to grab and insert back the non abbreviated names
+  # like "Estrada, Armando", "Sellow, Friedrich", "Pierre, Jean Baptiste Louis"
+  tf <- grepl(",", x)
+  x[tf] <- gsub("[.]$", "", gsub(",$", "", x[tf]))
+  x <- .move_to_front(x, tf, ",.+", msg = "initials #4",
+                      fun = function(i) gsub("^\\s|\\s$", "", gsub(",", "", i)))
+
+  # Deleting blank space at the beginning and end of the cell
+  x <- .gsub_all(x, c("^[[:space:]]" = "", "[[:space:]]{2}" = " ", "[[:space:]]$" = ""))
+
+  #_____________________________________________________________________________
+  # Now cleaning collector names with initials NOT separated by comma ####
+  # or semicolon like "Callejas R.", "Schultes R.E.", "Krukoff BA" "Sergio M Faria"
+  # We do in a series of steps otherwise we will erase others based on the patterns
+
+  # Names with just surnames or with first word in capital letters
+  tf <- !grepl("[[:space:]]|[.]", x)
+  x[tf] <- .title_case(x[tf])
+  tf <- grepl("[[:upper:]]+{2,}\\s[[:upper:]][.]", x)
+  x[tf] <- .title_case(x[tf])
+
+  # "Zwaan CJ van der", "Martius CFP von"
+  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", x)
+  tfa <- grepl("van den|van der| von| van| bin", x[tf])
+  x <- .move_to_front(x, which(tf)[tfa], " .+", msg = "initials #5",
+                      fun = function(i) sub("^\\s", "", i))
+
+  # Names like "Sergio M Faria", "Domingos S Cardoso", "Marcelo T Nascimento"
+  x <- .abbrev_to_front(x, grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", x),
+                        dot = FALSE, sep = "", msg = "initials #6")
+
+  # Names in capital letter like "JORGE  C.A. LIMA"
+  tf <- grepl("[[:upper:]]+\\s+([[:upper:]]+[.]{1,})+\\s+[[:upper:]]{3}", x)
+  x[tf] <- .title_case(x[tf])
+
+  # "Roberto P.Orlandi", "Jorge C.A.Lima": open spaces between initials
+  x <- .gsub_if(x, "[[:lower:]]+\\s+([[:upper:]]+[.]){1,}[[:upper:]][[:lower:]]+",
+                "[.]", ". ")
+
+  # "David J.N. Hind", "Jorge C. A. Lima", "Grady L. Webster", "Charles M. Ek"
+  tf <- grepl("[[:upper:]][[:lower:]]+\\s+(.*[[:upper:]][.]){1,}\\s+[[:alpha:]]{2,}", x)
+  x[tf] <- gsub(",$", "", gsub("^\\s", "", x[tf]))
+  x <- .abbrev_to_front(x, tf, msg = "initials #7")
+
+  # "Schultes R.E.", "Soejarto D.", "Maas P.J.M."
+  tf <- grepl("^\\S[[:lower:]]+\\s([[:upper:]]+[.]){1,}", x)
+  tfa <- !grepl("\\s+[[:upper:]][[:lower:]]+", x[tf])
+  x <- .move_to_front(x, which(tf)[tfa], " .+", msg = "initials #8")
+
+  # "Croat TB", "Kostermans AJGH": more than two initials without full period
+  x <- .move_to_front(x, grepl("^\\S[[:lower:]]+\\s([[:upper:]]{2,})", x), " .+",
+                      msg = "initials #9")
+
+  # Getting rid of the last abbreviated initial in Spanish-like names
+  # "Percy Núñez V.", "P. Nuñez V.", "Mario Sousa S.", "G. Ibarra M."
+  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]+[.]{1})", x)
+  idx <- which(tf)[grepl("(\\s+[[:upper:]]+[[:lower:]]+\\s+([[:upper:]]+[.]$))", x[tf])]
+  x[idx] <- gsub("\\s[^ ]+$", "", x[idx])
+
+  # "N. Castaño-A." "W. Trujillo-C."
+  x <- .gsub_if(x, "[[:upper:]][[:lower:]]+[-]+([[:upper:]]+[.]{1})", "-[^-]+$", "")
+
+  # "Uribe Uribe AL", "Cid Ferreira CA": separate the last names by an hyphen
+  tf <- grepl("[[:lower:]]+[[:space:]]([[:upper:]]{2,})", x)
+  if (any(tf)) {
+    message("std_recordedBy $recordedBy initials #10")
+    initials <- .extract(x[tf], " [^ ]+$")
+    x[tf] <- paste(initials, gsub(" ", "-", sub("\\s[^ ]+$", "", x[tf])))
+  }
+
+  # "Cardenas D", "Ferreira L": only one surname and one initial
+  tf <- grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]]", x)
+  tfa <- !grepl("[.]", x[tf])
+  tfb <- !grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+", x[tf][tfa])
+  x <- .move_to_front(x, which(tf)[tfa][tfb], " .+", msg = "initials #11",
+                      fun = function(i) gsub("^\\s", "", paste0(i, ".")))
+
+  # Adding full period in names like "D Cardoso", "DD Cardoso", "DDD Cardoso"
+  x <- gsub("^ ", "", x)
+  tf <- grepl("[[[:upper:]]{2}", x)
+  tfa <- !grepl("[.]", x[tf])
+  tfb <- !grepl("[[:upper:]]{5,}", x[tf][tfa])
+  x <- .move_to_front(x, which(tf)[tfa][tfb], "^(\\S*\\s+)", remove = "^\\S*.",
+                      msg = "initials #12",
+                      fun = function(i) .spell_initials(gsub(" $", "", i)))
+
+  # Abbreviating and adding points to names like "Dionisio Constantino"
+  tf <- !grepl("[.]", x)
+  tfa <- !grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+\\s", x[tf])
+  tfb <- grepl("\\s", x[tf][tfa])
+  tfc <- !grepl("-", x[tf][tfa][tfb])
+  x <- .abbrev_to_front(x, which(tf)[tfa][tfb][tfc], remove = "^\\S*.",
+                        msg = "initials #13")
+
+  #_____________________________________________________________________________
+  # "T S SANTOS", "A Ducke", or errors like "A .Ducke" "G .T. Prance" "L W. Williams"
+  x <- .gsub_if(x, "^[[:upper:]]\\s", " [.]", ". ")
+
+  # Correcting errors like "L W. Williams"
+  tf <- grepl("^[[:upper:]]\\s", x)
+  idx <- which(tf)[grepl("[.]", x[tf])]
+  x[idx] <- gsub(" ", ". ", gsub("[.]", "", x[idx]))
+
+  # Now searching just "T S SANTOS", "A Ducke"
+  tf <- grepl("^[[:upper:]]\\s", x)
+  if (any(tf)) {
+    x[tf] <- .gsub_all(x[tf], c(" " = ". ", "bin." = "bin", "van." = "van",
+                                "(^|\\s)(von|den|der|ter|la)[.]" = "\\1\\2"))
+    idx <- which(tf)[grepl("[[:upper:]][[:lower:]]+[.]\\s[[:upper:]][[:lower:]]+", x[tf])]
+    # Add point after the first word
+    x[idx] <- sub("^(\\w)", "\\1.", gsub("[.] ", " ", x[idx]))
+  }
+
+  # "Monod Froideville C": remove last words after the last space OR an hyphen
+  tf <- grepl("[[:upper:]]$", x)
+  idx <- which(tf)[!grepl("[.]", x[tf])]
+  x[idx] <- gsub("(-|\\s)[A-Z]+$", "", x[idx])
+
+  # Collectors with all uppercase letters
+  tf <- grepl("[[:upper:]]{3,}", x)
+  x[tf] <- .title_case(x[tf])
+
+  # Collectors with more than four names: abbreviate first two names
+  # "Alexánder Francisco Rodríguez González"
+  tf <- !grepl("[.]", x)
+  tfa <- grepl(".*\\s.*\\s.*\\s", x[tf])
+  x <- .move_to_front(x, which(tf)[tfa], "^(\\S*\\s\\S*\\s+)", msg = "initials #14",
+                      fun = function(i) {
+                        .spell_initials(.abbrev(gsub(" $", "", i), dot = FALSE))
+                      })
+
+  #_____________________________________________________________________________
+  # Collectors with initials not separated by comma
+  # "H.C. Lima", "D.B.O.S. Cardoso" and "F.C.How"
+  x <- gsub("[[:space:]]{2}", " ", x)
+  tf <- grepl("([[:upper:]][.]){2,}", x)
+  idx <- which(tf)[!grepl("[[:upper:]][[:lower:]]+\\s[[:upper:]][.]", x[tf])]
+  if (length(idx) > 0) {
+    message("std_recordedBy $recordedBy initials #15")
+    # Initials before the last dot, with just one space after each dot
+    initials <- trimws(gsub("([[:punct:]])", "\\1 ", sub(" ", "", sub("[^.]+$", "", x[idx]))))
+    # Surname after the last dot
+    x[idx] <- paste(initials, gsub("^ ", "", gsub(".*\\.", "", x[idx])))
+  }
+
+  # "N. Marquete F. Silva": abbreviate the second name
+  tf <- grepl("([[:upper:]][.])\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.])", x)
+  if (any(tf)) {
+    message("std_recordedBy $recordedBy initials #16")
+    initials <- sub(" $", "", sub("(\\S*\\s+\\S+)$", "", x[tf]))
+    initials <- .spell_initials(.abbrev(initials, dot = FALSE))
+    x[tf] <- paste(initials, gsub("^ ", "", gsub("^(\\S*\\s+\\S+)", "", x[tf])))
+  }
+
+  # "J. A.S. Santos", "M.Oliveira" into "J. A. S. Santos", "M. Oliveira"
+  x <- .gsub_if(x, "[[:upper:]][.][[:upper:]][[:lower:]]+", "[.]", ". ")
+
+  # "G.D Colletta", "E. M.B Prata", "C.E Zartman"
+  x <- .gsub_if(x, "[[:upper:]][.][[:upper:]]\\s",
+                c("\\s", "[.]", " [.] ", "\\s\\s"), c(". ", ". ", "", " "))
+
+  # ALL remaining collectors without full period
+  tf <- !grepl("[.]", x)
+  idx <- which(tf)[grepl("\\s", x[tf])]
+  if (length(idx) > 0) {
+    message("std_recordedBy $recordedBy initials #17")
+    # Take out the accents before using the function abbreviate
+    first <- gsub("([A-Za-z]+).*", "\\1", stringi::stri_trans_general(x[idx], "Latin-ASCII"))
+    x[idx] <- paste(.abbrev(first), gsub("^ ", "", gsub("^(\\w+)", "", x[idx])))
+  }
+
+  # "C. -Ming Tan" into "C.-M. Tan"
+  tf <- grepl("[[:upper:]][.]\\s[-][[:upper:]][[:lower:]]+", x)
+  if (any(tf)) {
+    message("std_recordedBy $recordedBy initials #18")
+    initials <- abbreviate(gsub("(\\w+)$", "", x[tf]),
+                           minlength = 4, strict = TRUE, dot = TRUE, use.classes = FALSE)
+    x[tf] <- paste(initials, gsub("^(\\S*\\s\\S*\\s+)", "", x[tf]))
+  }
+
+  return(x)
+}
+
+
+#_______________________________________________________________________________
+# Particles before surnames, based on the original collector column ####
+.std_particles <- function(x, original) {
+
+  # Remove any additional collector from the original names
+  original <- gsub("(;.+)|([|].+)", "", original)
+
+  # Collectors that has " de la " like " de la Cruz", " De la Estrella"
+  tf <- grepl(" [Dd]e la ", original)
+  if (any(tf)) {
+    message("std_recordedBy $recordedBy particles before surname #1")
+    x[tf] <- gsub(" la ", " de la ", x[tf])
+  }
+
+  # Abbreviating second names if there exists just one kind of particle like
+  # "de" do" "dos" in the original collector column
+  particles <- c(" de ", " DE ", " De ", " do ", " DO ", " Do ", " dos ", " DOS ", " da ", " DA ")
+  n_particles <- Reduce(`+`, lapply(particles, grepl, x = original, fixed = TRUE))
+  tf <- grepl("[.]\\s[[:upper:]][[:lower:]]+\\s[[:upper:]][[:lower:]]+", x) & n_particles == 1
+  if (any(tf)) {
+    message("std_recordedBy $recordedBy particles before surname #2")
+    first <- gsub("[^.]+$", "", x[tf])
+    names <- gsub(".*\\.", "", x[tf])
+    second <- .abbrev(gsub("(\\S*\\S+)$", "", names))
+    last <- gsub("^(\\S*\\s+\\S+)", "", names)
+    x[tf] <- paste(first, second, last, sep = " ")
+  }
+
+  return(x)
+}
+
+
+#_______________________________________________________________________________
+# Final cleaning of $recordedBy ####
+.final_collclean <- function(x) {
+
+  # Finding possible examples like these "B. T. P. M Góes", "M. P Dias"
+  x <- .gsub_if(x, "\\s[[:upper:]]\\s[[:upper:]][[:lower:]]+",
+                c("\\s", "[.][.]"), c(". ", "."))
+
+  # Removing dots and comma at the end of surnames like:
+  # "V. O. Amorim."	"J. H. C. Ribeiro," from RB collections or "A...S... Flores"
+  x <- .gsub_all(trimws(x), c("[.]$" = "",
+                      ",$" = "",
+                      "\\s[.]\\s" = " ",
+                      "[.][.][.]" = ". ",
+                      "[[:space:]]{2}" = " "))
+
+  # Removing de, da etc when they are not separated from the surnames
+  for (p in c(" de", " da", " das", " do", " dos")) {
+    x <- .gsub_if(x, paste0("\\s", trimws(p), "[[:upper:]][[:lower:]]+"), p, " ")
+  }
+
+  # Last abbreviated initial in Spanish-like names, e.g. "M. Sousa S."
+  x <- gsub("^((\\p{Lu}[.] )+\\p{Lu}\\p{Ll}+)\\s\\p{Lu}$", "\\1", x, perl = TRUE)
+
+  # Adding Unknown collector to empty cells
+  x <- gsub("^$", "Unknown", trimws(x))
+
+  # Further cleaning
+  x <- .gsub_all(x, c("[?]$" = "", "\\s$" = "", "^[.]\\s" = ""))
+  x <- .gsub_if(x, "^[\177][[:upper:]][.]", "^[\177]", "")
+  x <- .gsub_if(x, "[.]\\s,\\s[[:upper:]]", "\\s,", "")
+
+  return(x)
+}
+
+
+#_______________________________________________________________________________
 # Cleaning $recordedBy with more than two collectors ####
 # The function automatically adds "et al." at $addCollector
 
 .deletal <- function(df) {
 
-  # Adding et al. in the collumn "addCollector" when the collumn "recordedBy" has for more than two collectors
-  tf <- grepl("& et al[.]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=" &.+", n_message="#1")
-    df$recordedBy[tf] <- gsub("[,].+", "", df$recordedBy[tf])
-  }
+  # Adding et al. in the column "addCollector" when the column "recordedBy"
+  # has more than two collectors
+  df <- .deepdeletal(df, "& et al[.]", c(" &.+", "[,].+"), n_message = "#1")
 
   # Finding examples with multiples "--"; we have to grepl from the original because
   # these hyphens were deleted previously in the main column
-  tf <- grepl("(.*[-]{2}.*[-]{2}){1,}", df$recordedByOriginal)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[,].+", n_message="#2")
-  }
+  df <- .deepdeletal(df, pattern = "[,].+", n_message = "#2",
+                     tf = grepl("(.*[-]{2}.*[-]{2}){1,}", df$recordedByOriginal))
 
   # Lima H.S., Neto J.P.; Marimon B.S.
-  tf <- grepl("[[:lower:]]+\\s([[:upper:]][.]){1,}[,]\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.]){1,}[;]\\s[[:upper:]][[:lower:]]+\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=",.+", n_message="#3")
-  }
-
-  tf <- grepl("; et al[.]; et al[.]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#4")
-  }
-
-  tf <- grepl("[|]et al[.]|[|] et al[.]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[|].+", n_message="#5")
-  }
-
-  tf <- grepl("(.*[|].*[|]){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\|.+", n_message="#6")
-  }
-
-  tf <- grepl("[|] Otros| Partícipes| Participantes", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[|] Otros.+| Partícipes.+| Participantes.+", n_message="#7")
-  }
-
-  tf <- grepl("(.*\\sy\\s.*\\sy\\s){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\sy.+", n_message="#8")
-  }
-
-  tf <- grepl("(.*&.*\\sy\\s){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="&.+|\\s&.+", n_message="#9")
-  }
-
-  tf <- grepl("(.*[|].*\\sy\\s){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[|].+", n_message="#10")
-  }
-
-  tf <- grepl("(.*[;].*\\sy\\s){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[;].+", n_message="#11")
-  }
-
-  tf <- grepl("(.*[,].*\\sy\\s){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[,].+|[;].+", n_message="#12")
-  }
-
-  tf <- grepl("(.*\\sy\\s.*[,].*[,]){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\sy.+", n_message="#13")
-  }
-
-  tf <- grepl("; Etc", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#14")
-  }
-
-  tf <- grepl("[:]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=":.+", n_message="#15")
-  }
-
-  # Adding et al. in the collumn "addCollector" when the collumn "recordedBy"
-  # has for more than two collectors
-  tf <- grepl("(.*;.*;){1,}", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[;].+", n_message="#16")
-  }
-
-  tf <- grepl(".*;.*&", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#17")
-  }
-
-  tf <- grepl(".*&.*,.*,", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\s&.+", n_message="#18")
-  }
-
-  tf <- grepl(".*;.*[[:space:]]-[[:space:]]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#19")
-  }
-
-  tf <- grepl(".*;.*[[:alpha:]]+[[:space:]]+[e]+[[:space:]]+[[:alpha:]]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#20")
-  }
-
-  tf <- grepl("et al[.][;]\\s[[:upper:]]", df$recordedBy)
+  df <- .deepdeletal(df, "[[:lower:]]+\\s([[:upper:]][.]){1,}[,]\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.]){1,}[;]\\s[[:upper:]][[:lower:]]+\\s[[:upper:]]",
+                     ",.+", n_message = "#3")
+  df <- .deepdeletal(df, "; et al[.]; et al[.]", ";.+", n_message = "#4")
+  df <- .deepdeletal(df, "[|]et al[.]|[|] et al[.]", "[|].+", n_message = "#5")
+  df <- .deepdeletal(df, "(.*[|].*[|]){1,}", "\\|.+", n_message = "#6")
+  df <- .deepdeletal(df, "[|] Otros| Partícipes| Participantes",
+                     "[|] Otros.+| Partícipes.+| Participantes.+", n_message = "#7")
+  df <- .deepdeletal(df, "(.*\\sy\\s.*\\sy\\s){1,}", "\\sy.+", n_message = "#8")
+  df <- .deepdeletal(df, "(.*&.*\\sy\\s){1,}", "&.+|\\s&.+", n_message = "#9")
+  df <- .deepdeletal(df, "(.*[|].*\\sy\\s){1,}", "[|].+", n_message = "#10")
+  df <- .deepdeletal(df, "(.*[;].*\\sy\\s){1,}", "[;].+", n_message = "#11")
+  df <- .deepdeletal(df, "(.*[,].*\\sy\\s){1,}", "[,].+|[;].+", n_message = "#12")
+  df <- .deepdeletal(df, "(.*\\sy\\s.*[,].*[,]){1,}", "\\sy.+", n_message = "#13")
+  df <- .deepdeletal(df, "; Etc", ";.+", n_message = "#14")
+  df <- .deepdeletal(df, "[:]", ":.+", n_message = "#15")
+  df <- .deepdeletal(df, "(.*;.*;){1,}", "[;].+", n_message = "#16")
+  df <- .deepdeletal(df, ".*;.*&", ";.+", n_message = "#17")
+  df <- .deepdeletal(df, ".*&.*,.*,", "\\s&.+", n_message = "#18")
+  df <- .deepdeletal(df, ".*;.*[[:space:]]-[[:space:]]", ";.+", n_message = "#19")
+  df <- .deepdeletal(df, ".*;.*[[:alpha:]]+[[:space:]]+[e]+[[:space:]]+[[:alpha:]]", ";.+",
+                     n_message = "#20")
   # "et al.; Redden, K.M."
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="et al.; ", n_message="#21")
-  }
-
-  tf <- grepl(" ET AL|et[.]al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#22")
-  }
-
-  tf <- grepl(" et[.] al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="et[.] al.+", n_message="#23")
-    df$recordedBy[tf] <- gsub(";.+", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("([^;]+;+[[:space:]]+[[:upper:]]+[.][^,]+),", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#24")
-  }
-
-  tf <- grepl(".*,.*,.*et Al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="^(\\S*\\s+\\S+).*", x="\\1", n_message="#25")
-    df$recordedBy[tf] <- gsub(",$", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\set\\sAl[.]", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\set\\sAl[.]", n_message="#26")
-  }
+  df <- .deepdeletal(df, "et al[.][;]\\s[[:upper:]]", "et al.; ", n_message = "#21")
+  df <- .deepdeletal(df, " ET AL|et[.]al", ";.+", n_message = "#22")
+  df <- .deepdeletal(df, " et[.] al", c("et[.] al.+", ";.+"), n_message = "#23")
+  df <- .deepdeletal(df, "([^;]+;+[[:space:]]+[[:upper:]]+[.][^,]+),", ";.+", n_message = "#24")
+  df <- .deepdeletal(df, ".*,.*,.*et Al", c("^(\\S*\\s+\\S+).*", ",$"), x = c("\\1", ""),
+                     n_message = "#25")
+  df <- .deepdeletal(df, "\\set\\sAl[.]", "\\set\\sAl[.]", n_message = "#26")
 
   #_____________________________________________________________________________
   tf <- grepl(".*,.*,.*&", df$recordedBy)
   if (any(tf)) {
     message(".deletal $recordedBy and $addCollector #27")
 
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
+    df$addCollector[tf] <- "et al."
 
     # "Rodríguez,D., Rodríguez,B. & Trejo,L." "Rodríguez,D., Galán,P. & Valle,J.V."
     tfa <- grepl("[[:upper:]][[:lower:]]+[,][[:upper:]][.]", df$recordedBy[tf])
@@ -1545,98 +766,52 @@ std_recordedBy <- function(df = NULL,
 
     # Remove all after second comma
     # https://stackoverflow.com/questions/33062016/how-to-delete-everything-after-nth-delimiter-in-r
-    df$recordedBy[tf][which(tfa + tfb == T)] <-
-      gsub("^([^,]+,[^,]+).*", "\\1",
-           df$recordedBy[tf][which(tfa + tfb == T)])
-    tfc <- grepl("[[:upper:]][.]\\s[[:upper:]][[:lower:]]+[,]\\s",
-                 df$recordedBy[tf][tfb])
-    df$recordedBy[tf][tfb][tfc] <-
-      gsub("^([^,]+).*", "\\1", df$recordedBy[tf][tfb][tfc])
+    idx <- which(tf)[tfa | tfb]
+    df$recordedBy[idx] <- gsub("^([^,]+,[^,]+).*", "\\1", df$recordedBy[idx])
+    idx <- which(tf)[tfb]
+    idx <- idx[grepl("[[:upper:]][.]\\s[[:upper:]][[:lower:]]+[,]\\s", df$recordedBy[idx])]
+    df$recordedBy[idx] <- gsub("^([^,]+).*", "\\1", df$recordedBy[idx])
 
     # Then do last search again
-    tf <- grepl(".*,.*,.*&", df$recordedBy)
-    df$recordedBy[tf] <- gsub("[.],.+", ".", df$recordedBy[tf])
-    tf <- grepl(".*,.*,.*&", df$recordedBy)
-    df$recordedBy[tf] <- gsub(",.+", "", df$recordedBy[tf])
+    df$recordedBy <- .gsub_if(df$recordedBy, ".*,.*,.*&", "[.],.+", ".")
+    df$recordedBy <- .gsub_if(df$recordedBy, ".*,.*,.*&", ",.+", "")
   }
   #_____________________________________________________________________________
 
-  tf <- grepl(".*&.*&", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="&.+", n_message="#28")
-  }
+  # Three collectors with full names like "A. Gómez Pompa, A. J. Sharp & P. Hernández"
+  # or "Schultes R.E., Raffauf R.F. & Soejarto D."
+  df <- .deepdeletal(df, pattern = ",.+", n_message = "#42",
+                     tf = .three_colls(df$recordedBy))
 
-  tf <- grepl(" Et al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#29")
-  }
+  df <- .deepdeletal(df, ".*&.*&", "&.+", n_message = "#28")
+  df <- .deepdeletal(df, " Et al", ";.+", n_message = "#29")
+  df <- .deepdeletal(df, "& et al", "&.+", n_message = "#30")
+  df <- .deepdeletal(df, "; et al[.]|; et al", ";.+", n_message = "#31")
 
-  tf <- grepl("& et al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="&.+", n_message="#30")
-  }
-
-  tf <- grepl("; et al[.]|; et al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#31")
-  }
-
-  tf <- grepl(" et al", df$recordedBy)
   # "J.A. Lombardi, H. Lorenzi, R. Tsuji et al."
-  tfa <- grepl(".*,.*,", df$recordedBy[tf])
-  if (any(tfa)) {
-    message(".deletal $recordedBy and $addCollector #32")
+  tf <- grepl(" et al", df$recordedBy)
+  df <- .deepdeletal(df, pattern = "[,].+", n_message = "#32",
+                     tf = tf & grepl(".*,.*,", df$recordedBy))
 
-    # This next commented code can be much more simple
-    #df$addCollector[tf] <- ifelse(tfa, "et al.", as.character(df$addCollector[tf]))
-    df$addCollector[tf][tfa] <- "et al."
-    df$recordedBy[tf][tfa] <- gsub("[,].+", "", df$recordedBy[tf][tfa])
-  }
-
-  tf <- grepl(" et al[.]| et al", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=" et al+", n_message="#33")
-  }
-
-  tf <- grepl(".*;.* et ", df$recordedBy)
+  df <- .deepdeletal(df, " et al[.]| et al", "\\s*et al[.]?", n_message = "#33")
   # "M.G.Bovini; A.Quinet et L.E.Barros"
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=";.+", n_message="#34")
-  }
-
-  tf <- grepl(".*;.*;", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[;].+", n_message="#35")
-  }
-
-  tf <- grepl(".*;.*,.*,", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="[;].+", n_message="#36")
-  }
+  df <- .deepdeletal(df, ".*;.* et ", ";.+", n_message = "#34")
+  df <- .deepdeletal(df, ".*;.*;", "[;].+", n_message = "#35")
+  df <- .deepdeletal(df, ".*;.*,.*,", "[;].+", n_message = "#36")
 
   tf <- grepl(".*,.*,.*,", df$recordedBy)
   if (any(tf)) {
     message(".deletal $recordedBy and $addCollector #37")
-
-    tfa <- !grepl("[[:upper:]][.][,]", df$recordedBy[tf])
-    df$addCollector[tf][tfa] <- "et al."
-    df$recordedBy[tf][tfa] <- gsub("[,].+", "", df$recordedBy[tf][tfa])
-    df$recordedBy[tf][tfa] <- gsub("[;].+", "", df$recordedBy[tf][tfa])
-
-    tfb <- grepl("[[:upper:]][.][,]", df$recordedBy[tf])
-    df$addCollector[tf][tfb] <- "et al."
-    df$recordedBy[tf][tfb] <- gsub("(^[^,]+,[^,]+).*$", "\\1", df$recordedBy[tf][tfb])
+    initial_comma <- grepl("[[:upper:]][.][,]", df$recordedBy)
+    df <- .deepdeletal(df, pattern = c("[,].+", "[;].+"), n_message = NULL,
+                       tf = tf & !initial_comma)
+    df <- .deepdeletal(df, pattern = "(^[^,]+,[^,]+).*$", x = "\\1", n_message = NULL,
+                       tf = tf & initial_comma)
   }
 
-  tf <- grepl("& Al[.]|& col[.]|& al[.]|&\\sal$", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern="\\s&.+", n_message="#38")
-  }
-
-  tf <- grepl("e auxiliares| e outros", df$recordedBy)
-  if (any(tf)) {
-    df <- .deepdeletal(df, tf, pattern=" e auxiliares.+| e outros.+", n_message="#39")
-  }
+  df <- .deepdeletal(df, "& Al[.]|& col[.]|& al[.]|&\\sal$", "\\s&.+", n_message = "#38")
+  df <- .deepdeletal(df, "e auxiliares| e outros", " e auxiliares.*| e outros.*",
+                     n_message = "#39")
 
   # The following step was messing examples like;
   # ""Gardner, Martin F. & Knees, Sabina G.", "Ludlow, F. & Sherriff, G."
@@ -1649,52 +824,49 @@ std_recordedBy <- function(df = NULL,
 
   # Cleaning remaining examples of more than two collectors separated by just commas
   # and no symbols like &, semicolon or et al.
-  tf <- grepl("(.*,.*,){1,}", df$recordedBy)
-  tfa <- !grepl(";", df$recordedBy[tf])
-  tfb <- grepl("(.*[[:space:]]){5,}", df$recordedBy[tf][tfa])
-  tfc <- grepl("[[:upper:]][.]\\s[[:upper:]][[:lower:]]+,\\s", df$recordedBy[tf][tfa][tfb])
-  #extracting e.g. "J.A. Lombardi, H. Lorenzi, R. Tsuji"
+  # "J.A. Lombardi, H. Lorenzi, R. Tsuji"
+  df <- .deepdeletal(df, pattern = "[,].+", n_message = "#40",
+                     tf = .many_commas(df$recordedBy, "[[:upper:]][.]\\s[[:upper:]][[:lower:]]+,\\s"))
 
-  #ex_tfb <- df$recordedBy[tf][tfa][tfb]
-  # When grepl comes with zero names, search the names always between "^$"
-  # otherwise the answer will be always TRUE
-  #xxxxx <- c("", "")
-  #lllll <- c("CC", "DD")
-  #grepl("^xxxxx$", lllll)
-  #paste("^", lllll, "$", sep = "")
-  #tf3 <- grepl(paste(paste("^", ex_tfb, "$", sep = ""), collapse = "|"), df$recordedBy)
-  if (any(tfc)) {
-    message(".deletal $recordedBy and $addCollector #40")
-    df$addCollector[tf][tfa][tfb][tfc] <- "et al."
-    df$recordedBy[tf][tfa][tfb][tfc] <- gsub("[,].+", "", df$recordedBy[tf][tfa][tfb][tfc])
-  }
-
-  # Cleaning remaining examples of more than two collectors separated by just commas
-  # and no symbols like &, semicolon or et al.
-  tf <- grepl("(.*,.*,){1,}", df$recordedBy)
-  tfa <- !grepl(";", df$recordedBy[tf])
-  tfb <- grepl("(.*[[:space:]]){5,}", df$recordedBy[tf][tfa])
-  tfc <- grepl("[[:upper:]][.]\\s[[:upper:]][[:lower:]]+\\s&", df$recordedBy[tf][tfa][tfb])
-  #extracting just examples like "Radford A.E., J. Bozeman & Ramseur, George S."
-
-  if (any(tfc)) {
-    message(".deletal $recordedBy and $addCollector #41")
-    df$addCollector[tf][tfa][tfb][tfc] <- "et al."
-    df$recordedBy[tf][tfa][tfb][tfc] <- gsub("[,].+", "", df$recordedBy[tf][tfa][tfb][tfc])
-    df$recordedBy[tf][tfa][tfb][tfc] <- gsub("\\s", ", ", df$recordedBy[tf][tfa][tfb][tfc])
-  }
-
+  # "Radford A.E., J. Bozeman & Ramseur, George S."
+  df <- .deepdeletal(df, pattern = c("[,].+", "\\s"), x = c("", ", "), n_message = "#41",
+                     tf = .many_commas(df$recordedBy, "[[:upper:]][.]\\s[[:upper:]][[:lower:]]+\\s&"))
 
   return(df)
 }
 
-# Extract secondary collectors and keep only the principal
-.deepdeletal <- function(df, tf, pattern = NULL, x = "", n_message) {
-  message(paste(".deletal $recordedBy and $addCollector", n_message))
-  df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
-  df$recordedBy[tf] <- gsub(pattern, x, df$recordedBy[tf])
+# Extract secondary collectors, keep only the principal and add "et al."
+.deepdeletal <- function(df, detect = NULL, pattern = NULL, x = "", n_message,
+                         tf = grepl(detect, df$recordedBy)) {
+  if (!any(tf)) return(df)
+  if (!is.null(n_message)) {
+    message(paste(".deletal $recordedBy and $addCollector", n_message))
+  }
+  df$addCollector[tf] <- "et al."
+  x <- rep_len(x, length(pattern))
+  for (i in seq_along(pattern)) {
+    df$recordedBy[tf] <- gsub(pattern[i], x[i], df$recordedBy[tf])
+  }
 
   return(df)
+}
+
+# Find three collectors as "Name1, Name2 & Name3", where the first two names
+# include initials, so avoiding two collectors like "Gardner, M. & Knees, S."
+.three_colls <- function(x) {
+  is_name <- function(s) {
+    grepl("[[:upper:]][.]", s) & grepl("[[:alpha:]]{2,}", s) & grepl("\\S\\s+\\S", trimws(s))
+  }
+  grepl("^[^,&;|]+,[^,&;|]+&", x) &
+    is_name(sub(",.*", "", x)) &
+    is_name(sub("^[^,]+,([^&]*)&.*", "\\1", x))
+}
+
+# Find names with at least two commas, no semicolon, at least five spaces,
+# and matching a given pattern
+.many_commas <- function(x, pattern) {
+  grepl("(.*,.*,){1,}", x) & !grepl(";", x) &
+    grepl("(.*[[:space:]]){5,}", x) & grepl(pattern, x)
 }
 
 
@@ -1702,58 +874,59 @@ std_recordedBy <- function(df = NULL,
 # Pre-cleaning $recordedBy before standardizing collector names ####
 .precollclean <- function(df){
 
-  tf <- grepl("(^|[.])[[:upper:]][[:lower:]]+,\\s(Filho|Sobrinho|Neto)", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(", Filho", "-Filho", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub(", Sobrinho", "-Sobrinho", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub(", Neto", "-Neto", df$recordedBy[tf])
-  }
+  x <- df$recordedBy
 
-  df$recordedBy <- gsub("\"", "", df$recordedBy)
-  df$recordedBy <- gsub("[[][?][]]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]J[.][?][)]", "", df$recordedBy)
+  x <- .gsub_if(x, "(^|[.])[[:upper:]][[:lower:]]+,\\s(Filho|Sobrinho|Neto)",
+                ", (Filho|Sobrinho|Neto)", "-\\1")
 
-  df$recordedBy <- gsub("[[]", "", df$recordedBy)
-  df$recordedBy <- gsub("[]]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Lady[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Miss[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Capt[.][)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Prof[.][)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Rev[.][)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Mrs[)][.]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Mrs[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Mr\\s[&]\\sMrs[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Countess\\sof.+", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Major[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]photo[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Photo[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Pere[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Karl[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Frère[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Dr[.][)]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Dr[)]", "", df$recordedBy)
-  df$recordedBy <- gsub(",\\sDr\\s", ", ", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Dr[.][/]Sir[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]Col[.][)]$", "", df$recordedBy)
-  df$recordedBy <- gsub("^[(]", "", df$recordedBy)
-  df$recordedBy <- gsub("[)]$", "", df$recordedBy)
-  df$recordedBy <- gsub("[?]$|^[?]", "", df$recordedBy)
-  df$recordedBy <- gsub("- Botanist", "", df$recordedBy)
-  df$recordedBy <- gsub("\\sAfrica$", "", df$recordedBy)
-  df$recordedBy <- gsub(",\\sunknown", "", df$recordedBy)
-  df$recordedBy <- gsub("unknown collector", "", df$recordedBy)
-  df$recordedBy <- gsub("[\'][s]\\sCollector", "", df$recordedBy)
-  df$recordedBy <- gsub("MrandMrs", "", df$recordedBy)
-  df$recordedBy <- gsub("MrMrs", "", df$recordedBy)
-  df$recordedBy <- gsub("CETA[:][|]", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[(]SEMO[)]", "", df$recordedBy)
-  df$recordedBy <- gsub("Collector[(]s[)][:]\\sunknown,", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]Coll.+", "", df$recordedBy)
-  df$recordedBy <- gsub("\\s[-]\\sPau\\sBrasil$", "", df$recordedBy)
-  df$recordedBy <- gsub("Collector[(]s[)][:]\\s", "", df$recordedBy)
-  df$recordedBy <- gsub(",\\s[*]$|[*]$| [{]2[º] SERIE[}]|^[?];et al[.],", "", df$recordedBy)
-  df$recordedBy <- gsub("^[-][.]\\s|[-][-]|^[<]", "", df$recordedBy)
+  # Removing titles, notes and symbols
+  x <- .gsub_all(x, c("\"" = "",
+                      # Institution after the name, e.g. "Lutero Lerner - IFN"
+                      "\\s-\\s[[:upper:]]{2,}$" = "",
+                      "[[][?][]]" = "",
+                      "\\s[(]J[.][?][)]" = "",
+                      "[[]" = "",
+                      "[]]" = "",
+                      "[(]Lady[)]" = "",
+                      "[(]Miss[)]" = "",
+                      "[(]Capt[.][)]" = "",
+                      "[(]Prof[.][)]" = "",
+                      "[(]Rev[.][)]" = "",
+                      "[(]Mrs[)][.]" = "",
+                      "[(]Mrs[)]" = "",
+                      "\\s[(]Mr\\s[&]\\sMrs[)]" = "",
+                      "\\s[(]Countess\\sof.+" = "",
+                      "[(]Major[)]" = "",
+                      "[(]photo[)]" = "",
+                      "[(]Photo[)]" = "",
+                      "[(]Pere[)]" = "",
+                      "\\s[(]Karl[)]" = "",
+                      "[(]Frère[)]" = "",
+                      "[(]Dr[.][)]" = "",
+                      "\\s[(]Dr[)]" = "",
+                      ",\\sDr\\s" = ", ",
+                      "\\s[(]Dr[.][/]Sir[)]" = "",
+                      "\\s[(]Col[.][)]$" = "",
+                      "^[(]" = "",
+                      "[)]$" = "",
+                      "[?]$|^[?]" = "",
+                      "- Botanist" = "",
+                      "\\sAfrica$" = "",
+                      ",\\sunknown" = "",
+                      "unknown collector" = "",
+                      "[\'][s]\\sCollector" = "",
+                      "MrandMrs" = "",
+                      "MrMrs" = "",
+                      "CETA[:][|]" = "",
+                      "\\s[(]SEMO[)]" = "",
+                      "Collector[(]s[)][:]\\sunknown," = "",
+                      "[(]Coll.+" = "",
+                      "\\s[-]\\sPau\\sBrasil$" = "",
+                      "Collector[(]s[)][:]\\s" = "",
+                      ",\\s[*]$|[*]$| [{]2[º] SERIE[}]|^[?];et al[.]," = "",
+                      "^[-][.]\\s|[-][-]|^[<]" = ""))
 
+  # Unknown collectors
   temp <- c("^$", "^[@]$", "[@];,S[.]N[.]", "Collector illegible", "Native Collector",
             "Collector unspecified", "NO DISPONIBLE", "#NOME[?]",
             "Illegible collector name", "s[.]coll[.]", "no data",
@@ -1761,174 +934,88 @@ std_recordedBy <- function(df = NULL,
             "sem coletor", "s[.]coll[.]", "s[.]col[.]", "s[.]col", "collector",
             "[[]data\\snot\\scaptured[]]", "s.c.", "Anonymous", "coletor$",
             "Anon.", "[?]", "Unclear", "unclear", "C. F. C. R", "Cfcr",
-            "^_V$", "Sem coletor$", "^([0-9]){1,}$|^([0-9]){1,}.*([0-9]){1,}$")
+            "^_V$", "Sem coletor$", "^([0-9]){1,}$|^([0-9]){1,}.*([0-9]){1,}$",
+            "^#NOME", "^NA$", "^n/a$", "^N/A$", "^sc$", "^SC$", "not a person",
+            "provisional entry")
+  x[is.na(x) | grepl(paste0(temp, collapse = "|"), x)] <- "Unknown"
 
-  tf <- is.na(df$recordedBy) | grepl(paste0(temp, collapse = "|"), df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- "Unknown"
-  }
+  # Names in lowercase like "stahel", "ling yung", "johnson, I."
+  x <- .lower_to_title(x)
 
-  df$recordedBy <- gsub("[?][.] ", "", df$recordedBy)
-  df$recordedBy <- gsub(" - ", "-", df$recordedBy)
-  df$recordedBy <- gsub("- ", "-", df$recordedBy)
-  df$recordedBy <- gsub("[*] ", "", df$recordedBy)
-  df$recordedBy <- gsub("-[.]", "", df$recordedBy)
-  df$recordedBy <- gsub(",[.]", ".", df$recordedBy)
-  df$recordedBy <- gsub(", III", "", df$recordedBy)
-  df$recordedBy <- gsub(", --", "", df$recordedBy)
-  df$recordedBy <- gsub("--", " ", df$recordedBy)
-  df$recordedBy <- gsub(", not a person", "", df$recordedBy)
-  df$recordedBy <- gsub(" Mrs Captain", "", df$recordedBy)
-  df$recordedBy <- gsub(", 1", "", df$recordedBy)
-  df$recordedBy <- gsub(", Jr[.]", "", df$recordedBy)
-  df$recordedBy <- gsub(" Jr[.]", "", df$recordedBy)
-  df$recordedBy <- gsub(" Jr ", " ", df$recordedBy)
-  df$recordedBy <- gsub(" Jr, ", ", ", df$recordedBy)
-  df$recordedBy <- gsub("-Júnior", "", df$recordedBy)
-  df$recordedBy <- gsub(" Junior", "", df$recordedBy)
-  df$recordedBy <- gsub(" d'", "", df$recordedBy)
-  df$recordedBy <- gsub(" Neto", "-Neto", df$recordedBy)
-  df$recordedBy <- gsub(" NETO", "-NETO", df$recordedBy)
-  df$recordedBy <- gsub(" Filho", "-Filho", df$recordedBy)
-  df$recordedBy <- gsub(" FILHO", "-FILHO", df$recordedBy)
-  df$recordedBy <- gsub("Leitão Fo[.],", "Leitão-Filho,", df$recordedBy)
-  df$recordedBy <- gsub(" Sobrinho", "-Sobrinho", df$recordedBy)
-  df$recordedBy <- gsub(" [(]IAN[)]", "", df$recordedBy)
-  df$recordedBy <- gsub(" and ", " & ", df$recordedBy)
-  df$recordedBy <- gsub("ex herb[.] ", "", df$recordedBy)
-  df$recordedBy <- gsub("^Prof[.] ", "", df$recordedBy)
-  df$recordedBy <- gsub("Mrs[.] ", "", df$recordedBy)
-  df$recordedBy <- gsub("Dr[.] ", "", df$recordedBy)
-  df$recordedBy <- gsub("Dr [?]", "", df$recordedBy)
-  df$recordedBy <- gsub("[(]|[)]", "", df$recordedBy)
+  x <- .gsub_all(x, c("[?][.] " = "",
+                      " - " = "-",
+                      "- " = "-",
+                      "[*] " = "",
+                      "-[.]" = "",
+                      ",[.]" = ".",
+                      ", III" = "",
+                      ", --" = "",
+                      "--" = " ",
+                      ", not a person" = "",
+                      " Mrs Captain" = "",
+                      ", 1" = "",
+                      ", Jr[.]" = "",
+                      " Jr[.]" = "",
+                      " Jr " = " ",
+                      " Jr, " = ", ",
+                      "-Júnior" = "",
+                      " Junior" = "",
+                      " d'" = "",
+                      " Neto" = "-Neto",
+                      " NETO" = "-NETO",
+                      " Filho" = "-Filho",
+                      " FILHO" = "-FILHO",
+                      "Leitão Fo[.]," = "Leitão-Filho,",
+                      " Sobrinho" = "-Sobrinho",
+                      " [(]IAN[)]" = "",
+                      " and " = " & ",
+                      "ex herb[.] " = "",
+                      "^Prof[.] " = "",
+                      "Mrs[.] " = "",
+                      "Dr[.] " = "",
+                      "Dr [?]" = "",
+                      "[(]|[)]" = "",
+                      # "Fred Melgert / Carla Hoegen"
+                      "\\s\\/\\s" = " & ",
+                      "\\swith\\s" = " & ",
+                      " HERB[.] AMAZ[.]" = "",
+                      "\\s[()]Brother[)]" = ""))
 
-  # Finding examples like "Fred Melgert / Carla Hoegen"
-  tf <- grepl("\\s\\/\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s\\/\\s", " & ", df$recordedBy[tf])
-  }
+  # detect, pattern, replacement
+  x <- .gsub_if(x, "\\sCollectors[:]\\s", ".*?[:]\\s", "")
+  x <- .gsub_if(x, "[[:lower:]]+,\\sSir\\s[[:upper:]]", "Sir\\s", "")
+  x <- .gsub_if(x, "\\sDr[.]$", c("[.]\\sDr[.]", ",\\sDr[.]"), "")
+  x <- .gsub_if(x, "^Dr\\s[[:upper:]]", "Dr\\s", "")
+  x <- .gsub_if(x, "; Herb[.] Amaz[.]", ";.+", "")
+  # "Lewis, Mr John "
+  x <- .gsub_if(x, "[[:upper:]][[:lower:]]+[,]\\sMr\\s[[:upper:]][[:lower:]]+\\s", ", Mr ", ", ")
+  x <- .gsub_if(x, "\\s[[:upper:]][[:lower:]]+\\sF[.]L[.]S[.]", "\\sF[.]L[.]S[.]", "")
+  # "DrHapeman, H.", "MrsYoung, H.S.", "BroArsene, G.; BroBenedict, A.", "Steve Stephens II"
+  x <- .gsub_if(x, "^Dr[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", "Dr", "")
+  x <- .gsub_if(x, "^Mrs[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", "Mrs", "")
+  x <- .gsub_if(x, "^Mrs\\s[[:upper:]]", "Mrs\\s", "")
+  x <- .gsub_if(x, "^Mr[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", "Mr", "")
+  x <- .gsub_if(x, "^Mr\\s[[:upper:]][[:lower:]]+", "Mr\\s", "")
+  x <- .gsub_if(x, "Mr[.]$", " Mr[.]", "")
+  x <- .gsub_if(x, "^Bro[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", "Bro", "")
+  x <- .gsub_if(x, "\\s[[:upper:]][[:lower:]]+\\s(I){2,}", c("\\sIII", "\\sII"), "")
+  x <- .gsub_if(x, "\\s[[:upper:]][[:lower:]]+\\s(IV)", "\\sIV", "")
+  x <- .gsub_if(x, "^-[.]\\s[[:upper:]][[:lower:]]+,\\s", "-[.]\\s", "")
+  x <- .gsub_if(x, "[[:upper:]][[:lower:]]+,\\s[-]$", ",\\s[-]", "")
+  x <- .gsub_if(x, "[[:upper:]][.]\\set\\s[[:upper:]][.]", "et", "and")
 
-  tf <- grepl("\\sCollectors[:]\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(".*?[:]\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\swith\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\swith\\s", " & ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("[[:lower:]]+,\\sSir\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Sir\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\sDr[.]$", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("[.]\\sDr[.]", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub(",\\sDr[.]", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Dr\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Dr\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("; Herb[.] Amaz[.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(";.+", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl(" HERB[.] AMAZ[.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" HERB[.] AMAZ[.]", "", df$recordedBy[tf])
-  }
-
-  #Clean example like this "Lewis, Mr John "
-  tf <- grepl("[[:upper:]][[:lower:]]+[,]\\sMr\\s[[:upper:]][[:lower:]]+\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(", Mr ", ", ", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\s[[:upper:]][[:lower:]]+\\sF[.]L[.]S[.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\sF[.]L[.]S[.]", "", df$recordedBy[tf])
-  }
-
-  # Clean examples like this "DrHapeman, H.", "MrsYoung, H.S.",
-  # "BroArsene, G.; BroBenedict, A.", "Steve Stephens II"
-  tf <- grepl("^Dr[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Dr", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Mrs[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Mrs", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Mrs\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Mrs\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Mr[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Mr", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Mr\\s[[:upper:]][[:lower:]]+", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Mr\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("Mr[.]$", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(" Mr[.]", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\s[()]Brother[)]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\s[()]Brother[)]", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^Bro[[:upper:]][[:lower:]]+[,]\\s[[:upper:]]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("Bro", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\s[[:upper:]][[:lower:]]+\\s(I){2,}", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\sIII", "", df$recordedBy[tf])
-    df$recordedBy[tf] <- gsub("\\sII", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("\\s[[:upper:]][[:lower:]]+\\s(IV)", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("\\sIV", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^-[.]\\s[[:upper:]][[:lower:]]+,\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("-[.]\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("^[(]\\s[[:upper:]][[:lower:]]+,\\s", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("-[.]\\s", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("[[:upper:]][[:lower:]]+,\\s[-]$", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub(",\\s[-]", "", df$recordedBy[tf])
-  }
-
-  tf <- grepl("[[:upper:]][.]\\set\\s[[:upper:]][.]", df$recordedBy)
-  if (any(tf)) {
-    df$recordedBy[tf] <- gsub("et", "and", df$recordedBy[tf])
-  }
+  df$recordedBy <- x
 
   return(df)
+}
+
+
+#_______________________________________________________________________________
+# Capitalize names written just in lowercase letters
+.lower_to_title <- function(x) {
+  tf <- !grepl("[[:upper:]]", x) & grepl("[[:lower:]]{2,}", x) & !grepl("^et al", x)
+  x[tf] <- .title_case(x[tf])
+  gsub("^([[:lower:]]{2,},)", "\\U\\1", x, perl = TRUE)
 }
 
 
@@ -1940,73 +1027,38 @@ std_recordedBy <- function(df = NULL,
 
   #_____________________________________________________________________________
   # CEN collections
-  tf <- grepl("[[:lower:]]+[-]([[:upper:]]){2,}", df$recordedBy[which(df$collectionCode %in% "CEN")])
-  if (any(tf)){
-    df$recordedBy[which(df$collectionCode %in% "CEN")][tf] <-
-      gsub("-.+", "", df$recordedBy[which(df$collectionCode %in% "CEN")][tf])
-  }
-
-  #_____________________________________________________________________________
-  # Further cleaning collector names within some specific herbarium collections
+  cen <- which(df$collectionCode %in% "CEN")
+  x <- df$recordedBy[cen]
+  x <- .gsub_if(x, "[[:lower:]]+[-]([[:upper:]]){2,}", "-.+", "")
 
   # In the CEN collections all names are not abbreviated like:
   # "Taciana Barbosa Cavalcanti", "Carolyn Elinore Barnes Proença", "Marcelo Fragomeni Simon"
   # still need to correct left examples like: R. L. RM.  Machado Leite
-  tf <- grepl("([[:upper:]][[:lower:]]+\\s){1,}",
-              df$recordedBy[which(df$collectionCode %in% "CEN")])
-  get_cen_colls <- df$recordedBy[which(df$collectionCode %in% "CEN")][tf]
-
-  if (any(tf)){
+  tf <- grepl("([[:upper:]][[:lower:]]+\\s){1,}", x)
+  if (any(tf)) {
+    colls <- x[tf]
 
     # Abbreviate first words
-    fstname <- gsub("\\s.+", "", get_cen_colls)
-    fstname <- abbreviate(fstname, minlength = 1, strict = F, dot = T, use.classes = F)
-    fstname <- gsub("[[:lower:]]", "", fstname)
+    first <- gsub("[[:lower:]]", "", .abbrev(gsub("\\s.+", "", colls)))
+    colls <- paste(first, sub(".*?\\s", "", colls))
 
-    get_cen_colls <- sub(".*?\\s", "", get_cen_colls)
-    get_cen_colls <- paste(fstname, get_cen_colls)
-    df$recordedBy[which(df$collectionCode %in% "CEN")][tf] <- get_cen_colls
+    # Abbreviate the second name
+    tfa <- grepl("\\S*\\s\\S*\\s+", colls)
+    full <- colls[tfa]
+    names <- gsub(".*\\.", "", full)
+    colls[tfa] <- paste(gsub("[^.]+$", "", full),
+                        .abbrev(gsub("(\\S*\\S+)$", "", names)),
+                        gsub("^(\\S*\\s+\\S+)", "", names),
+                        sep = " ")
+    x[tf] <- colls
 
-    tfa <- grepl("\\S*\\s\\S*\\s+", get_cen_colls)
-    get_cen_colls[tfa]
-
-    # Codes to find first words
-    initials_fullnames <- data.frame(get_cen_colls[tfa])
-    colnames(initials_fullnames) <- "fullnames"
-    initials_fullnames$fullnames <- as.character(initials_fullnames$fullnames)
-    # Deleting last name after last space
-    #initials_fullnames$coll.abrevtemp <- gsub("\\s[^ ]+$", "", initials_fullnames$fullnames
-    initials_fullnames$coll.abrev1 <- gsub("[^.]+$", "", initials_fullnames$fullnames)
-    initials_fullnames$coll.abrevtemp <- gsub(".*\\.", "", initials_fullnames$fullnames)
-    initials_fullnames$coll.abrev2 <- gsub("(\\S*\\S+)$", "", initials_fullnames$coll.abrevtemp)
-    initials_fullnames$coll.abrevlast <- gsub("^(\\S*\\s+\\S+)", "", initials_fullnames$coll.abrevtemp)
-    initials_fullnames$coll.abrev2 <-
-      abbreviate(initials_fullnames$coll.abrev2,
-                 minlength = 1, strict = T, dot = T, use.classes = F)
-
-    # Combining initials with surname
-    get_cen_colls[tfa] <-
-      paste(as.character(initials_fullnames$coll.abrev1),
-            as.character(initials_fullnames$coll.abrev2),
-            as.character(initials_fullnames$coll.abrevlast),
-            sep=" ")
-    df$recordedBy[which(df$collectionCode %in% "CEN")][tf][tfa] <-
-      paste(as.character(initials_fullnames$coll.abrev1),
-            as.character(initials_fullnames$coll.abrev2),
-            as.character(initials_fullnames$coll.abrevlast),
-            sep=" ")
-
-    tfb <- grepl("[[:upper:]]{2}[.]\\s", get_cen_colls[tfa])
-    get_cen_colls[tfa][tfb] <- sub("[[:upper:]][.](\\s){2}", " ",
-                                   get_cen_colls[tfa][tfb])
+    tfb <- grepl("[[:upper:]]{2}[.]\\s", colls[tfa])
+    colls_b <- sub("[[:upper:]][.](\\s){2}", " ", colls[tfa][tfb])
     # Keeping all before second space
-    initials <- sub("(\\S*\\s+\\S+)$", "", get_cen_colls[tfa][tfb])
-    initials <- sub("\\s$", ".", initials)
-    get_cen_colls[tfa][tfb] <-
-      sub("\\S*\\s\\S*\\s", "", get_cen_colls[tfa][tfb])
-    df$recordedBy[which(df$collectionCode %in% "CEN")][tf][tfa][tfb] <-
-      paste(initials, get_cen_colls[tfa][tfb])
+    initials <- sub("\\s$", ".", sub("(\\S*\\s+\\S+)$", "", colls_b))
+    x[tf][tfa][tfb] <- paste(initials, sub("\\S*\\s\\S*\\s", "", colls_b))
   }
+  df$recordedBy[cen] <- x
 
   #_____________________________________________________________________________
   # UTEP collections/ but we grepl with institution code in this case
@@ -2015,21 +1067,12 @@ std_recordedBy <- function(df = NULL,
   # We need to place in this order, not before, othwerwise it will mess the cleaning
   # Two authors no abbreviation and just one comma
   # so, initials like... "Pedro Pable Moreno, Walter Robleto"
-  tf <- grepl("(\\s[[:upper:]][[:lower:]]+{2,})[,](\\s[[:upper:]][[:lower:]]+{2,})",
-              df$recordedBy[which(df$institutionCode %in% "UTEP")])
-  if (any(tf)){
-    temp_df <- data.frame(collector=stringr::str_extract_all(df$recordedBy, ",.+",
-                                                             simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(collector=rep(NA, length(row.names(df))))
-    }
-    temp_df$collector <- as.character(temp_df$collector)
-    df$addCollector[which(df$institutionCode %in% "UTEP")][tf] <-
-      temp_df$collector[which(df$institutionCode %in% "UTEP")][tf]
-    df$addCollector[which(df$institutionCode %in% "UTEP")][tf] <-
-      gsub(", ", "", df$addCollector[which(df$institutionCode %in% "UTEP")][tf])
-    df$recordedBy[which(df$institutionCode %in% "UTEP")][tf] <-
-      gsub(",.+", "", df$recordedBy[which(df$institutionCode %in% "UTEP")][tf])
+  utep <- which(df$institutionCode %in% "UTEP")
+  utep <- utep[grepl("(\\s[[:upper:]][[:lower:]]+{2,})[,](\\s[[:upper:]][[:lower:]]+{2,})",
+                     df$recordedBy[utep])]
+  if (length(utep) > 0) {
+    df$addCollector[utep] <- gsub(", ", "", .extract(df$recordedBy[utep], ",.+"))
+    df$recordedBy[utep] <- gsub(",.+", "", df$recordedBy[utep])
   }
 
   return(df)
@@ -2038,220 +1081,170 @@ std_recordedBy <- function(df = NULL,
 
 #_______________________________________________________________________________
 # Correcting specific collector names ####
+
+# Replace names that are exactly any of `from`
+.fix_exact <- function(x, from, to) {
+  x[x %in% from] <- to
+  x
+}
+
+# Replace names that match the regular expression `pattern`
+.fix_regex <- function(x, pattern, to) {
+  x[grepl(pattern, x)] <- to
+  x
+}
+
 .std_specific_coll <- function(df){
+
+  x <- df$recordedBy
 
   #_____________________________________________________________________________
   # Cleaning Brazilian collectors
 
   # A
-  tf <- grepl("^A.*M.* Amorim", df$recordedBy)
-  df$recordedBy[tf] <- "A. M. A. Amorim"
-  df$recordedBy[df$recordedBy %in% c("W. Anderson")] <- "W. R. Anderson"
-  df$recordedBy[df$recordedBy %in% c("Andrade-Lima",
-                                     "A. D. Andrade-Lima")] <- "D. Andrade-Lima"
-  df$recordedBy[df$recordedBy %in% c("J. B. Christophore Fusée Aublet")] <- "J. B. C. F. Aublet"
+  x <- .fix_regex(x, "^A.*M.* Amorim", "A. M. A. Amorim")
+  x <- .fix_exact(x, "W. Anderson", "W. R. Anderson")
+  x <- .fix_exact(x, c("Andrade-Lima", "A. D. Andrade-Lima"), "D. Andrade-Lima")
+  x <- .fix_exact(x, "J. B. Christophore Fusée Aublet", "J. B. C. F. Aublet")
 
   # B
-  df$recordedBy[df$recordedBy %in% c("G. Maciel Barroso")] <- "G. M. Barroso"
-  df$recordedBy[df$recordedBy %in% c("R. Henry Beddome")] <- "R. H. Beddome"
-  df$recordedBy <- gsub("^M. M. Brandão$",
-                        "M. Brandão", df$recordedBy)
-  tf <- grepl("R. P. Bel|^Belem$", df$recordedBy)
-  df$recordedBy[tf] <- "R. P. Belém"
-  df$recordedBy[df$recordedBy %in% c("Burchell")] <- "W. J. Burchell"
-  df$recordedBy[df$recordedBy %in% c("B. Marx",
-                                     "R. Burle Marx")] <- "R. Burle-Marx"
+  x <- .fix_exact(x, "G. Maciel Barroso", "G. M. Barroso")
+  x <- .fix_exact(x, "R. Henry Beddome", "R. H. Beddome")
+  x <- .fix_exact(x, "M. M. Brandão", "M. Brandão")
+  x <- .fix_regex(x, "R. P. Bel|^Belem$", "R. P. Belém")
+  x <- .fix_exact(x, "Burchell", "W. J. Burchell")
+  x <- .fix_exact(x, c("B. Marx", "R. Burle Marx"), "R. Burle-Marx")
 
   # C
-  df$recordedBy[df$recordedBy %in% c("D. B. O. S. Cardoso")] <- "D. Cardoso"
-  df$recordedBy[df$recordedBy %in% c("P. Cavalcante")] <- "P. B. Cavalcante"
-  df$recordedBy[df$recordedBy %in% c("T. Barbosa Cavalcanti")] <- "T. B. Cavalcanti"
-  df$recordedBy[df$recordedBy %in% c("C. A. C. Ferreira",
-                                     "C. A. Cid Ferreira",
-                                     "C. A. Cid",
-                                     "C. A .Cid",
-                                     "C. A. F.")] <- "C. A. Cid-Ferreira"
-  tf <- grepl("^C. A. Cid|^C. A. C. Ferreira", df$recordedBy)
-  df$recordedBy[tf] <- "C. A. Cid-Ferreira"
-  df$recordedBy[df$recordedBy %in% c("A. S. Conceiçaõ")] <- "A. S. Conceição"
-  df$recordedBy[df$recordedBy %in% c("T. Alfred Coward")] <- "T. A. Coward"
-  df$recordedBy[df$recordedBy %in% c("R. C. Monteiro Costa")] <- "R. C. M. Costa"
+  x <- .fix_exact(x, "D. B. O. S. Cardoso", "D. Cardoso")
+  x <- .fix_exact(x, "P. Cavalcante", "P. B. Cavalcante")
+  x <- .fix_exact(x, "T. Barbosa Cavalcanti", "T. B. Cavalcanti")
+  x <- .fix_exact(x, c("C. A. C. Ferreira", "C. A. Cid Ferreira", "C. A. Cid",
+                       "C. A .Cid", "C. A. F."), "C. A. Cid-Ferreira")
+  x <- .fix_regex(x, "^C. A. Cid|^C. A. C. Ferreira", "C. A. Cid-Ferreira")
+  x <- .fix_exact(x, "A. S. Conceiçaõ", "A. S. Conceição")
+  x <- .fix_exact(x, "T. Alfred Coward", "T. A. Coward")
+  x <- .fix_exact(x, "R. C. Monteiro Costa", "R. C. M. Costa")
 
   # D
-  df$recordedBy[df$recordedBy %in% c("Daly",
-                                     "D. Daly")] <- "D. C. Daly"
-  df$recordedBy[df$recordedBy %in% c("M. E. Spence Davidson",
-                                     "M. E. Davidson")] <- "M. E. S. Davidson"
-  df$recordedBy[df$recordedBy %in% c("W. Adolpho Ducke",
-                                     "W. A. Ducke",
-                                     "A. Duck",
-                                     "Ducke")] <- "A. Ducke"
-  tf <- grepl("Ducke", df$recordedBy)
-  df$recordedBy[tf] <- "A. Ducke"
+  x <- .fix_exact(x, c("Daly", "D. Daly"), "D. C. Daly")
+  x <- .fix_exact(x, c("M. E. Spence Davidson", "M. E. Davidson"), "M. E. S. Davidson")
+  x <- .fix_regex(x, "Ducke", "A. Ducke")
+  x <- .fix_exact(x, c("W. Adolpho Ducke", "W. A. Ducke", "A. Duck"), "A. Ducke")
 
   # F
-  df$recordedBy[df$recordedBy %in% c("M. Clara Ferreira")] <- "M. C. Ferreira"
-  df$recordedBy <- gsub("^Forzza|^R. Forzza|^R. C. Forzzan",
-                        "R. C. Forzza", df$recordedBy)
-  tf <- grepl("F. Franca|F. FrançA", df$recordedBy)
-  df$recordedBy[tf] <- "F. França"
-  df$recordedBy[df$recordedBy %in% c("R. Froes",
-                                     "R. Lemos Froes-Cpatu",
-                                     "Froes",
-                                     "R. L. Froes",
-                                     "R. Froes",
-                                     "R. L. FrÃ³es",
-                                     "R. L. Froes")] <- "R. L. Fróes"
-  tf <- grepl("R. L. Fr", df$recordedBy)
-  df$recordedBy[tf] <- "R. L. Fróes"
-  df$recordedBy[df$recordedBy %in% c("H. Ogg Forbes")] <- "H. O. Forbes"
+  x <- .fix_exact(x, "M. Clara Ferreira", "M. C. Ferreira")
+  x <- gsub("^Forzza|^R. Forzza|^R. C. Forzzan", "R. C. Forzza", x)
+  x <- .fix_regex(x, "F. Franca|F. FrançA", "F. França")
+  x <- .fix_exact(x, c("R. Froes", "R. Lemos Froes-Cpatu", "Froes", "Fróes", "R. L. Froes",
+                       "R. L. FrÃ³es"), "R. L. Fróes")
+  x <- .fix_regex(x, "R. L. Fr", "R. L. Fróes")
+  x <- .fix_exact(x, "H. Ogg Forbes", "H. O. Forbes")
 
   # G
-  df$recordedBy[df$recordedBy %in% c("A. F. Marie Glaziou",
-                                     "A. Glaziou",
-                                     "Glaziou")] <- "A. F. M. Glaziou"
-  df$recordedBy <- gsub("^M. L. S. Guedes$|^M. Guedes$|^M. L. Silva Guedes|ML. Silva Guedes|M. Lenise Guedes",
-                        "M. L. Guedes", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("A. Gentry")] <- "A. H. Gentry"
+  x <- .fix_exact(x, c("A. F. Marie Glaziou", "A. Glaziou", "Glaziou"), "A. F. M. Glaziou")
+  x <- gsub("^M. L. S. Guedes$|^M. Guedes$|^M. L. Silva Guedes|ML. Silva Guedes|M. Lenise Guedes",
+            "M. L. Guedes", x)
+  x <- .fix_exact(x, "A. Gentry", "A. H. Gentry")
 
   # H
-  df$recordedBy[df$recordedBy %in% c("R. Harley",
-                                     "Harley",
-                                     "R. H. Harley",
-                                     "R. M. Harkey")] <- "R. M. Harley"
-  tf <- grepl("Hatschbach", df$recordedBy)
-  df$recordedBy[tf] <- "G. G. Hatschbach"
-  df$recordedBy[df$recordedBy %in% c("M. J. G. Hopkins")] <- "M. Hopkins"
-  df$recordedBy[df$recordedBy %in% c("F. W. R. Hostmann",
-                                     "Hostmann",
-                                     "F. W. Hostmann")] <- "W. R. Hostmann"
+  x <- .fix_exact(x, c("R. Harley", "Harley", "R. H. Harley", "R. M. Harkey"), "R. M. Harley")
+  x <- .fix_regex(x, "Hatschbach", "G. G. Hatschbach")
+  x <- .fix_exact(x, "M. J. G. Hopkins", "M. Hopkins")
+  x <- .fix_exact(x, c("F. W. R. Hostmann", "Hostmann", "F. W. Hostmann"), "W. R. Hostmann")
+
   # I
-  df$recordedBy <- gsub("J. R. Vieira Iganci|J. R. Iganci|^Iganci$|J. Iganci",
-                        "J. R. V. Iganci", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("H. Irwin",
-                                     "Irwin")] <- "H. S. Irwin"
+  x <- gsub("J. R. Vieira Iganci|J. R. Iganci|^Iganci$|J. Iganci", "J. R. V. Iganci", x)
+  x <- .fix_exact(x, c("H. Irwin", "Irwin"), "H. S. Irwin")
+
   # K
-  df$recordedBy <- gsub("^A. C. Krapovickas",
-                        "A. Krapovickas", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("B. Alexander Krukoff",
-                                     "B. Krukoff",
-                                     "Krukoff")] <- "B. A. Krukoff"
+  x <- gsub("^A. C. Krapovickas", "A. Krapovickas", x)
+  x <- .fix_exact(x, c("B. Alexander Krukoff", "B. Krukoff", "Krukoff"), "B. A. Krukoff")
+
   # L
-  df$recordedBy[df$recordedBy %in% c("E. Junqueira Leite")] <- "E. J. Leite"
-  df$recordedBy <- gsub("^H..C. Lima|^H.c Lima|^H. Cavalcante Lima|^H. C Lima|^H. C. D. E. Lima|^H. C. dde Lima$|^H. C. De Lima|^H. C. DeLima|^H. c. Lima",
-                        "H. C. Lima", df$recordedBy)
-  df$recordedBy <- gsub("^G. P. çLewis$|G. Peter Lewis|G.PLewi",
-                        "G. P. Lewis", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("Little")] <- "E. L. Little"
-  df$recordedBy[df$recordedBy %in% c("Lombardi")] <- "J. A. Lombardi"
-  df$recordedBy[df$recordedBy %in% c("Lorenzi")] <- "H. Lorenzi"
-  df$recordedBy[df$recordedBy %in% c("Luetzelburg")] <- "P. von Luetzelburg"
-  df$recordedBy[df$recordedBy %in% c("Ee.Nic Lughadha")] <- "E. Nic Lughadha"
+  x <- .fix_exact(x, "E. Junqueira Leite", "E. J. Leite")
+  x <- gsub("^H..C. Lima|^H.c Lima|^H. Cavalcante Lima|^H. C Lima|^H. C. D. E. Lima|^H. C. dde Lima$|^H. C. De Lima|^H. C. DeLima|^H. c. Lima",
+            "H. C. Lima", x)
+  x <- gsub("^G. P. çLewis$|G. Peter Lewis|G.PLewi", "G. P. Lewis", x)
+  x <- .fix_exact(x, "Little", "E. L. Little")
+  x <- .fix_exact(x, "Lombardi", "J. A. Lombardi")
+  x <- .fix_exact(x, "Lorenzi", "H. Lorenzi")
+  x <- .fix_exact(x, "Luetzelburg", "P. von Luetzelburg")
+  x <- .fix_exact(x, "Ee.Nic Lughadha", "E. Nic Lughadha")
 
   # M
-  df$recordedBy[df$recordedBy %in% c("Martius",
-                                     "C. F. vanMartius",
-                                     "C. F. P. Martius",
-                                     "C. F. Philipp von Martius",
-                                     "K. F. von. Martius")] <- "C. F. P. von Martius"
-  df$recordedBy[df$recordedBy %in% c("Maas")] <- "P. J. M. Maas"
-  df$recordedBy <- gsub("^S.* Miotto",
-                        "S. T. S. Miotto", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("Martinelli")] <- "G. Martinelli"
-  df$recordedBy[df$recordedBy %in% c("L. A. Mattos Silva",
-                                     "L. A. Matts Silva")] <- "L. A. Mattos-Silva"
-  df$recordedBy[df$recordedBy %in% c("H. L. Mello Barreto",
-                                     "H. L. M. Barreto")] <- "H. L. Mello-Barreto"
-  df$recordedBy[df$recordedBy %in% c("R. Mello Silva",
-                                     "R. mello-silva",
-                                     "R. Mello")] <- "R. Mello-Silva"
-  df$recordedBy[df$recordedBy %in% c("Mori",
-                                     "S. Mori")] <- "S. A. Mori"
-  df$recordedBy[df$recordedBy %in% c("P. Watson Moonlight")] <- "P. W. Moonlight"
+  x <- .fix_exact(x, c("Martius", "C. F. vanMartius", "C. F. P. Martius",
+                       "C. F. Philipp von Martius", "K. F. von. Martius"), "C. F. P. von Martius")
+  x <- .fix_exact(x, "Maas", "P. J. M. Maas")
+  x <- gsub("^S.* Miotto", "S. T. S. Miotto", x)
+  x <- .fix_exact(x, "Martinelli", "G. Martinelli")
+  x <- .fix_exact(x, c("L. A. Mattos Silva", "L. A. Matts Silva"), "L. A. Mattos-Silva")
+  x <- .fix_exact(x, c("H. L. Mello Barreto", "H. L. M. Barreto"), "H. L. Mello-Barreto")
+  x <- .fix_exact(x, c("R. Mello Silva", "R. mello-silva", "R. Mello"), "R. Mello-Silva")
+  x <- .fix_exact(x, c("Mori", "S. Mori"), "S. A. Mori")
+  x <- .fix_exact(x, "P. Watson Moonlight", "P. W. Moonlight")
 
   # O
-  df$recordedBy[df$recordedBy %in% c("R. Paulo Orlandi")] <- "R. P. Orlandi"
+  x <- .fix_exact(x, "R. Paulo Orlandi", "R. P. Orlandi")
 
   # P
-  df$recordedBy <- gsub("^J. Paula Souza$|^J. Paula-Sousa$|^J. Paulo-Souza$|^J. Paula$|^J. P. Souza$|J. P. Sousa$",
-                        "J. Paula-Souza", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("R. Toby Pennington")] <- "R. T. Pennington"
-  df$recordedBy <- gsub("^G. P. Silva$",
-                        "G. Pereira-Silva", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("G. C. Pereira Pinto")] <- "G. C. P. Pinto"
-  df$recordedBy[df$recordedBy %in% c("J. James Pipoly",
-                                     "J. Pipoly",
-                                     "I. I. I. JJ-Pipoly")] <- "J. J. Pipoly"
-  df$recordedBy[df$recordedBy %in% c("J. Pirani",
-                                     "Pirani",
-                                     "J. Rubens Pirani")] <- "J. R. Pirani"
-  tf <- grepl("^J.*M.*Pires|^J. Murça Pires$", df$recordedBy)
-  df$recordedBy[tf] <- "J. M. Pires"
-  df$recordedBy[df$recordedBy %in% c("G. T. Prace")] <- "G. T. Prance"
-  tf <- grepl("^C. E. B. Proen|^C.* Proenc|^C. E. Barnes Proença$", df$recordedBy)
-  df$recordedBy[tf] <- "C. E. B. Proença"
+  x <- gsub("^J. Paula Souza$|^J. Paula-Sousa$|^J. Paulo-Souza$|^J. Paula$|^J. P. Souza$|J. P. Sousa$",
+            "J. Paula-Souza", x)
+  x <- .fix_exact(x, "R. Toby Pennington", "R. T. Pennington")
+  x <- gsub("^G. P. Silva$", "G. Pereira-Silva", x)
+  x <- .fix_exact(x, "G. C. Pereira Pinto", "G. C. P. Pinto")
+  x <- .fix_exact(x, c("J. James Pipoly", "J. Pipoly", "I. I. I. JJ-Pipoly"), "J. J. Pipoly")
+  x <- .fix_exact(x, c("J. Pirani", "Pirani", "J. Rubens Pirani"), "J. R. Pirani")
+  x <- .fix_regex(x, "^J.*M.*Pires|^J. Murça Pires$", "J. M. Pires")
+  x <- .fix_exact(x, "G. T. Prace", "G. T. Prance")
+  x <- .fix_regex(x, "^C. E. B. Proen|^C.* Proenc|^C. E. Barnes Proença$", "C. E. B. Proença")
 
   # Q
-  df$recordedBy[df$recordedBy %in% c("L. P. Queiróz")] <- "L. P. Queiroz"
-  df$recordedBy <- gsub("^L..P. Queiroz|^L. P. Queiroz.$|^L. P. De Queiroz",
-                        "L. P. Queiroz", df$recordedBy)
+  x <- .fix_exact(x, "L. P. Queiróz", "L. P. Queiroz")
+  x <- gsub("^L..P. Queiroz|^L. P. Queiroz.$|^L. P. De Queiroz", "L. P. Queiroz", x)
 
   # R
-  df$recordedBy <- gsub("^-R. -- Reitz|Pe. Raulino Reitz|^Reitz$|^P. R. Reitz$",
-                        "R. Reitz", df$recordedBy)
-  df$recordedBy[df$recordedBy %in% c("C. Tolledo Rizzini",
-                                     "Rizzini")] <- "C. T. Rizzini"
+  x <- gsub("^-R. -- Reitz|Pe. Raulino Reitz|^Reitz$|^P. R. Reitz$", "R. Reitz", x)
+  x <- .fix_exact(x, c("C. Tolledo Rizzini", "Rizzini"), "C. T. Rizzini")
 
   # S
-  df$recordedBy[df$recordedBy %in% c("Sellow")] <- "F. Sellow"
-  df$recordedBy[df$recordedBy %in% c("Spruce")] <- "R. Spruce"
-  df$recordedBy <- gsub("^M. Fragomenir Simon$|^M. Simon|^Simon$|^M. Fragomeni Simon$",
-                        "M. F. Simon", df$recordedBy)
-  df$recordedBy <- gsub("^V. C. Sousa|^V. Castro Souza$ ",
-                        "V. C. Souza", df$recordedBy)
-  tf <- grepl("^R. Sch.*Rodrigues", df$recordedBy)
-  df$recordedBy[tf] <- "R. Schütz-Rodrigues"
-  df$recordedBy[df$recordedBy %in% c("Schwacke")] <- "C. A. W. Schwacke"
-  df$recordedBy[df$recordedBy %in% c("Schultes",
-                                     "R. Evans Schultes")] <- "R. E. Schultes"
+  x <- .fix_exact(x, "Sellow", "F. Sellow")
+  x <- .fix_exact(x, "Spruce", "R. Spruce")
+  x <- gsub("^M. Fragomenir Simon$|^M. Simon|^Simon$|^M. Fragomeni Simon$", "M. F. Simon", x)
+  x <- gsub("^V. C. Sousa|^V. Castro Souza$ ", "V. C. Souza", x)
+  x <- .fix_regex(x, "^R. Sch.*Rodrigues", "R. Schütz-Rodrigues")
+  x <- .fix_exact(x, "Schwacke", "C. A. W. Schwacke")
+  x <- .fix_exact(x, c("Schultes", "R. Evans Schultes"), "R. E. Schultes")
 
   # T
-  df$recordedBy[df$recordedBy %in% c("W. Wayt Thomas",
-                                     "W. Thomas")] <- "W. W. Thomas"
+  x <- .fix_exact(x, c("W. Wayt Thomas", "W. Thomas"), "W. W. Thomas")
 
   # V
-  tf <- grepl("^J.*Valls$", df$recordedBy)
-  df$recordedBy[tf] <- "J. F. M. Valls"
+  x <- .fix_regex(x, "^J.*Valls$", "J. F. M. Valls")
 
   # Z
-  df$recordedBy[df$recordedBy %in% c("D. C. Zapii",
-                                     "D. Zappi")] <- "D. C. Zappi"
-  df$recordedBy[df$recordedBy %in% c("J. Zarucchi")] <- "J. L. Zarucchi"
+  x <- .fix_exact(x, c("D. C. Zapii", "D. Zappi"), "D. C. Zappi")
+  x <- .fix_exact(x, "J. Zarucchi", "J. L. Zarucchi")
 
   #_____________________________________________________________________________
   # Cleaning general collectors
-
-  df$recordedBy[grepl("Academia Brasileira de C", df$recordedByOriginal)] <- "Academia Brasileira de Ciências"
-  df$recordedBy[grepl("Equipe do Jardim Bot", df$recordedByOriginal)] <- "Equipe do Jardim Botânico de Brasília"
+  x[grepl("Academia Brasileira de C", df$recordedByOriginal)] <- "Academia Brasileira de Ciências"
+  x[grepl("Equipe do Jardim Bot", df$recordedByOriginal)] <- "Equipe do Jardim Botânico de Brasília"
 
   #_____________________________________________________________________________
   # Cleaning Spanish-like collectors
-  df$recordedBy[df$recordedBy %in% c("N. A. Zamora Villalobos")] <- "N. Zamora"
-  df$recordedBy[df$recordedBy %in% c("G. Ibarra Manriquez")] <- "G. Ibarra"
-  df$recordedBy[df$recordedBy %in% c("H. Mendoza Cifuentes")] <- "H. Mendoza"
-  df$recordedBy[df$recordedBy %in% c("J. Rafael Garcia")] <- "J. R. García"
-  df$recordedBy[df$recordedBy %in% c("M. Sousa Sánchez")] <- "M. Sousa"
-  df$recordedBy[df$recordedBy %in% c("A. Reyes",
-                                     "A. Reyes Garcia")] <- "A. Reyes-García"
-  df$recordedBy[df$recordedBy %in% c("R. Vasquez Martinez",
-                                     "Rod. Vasquez",
-                                     "R. Vasquez")] <- "R. Vásquez"
-  df$recordedBy[df$recordedBy %in% c("J. Schunke Vigo",
-                                     "J. Schunke",
-                                     "J. V. Schunke",
-                                     "J. M. Schunke")] <- "J. Schunke-Vigo"
-  df$recordedBy[df$recordedBy %in% c("M. M. arbo",
-                                     "M. N. Arbo")] <- "M. M. Arbo"
+  x <- .fix_exact(x, "N. A. Zamora Villalobos", "N. Zamora")
+  x <- .fix_exact(x, "G. Ibarra Manriquez", "G. Ibarra")
+  x <- .fix_exact(x, "H. Mendoza Cifuentes", "H. Mendoza")
+  x <- .fix_exact(x, "J. Rafael Garcia", "J. R. García")
+  x <- .fix_exact(x, "M. Sousa Sánchez", "M. Sousa")
+  x <- .fix_exact(x, c("A. Reyes", "A. Reyes Garcia"), "A. Reyes-García")
+  x <- .fix_exact(x, c("R. Vasquez Martinez", "Rod. Vasquez", "Rod. Vásquez", "R. Vasquez"), "R. Vásquez")
+  x <- .fix_exact(x, c("J. Schunke Vigo", "J. Schunke", "J. V. Schunke", "J. M. Schunke"),
+                  "J. Schunke-Vigo")
+  x <- .fix_exact(x, c("M. M. arbo", "M. N. Arbo"), "M. M. Arbo")
+
+  df$recordedBy <- x
 
   return(df)
 }
@@ -2265,79 +1258,73 @@ std_recordedBy <- function(df = NULL,
 
   message(".preunicodeclean $recordedBy Asian names #1")
 
+  # "<U+3001>" is the Chinese comma separating collectors, and "<U+7B49>" means "etc."
+  x <- df$recordedBy[tf]
+  etc <- grepl("\\s*<U[+]7B49>$", x)
+  df$addCollector[tf][etc] <- "et al."
+  x <- gsub("\\s*<U[+]7B49>$", "", x)
+  df$recordedBy[tf] <- gsub("\\s+", " ", gsub("\\s*<U[+]3001>\\s*", ",", x))
+
   tfa <- grepl("[,]|[;]", df$recordedBy[tf])
   tfb <- grepl("(.*,.*,){1,}|(.*;.*;){1,}", df$recordedBy[tf][tfa])
+  idx <- which(tf)[tfa]
 
   # Chinese names with more than two collectors
-  if(any(tfb)){
-    df$addCollector[tf][tfa] <-
-      ifelse(tfb, "et al.", as.character(df$addCollector[tf][tfa]))
-    df$recordedBy[tf][tfa][tfb] <-
-      gsub(",.+", "", df$recordedBy[tf][tfa][tfb])
+  if (any(tfb)) {
+    df$addCollector[idx][tfb] <- "et al."
+    df$recordedBy[idx][tfb] <- gsub(",.+", "", df$recordedBy[idx][tfb])
   }
 
   # Chinese names with just two collectors
-  if(any(!tfb)){
+  if (any(!tfb)) {
     message(".preunicodeclean $recordedBy Asian names #2")
-    add_asian_twocollA <- data.frame(collector=stringr::str_extract_all(df$recordedBy, "[,|;].+",
-                                                                        simplify = TRUE))
-    if(length(add_asian_twocollA) == 0){
-      add_asian_twocollA <- data.frame(collector=rep(NA, length(row.names(df))))
-    }
-    add_asian_twocollA$collector <- as.character(add_asian_twocollA$collector)
-    # a much better way two copy characters from one column to another
-    df$addCollector[tf][tfa][!tfb] <-
-      add_asian_twocollA$collector[tf][tfa][!tfb]
-    df$addCollector <- gsub(",", "", df$addCollector)
-    df$recordedBy[tf][tfa][!tfb] <-
-      gsub(",.+", "", df$recordedBy[tf][tfa][!tfb])
+    df$addCollector[idx][!tfb] <- gsub(",", "", .extract(df$recordedBy[idx][!tfb], "[,|;].+"))
+    df$recordedBy[idx][!tfb] <- gsub(",.+", "", df$recordedBy[idx][!tfb])
   }
 
+  # detect, pattern to remove the additional collectors, message number
   # Chinese names with more than two collectors separated by space
-  #"<U+738B><U+542F><U+65E0> <U+5218><U+745B>"
-  tf <- grepl("(.*[>]\\s[<][[:upper:]]){2,}", df$recordedBy)
-  if(any(tf)){
-    message(".preunicodeclean $recordedBy Asian names #3")
-    df$addCollector[tf] <- paste("et al.")
-    df$recordedBy[tf] <- gsub("\\s.+", "", df$recordedBy[tf])
-  }
-
+  # "<U+738B><U+542F><U+65E0> <U+5218><U+745B>"
   # Chinese names with more than two collectors that are not separated
-  #"T.N.Liou<U+3001>P.C.Tsoong"
-  tf <- grepl("[[:upper:]][[:lower:]]+[<][[:upper:]]", df$recordedBy)
-  if(any(tf)){
-    message(".preunicodeclean $recordedBy Asian names #4")
-    df$addCollector[tf] <- paste("et al.")
-    df$recordedBy[tf] <- gsub("[<].+", "", df$recordedBy[tf])
+  # "T.N.Liou<U+3001>P.C.Tsoong"
+  rules <- list(c("(.*[>]\\s[<][[:upper:]]){2,}", "\\s.+", "#3"),
+                c("[[:upper:]][[:lower:]]+[<][[:upper:]]", "[<].+", "#4"))
+  for (r in rules) {
+    tf <- grepl(r[1], df$recordedBy)
+    if (any(tf)) {
+      message(".preunicodeclean $recordedBy Asian names ", r[3])
+      df$addCollector[tf] <- "et al."
+      df$recordedBy[tf] <- gsub(r[2], "", df$recordedBy[tf])
+    }
   }
 
   # Chinese names with mixed unicode and Latin-like characters
   # Extracting names also seperated by a space
   # "T.N.Liou <U+3001>P.C.Tsoong"
   tf <- grepl("[[:upper:]][[:lower:]]+\\s[<][[:upper:]]", df$recordedBy)
-  tfa <- grepl("([[:lower:]]+)$", df$recordedBy[tf])
-  if(any(tfa)){
+  idx <- which(tf)[grepl("([[:lower:]]+)$", df$recordedBy[tf])]
+  if (length(idx) > 0) {
     message(".preunicodeclean $recordedBy Asian names #5")
-    df$addCollector[tf][tfa] <- paste("et al.")
-    df$recordedBy[tf][tfa] <- gsub("\\s.+", "", df$recordedBy[tf][tfa])
+    df$addCollector[idx] <- "et al."
+    df$recordedBy[idx] <- gsub("\\s.+", "", df$recordedBy[idx])
   }
 
   # Chinese names with two collectors separated by space
-  #"<U+738B><U+542F><U+65E0> <U+5218><U+745B>"
+  # "<U+738B><U+542F><U+65E0> <U+5218><U+745B>"
   tf <- grepl("(.*[>]\\s[<][[:upper:]]){1}", df$recordedBy)
-  if(any(tf)){
+  if (any(tf)) {
     message(".preunicodeclean $recordedBy Asian names #6")
-    df$addCollector[tf] <- gsub(".*?\\s", "", df$recordedBy[tf])
+    df$addCollector[tf] <- ifelse(is.na(df$addCollector[tf]),
+                                  gsub(".*?\\s", "", df$recordedBy[tf]),
+                                  df$addCollector[tf])
     df$recordedBy[tf] <- gsub("\\s.+", "", df$recordedBy[tf])
   }
 
-  # Chinese names with mixed unicode and Latin-like characters
-  # Extracting names also seperated by a space
-  # "T.N.Liou<U+3001>P.C.Tsoong"
+  # The same collector in Latin followed by Chinese characters, keep just the
+  # Latin name, e.g. "T.C.Huang <U+9EC3><U+589E><U+6CC9>"
   tf <- grepl("[[:upper:]][[:lower:]]+\\s[<][[:upper:]]", df$recordedBy)
-  if(any(tf)){
+  if (any(tf)) {
     message(".preunicodeclean $recordedBy Asian names #7")
-    df$addCollector[tf] <- gsub(".*?\\s", "", df$recordedBy[tf])
     df$recordedBy[tf] <- gsub("\\s.+", "", df$recordedBy[tf])
   }
 
@@ -2346,49 +1333,80 @@ std_recordedBy <- function(df = NULL,
 
 
 #_______________________________________________________________________________
-# Cleaning Asian-like names when they are in unicode characters ####
-.unicodeclean <- function(df, tf) {
-
-  # ## Converting Asian-like names into Latin alphabet
-  #
-  # require(stringi)
-  # convertCHINESE <-  stri_unescape_unicode(gsub("<U\\+(....)>", "\\\\u\\1",
-  #                                               c("<U+674E><U+9E23><U+5188>",
-  #                                                 "<U+4F55><U+666F>",
-  #                                                 "Domingos Cardoso, <U+9EC4><U+555F><U+658C>",
-  #                                                 "<U+8983><U+704F><U+5BCC>,<U+674E><U+4E2D><U+63D0>")))
-  #
-  # convertCHINESE1 <-  stri_unescape_unicode(gsub("<U\\+(....)>", "\\\\u\\1", Ormosia.df$recordedBy[TESTE]))
+# Converting Asian-like names in unicode characters into Latin names ####
+.unicodeclean <- function(df) {
 
   message(".unicodeclean $recordedBy Asian-like names in unicode")
 
-  #library(tmcn)
-  ## If we wanted to keep in original Chinese characters
-  #df$recordedBy[tf] <- revUTF8(df$recordedBy[tf])
-
-  ## Parsing the Chinese characters into Latin characters
-  asian_to_latinA <- tmcn::toPinyin(revUTF8(df$recordedBy[tf]),
-                                    capitalize = T)
-  parseA <- tmcn::strextract(asian_to_latinA, "(?<first>[[:upper:]][[:lower:]]+)",
-                             perl = TRUE)
-  df$recordedBy[tf] <- sapply(parseA, paste, collapse=" ")
-
-
-  tf <- grepl("[+][0-9]", df$addCollector)
-  if (any(tf)) {
-    message(".unicodeclean $recordedBy Asian-like names in unicode")
-    ## If we wanted to keep in original Chinese characters
-    #df$addCollector[tf] <- revUTF8(df$addCollector[tf])
-
-    ## Parsing the Chinese characters into Latin characters
-    asian_to_latinB <- tmcn::toPinyin(revUTF8(df$addCollector[tf]),
-                                      capitalize = T)
-    parseB <- tmcn::strextract(asian_to_latinB, "(?<first>[[:upper:]][[:lower:]]+)",
-                               perl = TRUE)
-    df$addCollector[tf] <- sapply(parseB, paste, collapse=" ")
-  }
+  df$recordedBy <- .han_to_latin(df$recordedBy)
+  df$addCollector <- .han_to_latin(df$addCollector)
 
   return(df)
+}
+
+# Names written just with unicode escapes, e.g. "<U+674E><U+5149><U+7167>"
+# or groups like "780<U+690D><U+88AB><U+7EC4>"
+.is_han <- function(x) {
+  grepl("<U[+]", x) & grepl("^(<U[+][0-9A-Fa-f]{4}>|[0-9 -])+$", x)
+}
+
+# Convert Chinese names written as unicode escapes into Latin names, as Chinese
+# authors cite themselves in publications: initials of the given name followed
+# by the family name, e.g. "<U+674E><U+5149><U+7167>" (Li Guang-Zhao) into "G. Z. Li"
+.han_to_latin <- function(x) {
+  tf <- grepl("<U[+][0-9A-Fa-f]{4}>", x)
+  if (!any(tf)) return(x)
+
+  # From unicode escape codes into Chinese characters, e.g. "\u674e\u5149\u7167"
+  han <- stringi::stri_unescape_unicode(gsub("<U\\+([0-9A-Fa-f]{4})>", "\\\\u\\1", x[tf]))
+
+  # Keep names of teams and groups in full, e.g. "780<U+690D><U+88AB><U+7EC4>"
+  # (vegetation group 780) into "780 Zhi Bei Zu"
+  # (dui = team, zu = group, yuan = institute, suo = office, guan = museum)
+  group <- grepl("[0-9]|\u961f|\u7ec4|\u9662|\u6240|\u9986", han)
+  latin <- .han_translit(han[group])
+  x[tf][group] <- .title_case(gsub("([0-9])([[:alpha:]])", "\\1 \\2", trimws(latin)))
+
+  x[tf][!group] <- vapply(han[!group], .han_name, character(1), USE.NAMES = FALSE)
+
+  x
+}
+
+# From Chinese characters into Latin syllables, e.g. "li guang zhao"
+.han_translit <- function(x) {
+  stringi::stri_trans_general(x, "Han-Latin; Latin-ASCII")
+}
+
+# A single Chinese name, e.g. "\u674e\u5149\u7167" into "G. Z. Li"
+.han_name <- function(h) {
+  chars <- strsplit(h, "")[[1]]
+  chars <- chars[grepl("\\p{Han}", chars, perl = TRUE)]
+  n <- length(chars)
+  if (n == 0) return(NA_character_)
+
+  # Family names of two characters, e.g. Ouyang, Sima, Zhuge
+  compound <- c("\u6b27\u9633", "\u6b50\u967d", "\u53f8\u9a6c", "\u53f8\u99ac",
+                "\u8bf8\u845b", "\u8af8\u845b", "\u4e0a\u5b98", "\u7687\u752b",
+                "\u53f8\u5f92", "\u4e1c\u65b9", "\u6771\u65b9", "\u590f\u4faf",
+                "\u6155\u5bb9", "\u5c09\u8fdf", "\u4ee4\u72d0", "\u516c\u5b59",
+                "\u957f\u5b59", "\u5b87\u6587", "\u7aef\u6728")
+  k <- if (n > 2 && paste(chars[1:2], collapse = "") %in% compound) 2 else 1
+
+  # Family names read differently from the common reading of the character,
+  # e.g. Zeng instead of Ceng
+  reading <- c("\u66fe" = "Zeng", "\u8983" = "Qin", "\u5355" = "Shan", "\u55ae" = "Shan",
+               "\u89e3" = "Xie", "\u4ec7" = "Qiu", "\u67e5" = "Zha", "\u7fdf" = "Zhai",
+               "\u6734" = "Piao", "\u7f2a" = "Miao", "\u533a" = "Ou", "\u5340" = "Ou")
+  family <- paste(chars[1:k], collapse = "")
+  family <- if (family %in% names(reading)) {
+    reading[[family]]
+  } else {
+    .title_case(gsub("\\s", "", .han_translit(family)))
+  }
+  if (n == k) return(family)
+
+  given <- .han_translit(chars[(k + 1):n])
+  paste(c(paste0(toupper(substr(given, 1, 1)), "."), family), collapse = " ")
 }
 
 
@@ -2397,478 +1415,127 @@ std_recordedBy <- function(df = NULL,
 .addcollclean <- function(df) {
 
   message(".addcollclean $addCollector")
+
+  y <- df$addCollector
+
   # Inserting NAs in and empty cell
-  df$addCollector <- gsub("^$|^\\s$", NA, df$addCollector)
+  y <- gsub("^$|^\\s$", NA, y)
+  y <- .lower_to_title(y)
 
-  # Deleting any numbers from $addCollector
-  tf <- grepl("[0-9]", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("[0-9]", "", df$addCollector[tf])
-  }
-
-  # Deleting blank space at the beginning and end of the cell
-  df$addCollector <- gsub("^[[:space:]]", "", df$addCollector)
-  df$addCollector <- gsub("[[:space:]]{2}", " ", df$addCollector)
-  df$addCollector <- gsub("[[:space:]]$", "", df$addCollector)
+  # Deleting any numbers and blank space at the beginning and end of the cell
+  y <- .gsub_all(y, c("[0-9]" = "",
+                      "^[[:space:]]" = "",
+                      "[[:space:]]{2}" = " ",
+                      "[[:space:]]$" = ""))
 
   # Adding NA for cells with "s.c."
-  df$addCollector[which(df$addCollector %in% c("s.c."))] <- NA
+  y[y %in% "s.c."] <- NA
 
-
-  temp <- c("Grupo", "Alunos", "Plantas Vasculares", "British Guiana Forestry",
-            "de estudios")
-  tf <- grepl(paste0(temp, collapse = "|"), df$addCollector)
-  if (any(tf)){
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
+  # Adding et al. for groups and more than two collectors
+  for (p in c("Grupo|Alunos|Plantas Vasculares|British Guiana Forestry|de estudios",
+              "[[:lower:]]+\\s+[[:upper:]][[:lower:]]+[,]+\\s+[[:upper:]][[:lower:]]+\\s+[[:upper:]][[:lower:]]+",
+              "(.*[-].*[-]){1,}",
+              # Examples like "L Cardin-A C Borges"
+              "\\s+[[:upper:]][[:lower:]]+[-]+[[:upper:]]+\\s",
+              "(.*[[:space:]].*[[:space:]]){3,}")) {
+    y[grepl(p, y)] <- "et al."
   }
 
+  y <- .gsub_if(y, "[;]+[[:upper:]][[:lower:]]+[,]", ";", "")
+  y <- .gsub_if(y, "([[:upper:]][.]){1,}[[:upper:]][[:lower:]]", "[.]", ". ")
+  # Use sub as it matches only the first occurrence of pattern
+  tf <- grepl("([[:upper:]][.]){2,}\\s+[[:upper:]][[:lower:]]", y)
+  y[tf] <- sub("[.]", ". ", y[tf])
+  # Deleting last name after last space
+  y <- .gsub_if(y, "([[:upper:]][.]){1,}\\s+[[:upper:]][[:lower:]]+\\s+[[:upper:]][.]",
+                "\\s[^ ]+$", "")
 
-  tf <- grepl("[[:lower:]]+\\s+[[:upper:]][[:lower:]]+[,]+\\s+[[:upper:]][[:lower:]]+\\s+[[:upper:]][[:lower:]]+",
-              df$addCollector)
-  if (any(tf)){
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
-  }
-
-  tf <- grepl("(.*[-].*[-]){1,}", df$addCollector)
-  if (any(tf)){
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
-  }
-
-  # Examples like "L Cardin-A C Borges"
-  tf <- grepl("\\s+[[:upper:]][[:lower:]]+[-]+[[:upper:]]+\\s", df$addCollector)
-  if (any(tf)){
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
-  }
-
-  tf <- grepl("(.*[[:space:]].*[[:space:]]){3,}", df$addCollector)
-  if (any(tf)){
-    df$addCollector <- ifelse(tf, "et al.", as.character(df$addCollector))
-  }
-
-  tf <- grepl("[;]+[[:upper:]][[:lower:]]+[,]", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub(";", "", df$addCollector[tf])
-  }
-
-  tf <- grepl("([[:upper:]][.]){1,}[[:upper:]][[:lower:]]", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("[.]", ". ", df$addCollector[tf])
-  }
-
-  tf <- grepl("([[:upper:]][.]){2,}\\s+[[:upper:]][[:lower:]]", df$addCollector)
-  if (any(tf)){
-    # Use sub as it matches only the first occurrence of pattern
-    df$addCollector[tf] <- sub("[.]", ". ", df$addCollector[tf])
-  }
-
-  tf <- grepl("([[:upper:]][.]){1,}\\s+[[:upper:]][[:lower:]]+\\s+[[:upper:]][.]", df$addCollector)
-  if (any(tf)){
-    # Deleting last name after last space
-    df$addCollector[tf] <- gsub("\\s[^ ]+$", "", df$addCollector[tf])
-  }
-
-  # Cleaning collector names like Acero, E.
-  tf <- grepl(",", df$addCollector)
-  if (any(tf)){
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, ",.+",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf] <-
-      gsub(",", "", temp_df$initials[tf])
-    temp_df$initials[tf] <-
-      gsub("^\\s", "", temp_df$initials[tf])
-
-    # Then delete all initials from the main column addCollector
-    df$addCollector[tf] <-
-      gsub(",.+", "", df$addCollector[tf])
-    df$addCollector[tf] <-
-      paste(as.character(temp_df$initials[tf]),
-            as.character(df$addCollector[tf]), sep=" ")
-  }
-
+  # Cleaning collector names like "Acero, E."
+  y <- .move_to_front(y, grepl(",", y), ",.+",
+                      fun = function(i) gsub("^\\s", "", gsub(",", "", i)))
 
   # Make the names in just the first letter capitalized
-  tf <- grepl("([[:upper:]]){4,}", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("\\b([a-z])", "\\U\\1",
-                                tolower(df$addCollector[tf]), perl = TRUE)
-  }
+  tf <- grepl("([[:upper:]]){4,}", y)
+  y[tf] <- .title_case(y[tf])
 
+  # Cleaning examples like "Egler WA", "Trotz N"
+  tf <- grepl("[[:lower:]]+\\s([[:upper:]]){1,}$", y)
+  y <- .move_to_front(y, which(tf)[!grepl("[.]", y[tf])], "\\s.+",
+                      fun = function(i) gsub("^\\s", "", i))
 
-  # cleaning examples like "Egler WA", "Trotz N"
-  tf <- grepl("[[:lower:]]+\\s([[:upper:]]){1,}$", df$addCollector)
-  tfA <- !grepl("[.]", df$addCollector[tf])
-  if (any(tfA)){
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "\\s.+",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf][tfA] <-
-      gsub("^\\s", "", temp_df$initials[tf][tfA])
+  # Cleaning examples like "F. Chigo S", "Patricia Gómez A."
+  y <- .gsub_if(y, "[[:lower:]]+\\s([[:upper:]]){1,}$", "\\s[^ ]+$", "")
+  y <- .gsub_if(y, "\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.]){1}$", "\\s[^ ]+$", "")
 
-    # Then delete all initials from the main column addCollector
-    df$addCollector[tf][tfA] <-
-      sub("\\s.+", "", df$addCollector[tf][tfA])
-    df$addCollector[tf][tfA] <-
-      paste(as.character(temp_df$initials[tf][tfA]),
-            as.character(df$addCollector[tf][tfA]), sep=" ")
+  # Cleaning examples like "Sueroque F.", "Jaramillo R."
+  y <- .move_to_front(y, grepl("[[:lower:]]+\\s([[:upper:]][.]){1}$", y), "\\s.+",
+                      fun = function(i) gsub("^\\s", "", i))
 
-  }
+  # Cleaning examples like ".", " . " and "TA Naves,"
+  y[grepl("^[.]$", y)] <- NA
+  y <- .gsub_all(y, c("\\s[.]\\s" = ". ", "," = ""))
 
-  # cleaning examples like "F. Chigo S"
-  tf <- grepl("[[:lower:]]+\\s([[:upper:]]){1,}$", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("\\s[^ ]+$", "", df$addCollector[tf])
-  }
-
-  # cleaning examples like "Patricia Gómez A."
-  tf <- grepl("\\s[[:upper:]][[:lower:]]+\\s([[:upper:]][.]){1}$", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("\\s[^ ]+$", "", df$addCollector[tf])
-  }
-
-  # cleaning examples like "Sueroque F.", "Jaramillo R."
-  tf <- grepl("[[:lower:]]+\\s([[:upper:]][.]){1}$", df$addCollector)
-  if (any(tf)){
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "\\s.+",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf] <-
-      gsub("^\\s", "", temp_df$initials[tf])
-
-    # Then delete all initials from the main column addCollector
-    df$addCollector[tf] <- sub("\\s.+", "", df$addCollector[tf])
-    df$addCollector[tf] <- paste(as.character(temp_df$initials[tf]),
-                                 as.character(df$addCollector[tf]), sep=" ")
-  }
-
-  # cleaning examples like "."
-  tf <- grepl("^[.]$", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("^[.]$", NA, df$addCollector[tf])
-  }
-
-  # cleaning examples like " . "
-  tf <- grepl("\\s[.]\\s", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("\\s[.]\\s", ". ", df$addCollector[tf])
-  }
-
-  # cleaning examples like "TA Naves,"
-  tf <- grepl(",", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub(",", "", df$addCollector[tf])
-  }
-
-  # cleaning examples like "Steege H ter", "Paie I bin"
-  tf <- grepl("[[:lower:]]+\\s[[:upper:]]\\s[[:lower:]]+$", df$addCollector)
-  if (any(tf)){
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "\\s.+",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf] <-
-      gsub("^\\s", "", temp_df$initials[tf])
-
-    # Then delete all initials from the main column addCollector
-    df$addCollector[tf] <- sub("\\s.+", "", df$addCollector[tf])
-    df$addCollector[tf] <- paste(as.character(temp_df$initials[tf]),
-                                 as.character(df$addCollector[tf]), sep=" ")
-  }
-
-  # cleaning examples like "Wilde-Duyfjes BEE de"
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s([[:upper:]]){2,}", df$addCollector)
-  if (any(tf)){
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "\\s.+",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[tf] <-
-      gsub("^\\s", "", temp_df$initials[tf])
-
-    # Then delete all initials from the main column addCollector
-    df$addCollector[tf] <- sub("\\s.+", "", df$addCollector[tf])
-    df$addCollector[tf] <- paste(as.character(temp_df$initials[tf]),
-                                 as.character(df$addCollector[tf]), sep=" ")
+  # Cleaning examples like "Steege H ter", "Paie I bin", "Wilde-Duyfjes BEE de"
+  for (p in c("[[:lower:]]+\\s[[:upper:]]\\s[[:lower:]]+$",
+              "[[:upper:]][[:lower:]]+\\s([[:upper:]]){2,}")) {
+    y <- .move_to_front(y, grepl(p, y), "\\s.+", fun = function(i) gsub("^\\s", "", i))
   }
 
   # Cleaning particles like de, da, dos, do
-  tf <- grepl(" de", df$addCollector)
-  nondel.van <- grepl(paste(c("van den", "van der"), collapse = "|"), df$addCollector)
-  df$addCollector[which(tf - nondel.van == T)] <-
-    gsub(" de", " ", df$addCollector[which(tf - nondel.van == T)])
+  y <- .rm_particles(y, squish = FALSE)
 
-  tf <- grepl("[.]de", df$addCollector)
-  df$addCollector[tf] <- gsub("de", " ", df$addCollector[tf])
-  tf <- grepl(" De ", df$addCollector)
-  df$addCollector[tf] <- gsub(" De ", " ", df$addCollector[tf])
-  tf <- grepl(" DE ", df$addCollector)
-  df$addCollector[tf] <- gsub(" DE ", " ", df$addCollector[tf])
-  tf <- grepl("^De ", df$addCollector)
-  df$addCollector[tf] <- gsub("^De ", "", df$addCollector[tf])
-  tf <- grepl("^de ", df$addCollector)
-  df$addCollector[tf] <- gsub("^de ", "", df$addCollector[tf])
-  tf <- grepl("[.]\\sDE$", df$addCollector)
-  df$addCollector[tf] <- gsub(" DE$", "", df$addCollector[tf])
-
-  tf <- grepl("[[:space:]]da$", df$addCollector)
-  df$addCollector[tf] <- gsub(" da", "", df$addCollector[tf])
-  tf <- grepl(" da ", df$addCollector)
-  df$addCollector[tf] <- gsub(" da ", " ", df$addCollector[tf])
-  tf <- grepl("[.]da", df$addCollector)
-  df$addCollector[tf] <- gsub("da", " ", df$addCollector[tf])
-  tf <- grepl("[.]\\sDA\\s", df$addCollector)
-  df$addCollector[tf] <- gsub("DA\\s", "", df$addCollector[tf])
-
-  tf <- grepl(" dos", df$addCollector)
-  df$addCollector[tf] <- gsub(" dos", " ", df$addCollector[tf])
-  tf <- grepl(" do", df$addCollector)
-  df$addCollector[tf] <- gsub(" do", " ", df$addCollector[tf])
-  tf <- grepl("[.]dos", df$addCollector)
-  df$addCollector[tf] <- gsub("dos", " ", df$addCollector[tf])
-  tf <- grepl("[.]do", df$addCollector)
-  df$addCollector[tf] <- gsub("do", " ", df$addCollector[tf])
-
-  #_____________________________________________________________________________
-  # Abreviate first name
-  # Mark the names like "Sergio M Faria", "Domingos S Cardoso", "Marcelo T Nascimento"
-  # these names are not separated by comma or full period in the initials
-  tf <- grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", df$addCollector)
-  if (any(tf)){
-    # Extracting collector initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <-
-      gsub("^ ", "", temp_df$initials[tf])
-    temp_df$initials[tf] <-
-      abbreviate(temp_df$initials[tf],
-                 minlength = 1, strict = T, dot = F, use.classes = F)
-    # Deleting first name, which is before first space
-    df$addCollector[tf] <- gsub("^(\\S*\\s+)", "", df$addCollector[tf])
-    df$addCollector <- ifelse(!is.na(temp_df$initials == TRUE),
-                              paste(as.character(temp_df$initials),
-                                    as.character(df$addCollector), sep=""),
-                              as.character(df$addCollector))
-  }
+  # Abbreviate first names like "Sergio M Faria", "Domingos S Cardoso"
+  y <- .abbrev_to_front(y, grepl("[[:lower:]]+\\s+([[:upper:]]{1,})+\\s", y),
+                        dot = FALSE, sep = "")
 
   # Abbreviate names like "David J.N. Hind", "Jorge C. A. Lima", "Grady L. Webster"
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s+(.*[[:upper:]][.]){1,}\\s+[[:alpha:]]{3}",
-              df$addCollector)
-  if (any(tf)){
-    # Extracting collector initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <-
-      gsub("^ ", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- abbreviate(temp_df$initials[tf],
-                                       minlength = 1, strict = T, dot = T, use.classes = F)
-    # Deleting first name, which is before first space
-    df$addCollector[tf] <- gsub("^(\\S*\\s+)", "", df$addCollector[tf])
-    df$addCollector <- ifelse(!is.na(temp_df$initials == TRUE),
-                              paste(as.character(temp_df$initials),
-                                    as.character(df$addCollector), sep=" "),
-                              as.character(df$addCollector))
-  }
+  y <- .abbrev_to_front(y, grepl("[[:upper:]][[:lower:]]+\\s+(.*[[:upper:]][.]){1,}\\s+[[:alpha:]]{3}", y))
 
-  #_____________________________________________________________________________
-  # Abreviate first name
-  # Mark the names like "Sergio Faria",
-  # these names are not separated by comma or full period in the initials
-  tf <- grepl("^[[:upper:]][[:lower:]]+\\s+[[:upper:]][[:lower:]]+", df$addCollector)
-  if (any(tf)){
-    # Extracting collector initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
+  # Abbreviate first name like "Sergio Faria"
+  y <- .abbrev_to_front(y, grepl("^[[:upper:]][[:lower:]]+\\s+[[:upper:]][[:lower:]]+", y))
 
-    temp_df$initials[!tf] <- NA
-    temp_df$initials[tf] <-
-      gsub("^ ", "", temp_df$initials[tf])
-    temp_df$initials[tf] <- abbreviate(temp_df$initials[tf],
-                                       minlength = 1, strict = T, dot = T, use.classes = F)
-    # Deleting first name, which is before first space
-    df$addCollector[tf] <- gsub("^(\\S*\\s+)", "", df$addCollector[tf])
-    df$addCollector <- ifelse(!is.na(temp_df$initials == TRUE),
-                              paste(as.character(temp_df$initials),
-                                    as.character(df$addCollector), sep=" "),
-                              as.character(df$addCollector))
-  }
-
-  #_____________________________________________________________________________
   # Adding full period in names like D Cardoso, DD Cardoso, DDD Cardoso
-  tf <- grepl("^([[[:upper:]]){1,}\\s[[:upper:]][[:lower:]]", df$addCollector)
-  if (any(tf)){
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
+  y <- .move_to_front(y, grepl("^([[[:upper:]]){1,}\\s[[:upper:]][[:lower:]]", y),
+                      "^(\\S*\\s+)", remove = "^\\S*.",
+                      fun = function(i) .spell_initials(gsub(" $", "", i)))
 
-    temp_df$initials[tf] <- gsub(" $", "", temp_df$initials[tf])
-    # adding a space between all initials
-    temp_df$initials[tf] <- lapply(temp_df$initials[tf],
-                                   function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials[tf] <- gsub("$", " ", temp_df$initials[tf])
-    # replace space by full periods
-    temp_df$initials[tf] <-
-      gsub(" ", ".", temp_df$initials[tf])
-    # adding space between each inicials now with full period
-    # put the space after the "\\1 "
-    temp_df$initials[tf] <- lapply(temp_df$initials[tf],
-                                   function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    temp_df$initials <- as.character(temp_df$initials)
-    # Remove first words before first space
-    df$addCollector[tf] <- gsub("^(\\S*)", "", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("^.", "", df$addCollector[tf])
-
-    df$addCollector[tf] <- paste(as.character(temp_df$initials[tf]),
-                                 as.character(df$addCollector[tf]), sep=" ")
-  }
-
-
-  tf <- grepl("([[[:upper:]][.]){2,}|[[[:upper:]][.]{1,}[[:upper:]][[:lower:]]+", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("[.]", ". ", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("[[:space:]]{2}", " ", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("[.]$", "", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("[[:space:]]$", "", df$addCollector[tf])
-  }
+  y <- .gsub_if(y, "([[[:upper:]][.]){2,}|[[[:upper:]][.]{1,}[[:upper:]][[:lower:]]+",
+                c("[.]", "[[:space:]]{2}", "[.]$", "[[:space:]]$"), c(". ", " ", "", ""))
 
   # Cleaning examples like "H ter Steege", "I bin Paie", "PP-H But"
-  tf <- grepl("([[[:upper:]]){1,}\\s", df$addCollector)
-  if (any(tf)){
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector, "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(temp_df$initials)
+  tf <- grepl("([[[:upper:]]){1,}\\s", y)
+  y <- .move_to_front(y, tf, "^(\\S*\\s+)", remove = "^\\S*.",
+                      fun = function(i) .spell_initials(gsub(" $", "", i)))
+  # Correcting the examples like "P. P- . H." by first removing the first duplicated initial
+  idx <- which(tf)[grepl("[-]\\s[.]", y[tf])]
+  y[idx] <- gsub("[-]\\s[.]\\s", ".-", gsub("^(\\S*\\s+)", "", y[idx]))
 
-    temp_df$initials[tf] <- gsub(" $", "", temp_df$initials[tf])
-    # adding a space between all initials
-    temp_df$initials[tf] <- lapply(temp_df$initials[tf],
-                                   function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials[tf] <- gsub("$", " ", temp_df$initials[tf])
-    # replace space by full periods
-    temp_df$initials[tf] <-
-      gsub(" ", ".", temp_df$initials[tf])
-    # adding space between each inicials now with full period
-    # put the space after the "\\1 "
-    temp_df$initials[tf] <- lapply(temp_df$initials[tf],
-                                   function(x) trimws(gsub("([[:punct:]])", "\\1 ", x)))
-    temp_df <- data.frame(initials=unlist(temp_df$initials))
-    temp_df$initials <- as.character(temp_df$initials)
-    # Remove first words before first space
-    df$addCollector[tf] <- gsub("^(\\S*)", "", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("^.", "", df$addCollector[tf])
+  # Cleaning examples like "J. R. M Ferreira"
+  tf <- grepl("([[[:upper:]]){1,}\\s", y)
+  idx <- which(tf)[grepl("([[[:upper:]][.])", y[tf])]
+  y[idx] <- gsub("[.][.]\\s", "", gsub("\\s", ". ", y[idx]))
 
-    df$addCollector[tf] <- paste(as.character(temp_df$initials[tf]),
-                                 as.character(df$addCollector[tf]), sep=" ")
+  # Cleaning examples like "C. H. R.  Paula.", "G. Calero Ch."
+  tf <- grepl("\\s[[[:upper:]][[:lower:]]+[.]", y)
+  y[tf] <- gsub("[.]$", "", y[tf])
+  idx <- which(tf)[grepl("\\s[[[:upper:]][[:lower:]]+\\s", y[tf])]
+  y[idx] <- gsub("\\s[^ ]+$", "", y[idx])
 
-    # correcting the examples like "P. P- . H." by first removing the first duplicated initial
-    tfA <- grepl("[-]\\s[.]", df$addCollector[tf])
-    df$addCollector[tf][tfA] <- gsub("^(\\S*\\s+)", "",
-                                     df$addCollector[tf][tfA])
-    df$addCollector[tf][tfA] <- gsub("[-]\\s[.]\\s",".-", df$addCollector[tf][tfA])
-  }
-
-
-  #Cleaning examples like J. R. M Ferreira"
-  tf <- grepl("([[[:upper:]]){1,}\\s", df$addCollector)
-  tfA <- grepl("([[[:upper:]][.])", df$addCollector[tf])
-  if (any(tfA)){
-    df$addCollector[tf][tfA] <- gsub("\\s", ". ", df$addCollector[tf][tfA])
-    df$addCollector[tf][tfA] <- gsub("[.][.]\\s", "", df$addCollector[tf][tfA])
-  }
-
-  #Cleaning examples like "C. H. R.  Paula.", "G. Calero Ch."
-  tf <- grepl("\\s[[[:upper:]][[:lower:]]+[.]", df$addCollector)
-  if (any(tf)){
-    df$addCollector[tf] <- gsub("[.]$", "", df$addCollector[tf])
-
-    tfA <- grepl("\\s[[[:upper:]][[:lower:]]+\\s", df$addCollector[tf])
-    df$addCollector[tf][tfA] <- gsub("\\s[^ ]+$", "", df$addCollector[tf][tfA])
-
-  }
-
-  # Further cleaning examples like "A. .R. Lopes"
-  df$addCollector <- gsub("[.]\\s[.]", ". ", df$addCollector)
-
-  # Removing a full period at the end of the name
-  df$addCollector <- gsub("^[[:space:]]", "", df$addCollector)
-  df$addCollector <- gsub("[[:space:]]{2}", " ", df$addCollector)
-
+  # Further cleaning examples like "A. .R. Lopes" and spaces
+  y <- .gsub_all(y, c("[.]\\s[.]" = ". ", "^[[:space:]]" = "", "[[:space:]]{2}" = " "))
 
   # Cleaning examples like "AORibeiro"
-  tf <- grepl("^[[:upper:]]{2,}[[:lower:]]+", as.character(df$addCollector))
-  if (any(tf)){
-
-    # lets separate the initials from the surname first
-    df$addCollector[tf] <- gsub("([[:upper:]])([[:upper:]][[:lower:]])", "\\1 \\2", df$addCollector[tf])
-
-    # strsplit(df$addCollector[tf],
-    #          split = "(?<=[[:upper:]])(?=[[:upper:]][[:lower:]])", perl = TRUE)[[1]]
-
-    # Adding the period
-    # Extracting initials
-    temp_df <- data.frame(initials=stringr::str_extract_all(df$addCollector[tf], "^(\\S*\\s+)",
-                                                            simplify = TRUE))
-    if(length(temp_df) == 0){
-      temp_df <- data.frame(initials=rep(NA, length(row.names(df))))
-    }
-    temp_df$initials <- as.character(gsub(" $", "", temp_df$initials))
-
-    # adding a space between all initials
-    temp_df$initials <- gsub("([[:upper:]])([[:upper:]])", "\\1 \\2", temp_df$initials)
-
-    # temp_df$initials <- lapply(temp_df$initials,
-    #                                  function(x) trimws(gsub("([[:alpha:]])", " \\1", x)))
-    # adding a space at the end initials
-    temp_df$initials <- gsub("$", " ", temp_df$initials)
-    # replace space by full periods
-    temp_df$initials <- gsub(" ", ". ", temp_df$initials)
-    temp_df$initials <- gsub("\\s$", "", temp_df$initials)
-
-
-    # Remove first words before first space
-    df$addCollector[tf] <- gsub("^(\\S*)", "", df$addCollector[tf])
-    df$addCollector[tf] <- gsub("^.", "", df$addCollector[tf])
-
-    df$addCollector[tf] <- paste(as.character(temp_df$initials),
-                                 as.character(df$addCollector[tf]), sep=" ")
+  tf <- grepl("^[[:upper:]]{2,}[[:lower:]]+", y)
+  if (any(tf)) {
+    # Separate the initials from the surname first
+    y[tf] <- gsub("([[:upper:]])([[:upper:]][[:lower:]])", "\\1 \\2", y[tf])
+    initials <- gsub(" $", "", .extract(y[tf], "^(\\S*\\s+)"))
+    initials <- gsub("([[:upper:]])([[:upper:]])", "\\1 \\2", initials)
+    initials <- gsub("\\s$", "", gsub(" ", ". ", paste0(initials, " ")))
+    y[tf] <- paste(initials, sub("^\\S*.", "", y[tf]))
   }
+
+  df$addCollector <- y
 
   return(df)
 }
@@ -2879,38 +1546,26 @@ std_recordedBy <- function(df = NULL,
 .prenbrclean <- function(df){
 
   # Clean e.g. "Nakajima, J.N. 3101;...", "Harley, R.M. 20580;..."
-  tf <- grepl("[[:digit:]];", df$recordedBy)
-  # Extracting only numbers
-  #https://stackoverflow.com/questions/14543627/extracting-numbers-from-vectors-of-strings
-  #as.character(as.numeric(gsub("\\D", "", df$recordedBy[tf])))
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #1")
-    df$recordNumber[tf] <- ifelse(is.na(df$recordNumber[tf]),
-                                  as.character(as.numeric(gsub("\\D", "", df$recordedBy[tf]))),
-                                  as.character(df$recordNumber[tf]))
-
-    # Replacing or removing numbers for nothing/ deleting numbers
-    df$recordedBy[tf] <- gsub("\\d", "", df$recordedBy[tf])
-  }
-
   # Finding examples like "Martius, C.F.P. von (no. Obs. 1935)"
   # "Martius, C.F.P. von (no. [Obs. 1383])", "Luetzelburg, P. von (no. 142)"
-  tf <- grepl("[(]no[.]\\sObs[.]|[(]no[.]\\s[[]Obs[.]|\\s[(]no[.]\\s", df$recordedBy)
-  # Extracting only numbers
-  #https://stackoverflow.com/questions/14543627/extracting-numbers-from-vectors-of-strings
-  #as.character(as.numeric(gsub("\\D", "", df$recordedBy[tf])))
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #2")
-    df$recordNumber[tf] <- ifelse(is.na(df$recordNumber[tf]),
-                                  as.character(as.numeric(gsub("\\D", "", df$recordedBy[tf]))),
-                                  as.character(df$recordNumber[tf]))
-
-    # Replacing or removing numbers for nothing/ deleting numbers
-    df$recordedBy[tf] <- gsub("\\s[(].+", "", df$recordedBy[tf])
+  # detect, pattern to remove from the name, message number
+  rules <- list(c("[[:digit:]];", "\\d", "#1"),
+                c("[(]no[.]\\sObs[.]|[(]no[.]\\s[[]Obs[.]|\\s[(]no[.]\\s", "\\s[(].+", "#2"))
+  for (r in rules) {
+    tf <- grepl(r[1], df$recordedBy)
+    if (any(tf)) {
+      message(".prenbrclean $recordedBy numbers ", r[3])
+      # Extracting only numbers
+      #https://stackoverflow.com/questions/14543627/extracting-numbers-from-vectors-of-strings
+      df$recordNumber[tf] <- ifelse(is.na(df$recordNumber[tf]),
+                                    as.character(as.numeric(gsub("\\D", "", df$recordedBy[tf]))),
+                                    as.character(df$recordNumber[tf]))
+      df$recordedBy[tf] <- gsub(r[2], "", df$recordedBy[tf])
+    }
   }
 
   # Clean e.g. "8470 G.H. Turner", "67-1240 N.C. Henderson", "1042 J. Campbell-Snelling, M. Chambers"
-  tf <- grepl("^[0-9]\\s[[:upper:]]", df$recordedBy)
+  tf <- grepl("^[0-9][0-9-]*\\s([[:upper:]][.]|[[:upper:]]\\s)", df$recordedBy)
   if (any(tf)) {
     message(".prenbrclean $recordedBy numbers #3")
     df$recordNumber[tf] <- gsub("\\s.+", "", df$recordedBy[tf])
@@ -2918,65 +1573,43 @@ std_recordedBy <- function(df = NULL,
     df$recordedBy[tf] <- sub(".*?\\s", "", df$recordedBy[tf])
   }
 
+  # Clean e.g. "Mark Hughes Sumatra 2011"
+  if (any(grepl("\\sSumatra\\s", df$recordedBy))) {
+    message(".prenbrclean $recordedBy numbers #6")
+    df$recordedBy <- gsub("\\sSumatra.+", "", df$recordedBy)
+  }
+
   # Clean e.g. "C Davis 812"
   tf <- grepl("[[:upper:]][[:lower:]]+\\s[0-9]", df$recordedBy)
   if (any(tf)) {
     message(".prenbrclean $recordedBy numbers #4")
     df$recordedBy[tf] <- gsub(";\\sBiology.*", "", df$recordedBy[tf])
-    # Remove everything BEFORE the last space
-    df$recordNumber[tf] <- sub(".*\\s", "", df$recordedBy[tf])
+    df <- .rm_before_after(df, tf, ".*\\s", "\\s+[^ ]+$")
     df$recordNumber[tf] <- gsub("[[:alpha:]]", NA, df$recordNumber[tf])
-    # Remove everything AFTER the last space
-    df$recordedBy[tf] <- sub("\\s+[^ ]+$", "", df$recordedBy[tf])
   }
 
   # Clean e.g. "C Davis D-14"
   tf <- grepl("[[:upper:]][[:lower:]]+\\s[[:alpha:]][-][0-9]", df$recordedBy)
   if (any(tf)) {
     message(".prenbrclean $recordedBy numbers #5")
-    # Remove everything BEFORE the last space
-    df$recordNumber[tf] <- sub(".*\\s", "", df$recordedBy[tf])
-    # Remove everything AFTER the last space
-    df$recordedBy[tf] <- sub("\\s+[^ ]+$", "", df$recordedBy[tf])
-  }
-
-  # Clean e.g. "Mark Hughes Sumatra 2011"
-  tf <- grepl("\\sSumatra\\s", df$recordedBy)
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #6")
-    df$recordedBy <- gsub("\\sSumatra.+", "", df$recordedBy)
-  }
-
-  # Clean e.g.
-  # Jesus, M.L.B. de 132
-  tf <- grepl("[[:upper:]][.]\\s[[:lower:]]+\\s[0-9]+$", df$recordedBy)
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #7")
     df <- .rm_before_after(df, tf, ".*\\s", "\\s+[^ ]+$")
   }
 
-  # Clean e.g.
-  # Brade, A.C. 17713; Altamiro, B. & Mello Filho, L.E.
-  tf <- grepl("([[:upper:]][.]){1,}\\s[0-9]+;", df$recordedBy)
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #8")
-    df <- .rm_before_after(df, tf, ";.*", "[0-9]+")
-  }
-
-  # Clean e.g.
-  # Conceicao, A.A. 1161
-  tf <- grepl("([[:upper:]][.]){1,}\\s[0-9]+$", df$recordedBy)
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #9")
-    df <- .rm_before_after(df, tf, ".*\\s", "\\s+[^ ]+$")
-  }
-
-  # Clean e.g.
-  # L.M.NASCIMENTO481
-  tf <- grepl("[[:upper:]][.][[:upper:]]+[0-9]+$", df$recordedBy)
-  if (any(tf)) {
-    message(".prenbrclean $recordedBy numbers #10")
-    df <- .rm_before_after(df, tf, ".*[[:upper:]]", "[0-9]+[^ ]+$")
+  # detect, pattern before the number, pattern after the number, message number
+  # "Jesus, M.L.B. de 132"
+  # "Brade, A.C. 17713; Altamiro, B. & Mello Filho, L.E."
+  # "Conceicao, A.A. 1161"
+  # "L.M.NASCIMENTO481"
+  rules <- list(c("[[:upper:]][.]\\s[[:lower:]]+\\s[0-9]+$", ".*\\s", "\\s+[^ ]+$", "#7"),
+                c("([[:upper:]][.]){1,}\\s[0-9]+;", ";.*", "[0-9]+", "#8"),
+                c("([[:upper:]][.]){1,}\\s[0-9]+$", ".*\\s", "\\s+[^ ]+$", "#9"),
+                c("[[:upper:]][.][[:upper:]]+[0-9]+$", ".*[[:upper:]]", "[0-9]+[^ ]+$", "#10"))
+  for (r in rules) {
+    tf <- grepl(r[1], df$recordedBy)
+    if (any(tf)) {
+      message(".prenbrclean $recordedBy numbers ", r[4])
+      df <- .rm_before_after(df, tf, r[2], r[3])
+    }
   }
 
   # Still working on these patterns
@@ -2995,49 +1628,21 @@ std_recordedBy <- function(df = NULL,
   # L. Scur nº174
   # R. Wasum 1335 a
   # Santos, A.K.A 371
-  # Girardi-Deiro, 1174
   # R. Záchia, 1914
   # douglass18 or julia_santos1998
-
-  # remover numeros
   # A. Carvalho (1)
   # J.S. Silva (1); A.L.B. Sartori & F.M. Alves
-
-
-  # tf <- grepl("[(]", df$recordedBy)
-  # if (any(tf)) {
-  #   message(".prenbrclean $recordedBy numbers #10")
-  #   df <- .rm_before_after(df, tf, ".*[[:upper:]]", "[0-9]+[^ ]+$")
-  # }
-  #
-
-  # To get many examples like
-
-  # [15] "Acevedo-Rodríguez 16730"
-  # [16] "Hatschbach Sobrinho 23446"
-  # [17] "Hatschbach Sobrinho 13215"
-  # [18] "Acevedo-Rodríguez 16738"
-  # [19] "Acevedo-Rodríguez 16741"
-  # [20] "Adalardo de Oliveira 2775"
-  # [21] "Hatschbach Sobrinho 2826"
-  # [22] "Fernandes s.n. (EAC 11333)"
-
-  # tf <- !is.na(df$recordNumber)
-  # tftf <- nchar(df$recordNumber[tf]) > 20
-  # if(any(tftf)){
-  #   df$recordNumber[tf][tftf] <- NA
-  #   df$recordNumberOriginal[tf][tftf] <- NA
-  # }
-  #
+  # "Acevedo-Rodríguez 16730", "Hatschbach Sobrinho 23446",
+  # "Adalardo de Oliveira 2775", "Fernandes s.n. (EAC 11333)"
 
   return(df)
 }
 
-# Side function to remove text BEFORE and AFTER a pattern
+# Side function to move the number from the name into $recordNumber
 .rm_before_after <- function(df, tf, pattern_before, pattern_after){
-  # Remove everything BEFORE
+  # Remove everything BEFORE the number
   df$recordNumber[tf] <- sub(pattern_before, "", df$recordedBy[tf])
-  # Remove everything AFTER
+  # Remove everything AFTER the name
   df$recordedBy[tf] <- sub(pattern_after, "", df$recordedBy[tf])
 
   return(df)
@@ -3046,198 +1651,80 @@ std_recordedBy <- function(df = NULL,
 
 #_______________________________________________________________________________
 # Auxiliary function for cleaning numbers at $recordNumber ####
-.std_recordNumber <- function(df,
-                              colnames_df = colnames_df,
-                              colname_recordNumber = colname_recordNumber) {
-
-  if (colname_recordNumber != "recordNumber") {
-    names(df)[colnames_df %in% colname_recordNumber] <- "recordNumber"
-  }
+.std_recordNumber <- function(df) {
 
   message(".std_recordNumber $recordNumber")
 
-  # Clean $recordNumber as character
-  df$recordNumber <- as.character(df$recordNumber)
+  x <- as.character(df$recordNumber)
+  x_original <- df$recordNumberOriginal
 
   # Adding NAs in unumbered collections
-  df$recordNumber[which(df$recordNumber %in% c("s/n",
-                                               "s.n.",
-                                               "s. n.",
-                                               "PCDs/n",
-                                               "S.n.",
-                                               "S.N.",
-                                               "S. N.",
-                                               "s.n",
-                                               "s,n,",
-                                               "sn",
-                                               "SN",
-                                               "N",
-                                               "N.",
-                                               "n",
-                                               "n.",
-                                               "nd",
-                                               "possibly"))] <- NA
+  x[x %in% c("s/n", "s.n.", "s. n.", "PCDs/n", "S.n.", "S.N.", "S. N.", "s.n",
+             "s,n,", "sn", "SN", "N", "N.", "n", "n.", "nd", "possibly")] <- NA
+  x[grepl("s[.]n[.]", x)] <- NA
 
-  tf <- grepl("s[.]n[.]", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
-
-  # Adding NAs  to empty cells
-  df$recordNumber <- gsub("^$", NA, trimws(df$recordNumber))
-
-  # Finding "s/nº"
+  # Adding NAs to empty cells and "s/nº"
   # https://en.wikipedia.org/wiki/ISO/IEC_8859-1
-  tf <- grepl("s/n\\xba", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("s/n\\xba", NA, df$recordNumber[tf])
+  x <- gsub("^$", NA, trimws(x))
+  x <- gsub("s/n\\xba", NA, x)
 
-  }
-
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s([0-9]){1,}\\s[[:print:]]", df$recordNumber)
-  if (any(tf)){
-    # Remove all after last space
-    df$recordNumber[tf] <- gsub("\\s+[^ ]+$", "", df$recordNumber[tf])
-  }
+  # Remove all after last space
+  x <- .gsub_if(x, "[[:upper:]][[:lower:]]+\\s([0-9]){1,}\\s[[:print:]]", "\\s+[^ ]+$", "")
 
   # Remove spaces at beginning and end
-  df$recordNumber <- gsub("^\\s", "", df$recordNumber)
-  df$recordNumber <- gsub("\\s$", "", df$recordNumber)
-  df$recordNumber <- gsub("[[:space:]]{2}", " ", df$recordNumber)
+  x <- .gsub_all(x, c("^\\s" = "", "\\s$" = "", "[[:space:]]{2}" = " "))
 
-  # Remove names
-  tf <- grepl("[A-Za-z]", df$recordNumber)
-  # Now deleting all spaces before the numbers
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub(".+? ", "", df$recordNumber[tf])
-  }
+  # Remove names, i.e. all before the last space
+  x <- .gsub_if(x, "[A-Za-z]", ".+? ", "")
 
   # General cleaning
-  df$recordNumber <- gsub("&nf;", "", df$recordNumber)
-  df$recordNumber <- gsub("^-", "", df$recordNumber)
-  df$recordNumber <- gsub("-$", "", df$recordNumber)
-  df$recordNumber <- gsub("CFCR-", "CFCR", df$recordNumber)
+  x <- .gsub_all(x, c("&nf;" = "", "^-" = "", "-$" = "", "CFCR-" = "CFCR"))
 
   # Deleting leading zeros
   # https://stackoverflow.com/questions/23538576/removing-leading-zeros-from-alphanumeric-characters-in-r
-  tf <- !grepl("/|-", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("(?<![0-9])0+", "",
-                                df$recordNumber[tf], perl = TRUE)
+  tf <- !grepl("/|-", x)
+  x[tf] <- gsub("(?<![0-9])0+", "", x[tf], perl = TRUE)
 
-  }
+  # Finding examples like "Harley22573": keep just numbers
+  x <- .gsub_if(x, "^[[:upper:]][[:lower:]]+([0-9]){1,}$", "[^0-9.]", "")
+  x <- gsub("-Duplicate$", "", x)
 
-  # # Finding examples like "Harley 22573", "Hind PCD3547"
-  # namesA <- grepl("[[:upper:]][[:lower:]]+\\s", df$recordNumber)
-  # #df$recordNumber[namesA]
-  # if (any(namesA)){
-  #   df$recordNumber[namesA] <- gsub("^(\\S*\\s+)", "", df$recordNumber[namesA])
-  #   df$recordNumber[namesA] <- gsub("^(\\S*\\s+)", "", df$recordNumber[namesA])
-  #}
+  tf <- grepl("[[:upper:]][[:lower:]]+\\s([0-9]){1,}\\s[A-Z]", x_original)
+  x[tf] <- gsub("^(\\S*\\s\\S*\\s+)", "", x_original[tf])
+  tfa <- grepl("[0-9]\\s[A-Za-z]", x_original) & !tf
+  x[tfa] <- gsub("\\s", "", x_original[tfa])
 
-  # # Finding examples like "Harley22573"
-  tf <- grepl("^[[:upper:]][[:lower:]]+([0-9]){1,}$", df$recordNumber)
-  if (any(tf)){
-    # Remove all letters and keep numbers
-    df$recordNumber[tf] <- gsub("[^0-9.]", "", df$recordNumber[tf])
-  }
+  x[grepl("^[-]$", x)] <- NA
+  x <- gsub("[#][?][#]", "", x)
 
-  tf <- grepl("-Duplicate$", df$recordNumber)
-  if (any(tf)){
-    # Remove all letters and keep numbers
-    df$recordNumber[tf] <- gsub("-Duplicate", "", df$recordNumber[tf])
-  }
+  # Collection numbers as date
+  x[grepl("([0-9]){1,}[/]([0-9]){1,}[/]([0-9]){1,}", x)] <- NA
 
-  tf <- grepl("[[:upper:]][[:lower:]]+\\s([0-9]){1,}\\s[A-Z]", df$recordNumberOriginal)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("^(\\S*\\s\\S*\\s+)", "", df$recordNumberOriginal[tf])
-  }
+  x <- .gsub_if(x, "[[]|[]]|[(]", c("\\s.+", "[[]", "[]]", "[(]", "[)]"), "")
 
-  tfa <- grepl("[0-9]\\s[A-Za-z]", df$recordNumberOriginal)
-  if (any(tfa)){
-    df$recordNumber[which(tfa - tf == T)] <-
-      gsub("\\s", "", df$recordNumberOriginal[which(tfa - tf == T)])
-  }
-
-  tf <- grepl("^[-]$", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
-
-  tf <- grepl("[#][?][#]", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <-
-      gsub("[#][?][#]", "", df$recordNumber[tf])
-  }
-
-  # cleaning examples of collection number as date
-  tf <- grepl("([0-9]){1,}[/]([0-9]){1,}[/]([0-9]){1,}", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
-
-  tf <- grepl("[[]|[]]|[(]", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("\\s.+", "", df$recordNumber[tf])
-    df$recordNumber[tf] <- gsub("[[]", "", df$recordNumber[tf])
-    df$recordNumber[tf] <- gsub("[]]", "", df$recordNumber[tf])
-    df$recordNumber[tf] <- gsub("[(]", "", df$recordNumber[tf])
-    df$recordNumber[tf] <- gsub("[)]", "", df$recordNumber[tf])
-  }
-
-  tf <- grepl("s[/]n|s[.]n[.]", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
+  x[grepl("s[/]n|s[.]n[.]", x)] <- NA
 
   # Fixing examples "Bullock, AA  712" "Heller, AA  6135"
-  tf <- grepl("[[:lower:]]+[,]\\s([[:upper:]]){1,}\\s[0-9]", df$recordNumberOriginal)
-  if (any(tf)){
-
-    tfa <- grepl("[/]", df$recordNumberOriginal[tf])
-    df$recordNumber[tf][tfa] <- gsub("[^0-9.-/]", "", df$recordNumberOriginal[tf][tfa])
-
-    tfa <- grepl("[-]", df$recordNumberOriginal[tf])
-    df$recordNumber[tf][tfa] <- gsub("[^0-9.-]", "", df$recordNumberOriginal[tf][tfa])
-    df$recordNumber[tf][tfa] <- gsub("^[-]", "", df$recordNumber[tf][tfa])
+  tf <- grepl("[[:lower:]]+[,]\\s([[:upper:]]){1,}\\s[0-9]", x_original)
+  if (any(tf)) {
+    tfa <- tf & grepl("[/]", x_original)
+    x[tfa] <- gsub("[^0-9.-/]", "", x_original[tfa])
+    tfa <- tf & grepl("[-]", x_original)
+    x[tfa] <- gsub("^[-]", "", gsub("[^0-9.-]", "", x_original[tfa]))
   }
 
-  tf <- grepl("[.]\\s|[?]|[*]|p[.]p[.]|[#]", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("[.]\\s|[?]|[*]|p[.]p[.]|[#]", "", df$recordNumber[tf])
-  }
-
-  tf <- grepl("[-]{2}", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("--", "-", df$recordNumber[tf])
-  }
-
-  tf <- grepl("& ", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub("&.*", "", df$recordNumber[tf])
-  }
-
-  tf <- grepl(",", df$recordNumber)
-  if (any(tf)){
-    df$recordNumber[tf] <- gsub(",.*", "", df$recordNumber[tf])
-  }
+  x <- .gsub_all(x, c("[.]\\s|[?]|[*]|p[.]p[.]|[#]" = "", "--" = "-"))
+  x <- .gsub_if(x, "& ", "&.*", "")
+  x <- gsub(",.*", "", x)
 
   # Cleaning collection numbers that appear as dates
-  # We first coerce all the columns to as.Date and see which ones succeed
-  tf <- sapply(df$recordNumber, function(x) !all(is.na(as.Date(as.character(x),format="%d/%m/%Y"))))
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
-  tf <- sapply(df$recordNumber, function(x) !all(is.na(as.Date(as.character(x),format="%m/%d/%Y"))))
-  if (any(tf)){
-    df$recordNumber[tf] <- NA
-  }
+  x[!is.na(as.Date(x, format = "%d/%m/%Y")) |
+      !is.na(as.Date(x, format = "%m/%d/%Y"))] <- NA
 
+  x[x %in% "s"] <- NA
+  x <- gsub("[.]", "", x)
 
-  df$recordNumber[which(df$recordNumber %in% c("s"))] <- NA
-
-  df$recordNumber <- gsub("[.]", "", df$recordNumber)
-
+  df$recordNumber <- x
 
   return(df)
 }

@@ -8,7 +8,7 @@
 #' @noRd
 .namedherbsource <- function(...) {
   nms <- sapply(as.list(substitute(list(...))), deparse)[-1]
-  setNames(list(...), nms)
+  stats::setNames(list(...), nms)
 }
 
 
@@ -37,7 +37,7 @@
 
   if (any(df[[colname_collectionCode]] %in% temp)) {
     tf <- which(df[[colname_collectionCode]] %in% temp)
-    df <- df[-tf,]
+    df <- df[-tf, , drop = FALSE]
   }
 
   return(df)

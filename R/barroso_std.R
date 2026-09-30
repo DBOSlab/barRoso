@@ -6,7 +6,8 @@
 #' A wrapper function that performs integrated cleaning and standardization of
 #' biodiversity collection records using the `barRoso` package. This includes
 #' harmonizing taxonomic, geographic, collector, and type status information,
-#' as well as flagging or removing unvouchered and duplicate specimens.
+#' as well as flagging or removing unvouchered and duplicate specimens. Determiner
+#' names in `identifiedBy` are standardized with the same rules of collector names.
 #'
 #' @details
 #' This function orchestrates several `std_*` functions from the `barRoso`
@@ -24,6 +25,7 @@
 #'             rm_duplicates = FALSE,
 #'             colname_recordedBy = "recordedBy",
 #'             colname_recordNumber = "recordNumber",
+#'             colname_identifiedBy = "identifiedBy",
 #'             colname_continent = "continent",
 #'             colname_country = "country",
 #'             colname_stateProvince = "stateProvince",
@@ -46,6 +48,8 @@
 #' @param rm_duplicates Logical; if `TRUE`, removes duplicate specimens (default: `FALSE`).
 #' @param colname_recordedBy Column name for collector names.
 #' @param colname_recordNumber Column name for collector number.
+#' @param colname_identifiedBy Column name for determiner names. The column is
+#' standardized with [std_identifiedBy()] only when present in the data.
 #' @param colname_collectionCode Column name for collection code.
 #' @param colname_continent Column name for continent.
 #' @param colname_country Column name for country.
@@ -86,6 +90,7 @@ barroso_std <- function(...,
                         rm_duplicates = FALSE,
                         colname_recordedBy = "recordedBy",
                         colname_recordNumber = "recordNumber",
+                        colname_identifiedBy = "identifiedBy",
                         colname_continent = "continent",
                         colname_country = "country",
                         colname_stateProvince = "stateProvince",
@@ -127,13 +132,29 @@ barroso_std <- function(...,
     }
 
     # Fill in with NAs all empty cells
-    dfchunk[[i]] <- as.data.frame(sapply(dfchunk[[i]], function(x) gsub("^$", NA, x)))
+    # Fill in with NAs all empty cells, and cells with the text "NA", as in
+    # spreadsheets exported from R, except in code columns, where "NA" can be
+    # a real code (e.g. countryCode of Namibia, or herbarium acronym)
+    # lapply keeps the data frame even for a chunk of a single record
+    na_text <- !grepl("Code$", names(dfchunk[[i]]))
+    dfchunk[[i]] <- as.data.frame(Map(function(x, na_text) {
+      x <- as.character(x)
+      x[trimws(x) %in% c("", if (na_text) "NA")] <- NA
+      x
+    }, dfchunk[[i]], na_text), check.names = FALSE)
 
     # Standardizing main collector column recordedBy####
     cleaned_df[[i]] <- std_recordedBy(df = dfchunk[[i]],
                                       colname_recordedBy = colname_recordedBy,
                                       colname_recordNumber = colname_recordNumber,
                                       rm_original_column = FALSE)
+
+    # Standardizing determiner column identifiedBy ####
+    if (colname_identifiedBy %in% names(cleaned_df[[i]])) {
+      cleaned_df[[i]] <- std_identifiedBy(df = cleaned_df[[i]],
+                                          colname_identifiedBy = colname_identifiedBy,
+                                          rm_original_column = FALSE)
+    }
 
     # Standardizing herbarium acronyms within the column collectionCode ####
     # The asterisk will mark all collections without acronym from Index Herbariorum
@@ -196,7 +217,8 @@ barroso_std <- function(...,
                                   colname_recordedBy = colname_recordedBy,
                                   colname_recordNumber = colname_recordNumber,
                                   colname_genus = colname_genus,
-                                  colname_specificEpithet = colname_specificEpithet)
+                                  colname_specificEpithet = colname_specificEpithet,
+                                  colname_collectionCode = colname_collectionCode)
   }
 
   if (flag_duplicates & rm_duplicates |
@@ -206,7 +228,8 @@ barroso_std <- function(...,
                                   colname_recordedBy = colname_recordedBy,
                                   colname_recordNumber = colname_recordNumber,
                                   colname_genus = colname_genus,
-                                  colname_specificEpithet = colname_specificEpithet)
+                                  colname_specificEpithet = colname_specificEpithet,
+                                  colname_collectionCode = colname_collectionCode)
   }
 
   return(df)

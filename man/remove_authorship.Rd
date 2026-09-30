@@ -20,13 +20,13 @@ This function removes author citations from scientific names, leaving only
 the genus and species epithet (and optionally infraspecific ranks).
 }
 \examples{
-remove_authors("Quercus alba L.")
+remove_authorship("Quercus alba L.")
 # Returns: "Quercus alba"
 
-remove_authors("Quercus rubra var. borealis (F.Michx.) Farw.")
+remove_authorship("Quercus rubra var. borealis (F.Michx.) Farw.")
 # Returns: "Quercus rubra var. borealis" (if keep_infraspecific = TRUE)
 
-remove_authors(c("Acer saccharum Marshall", "Pinus strobus L."))
+remove_authorship(c("Acer saccharum Marshall", "Pinus strobus L."))
 # Returns: c("Acer saccharum", "Pinus strobus")
 
 }

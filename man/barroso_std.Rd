@@ -12,6 +12,7 @@ barroso_std(...,
             rm_duplicates = FALSE,
             colname_recordedBy = "recordedBy",
             colname_recordNumber = "recordNumber",
+            colname_identifiedBy = "identifiedBy",
             colname_continent = "continent",
             colname_country = "country",
             colname_stateProvince = "stateProvince",
@@ -42,6 +43,9 @@ barroso_std(...,
 \item{colname_recordedBy}{Column name for collector names.}
 
 \item{colname_recordNumber}{Column name for collector number.}
+
+\item{colname_identifiedBy}{Column name for determiner names. The column is
+standardized with \code{\link[=std_identifiedBy]{std_identifiedBy()}} only when present in the data.}
 
 \item{colname_continent}{Column name for continent.}
 
@@ -77,7 +81,8 @@ duplicate handling, and label generation.
 A wrapper function that performs integrated cleaning and standardization of
 biodiversity collection records using the \code{barRoso} package. This includes
 harmonizing taxonomic, geographic, collector, and type status information,
-as well as flagging or removing unvouchered and duplicate specimens.
+as well as flagging or removing unvouchered and duplicate specimens. Determiner
+names in \code{identifiedBy} are standardized with the same rules of collector names.
 }
 \details{
 This function orchestrates several \verb{std_*} functions from the \code{barRoso}

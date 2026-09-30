@@ -99,10 +99,10 @@ std_taxa <- function(df = NULL,
       df$genus[tf] <- NA
     }
 
-    # General cleaning
-    tf <- grepl("^[[:lower:]]", df$genus)
+    # General cleaning, e.g. "ormosia" or "OURATEA" into "Ormosia" and "Ouratea"
+    tf <- grepl("^[[:lower:]]|^[[:upper:]]{2,}$", df$genus)
     if (any(tf)) {
-      df$genus[tf] <- .firstUp(df$genus[tf])
+      df$genus[tf] <- .firstUp(tolower(df$genus[tf]))
     }
 
     # Clean $specificEpithet
@@ -116,18 +116,20 @@ std_taxa <- function(df = NULL,
       df$specificEpithet[tf] <- sub("[&].*|\\s[(].*", "", df$specificEpithet[tf])
     }
 
-    # Clean $specificEpithet when there is only genus
-    del <- c("\\ssp$|\\ssp[.]|\\sSp[.]|\\sindet[.]|^indet$")
+    # Clean $specificEpithet when there is only genus, e.g. "sp.", "spp.", "indet."
+    del <- "(^|\\s)([Ss]pp?|[Ii]ndet)([.]|$)"
     tf <- grepl(del, df$specificEpithet)
     if (any(tf)) {
       df$specificEpithet[tf] <- NA
     }
 
-    del <- c("\\scf$|\\scf[.]|\\scf\\s|\\saff\\s|\\saff$|\\saff[.]|\\sCf[.]|\\sAff[.]|\\sCf$|\\sAff$")
+    # Remove uncertainty qualifiers, e.g. "cf. fastigiata" into "fastigiata"
+    del <- "(^|\\s)([Cc]f|[Aa]ff)([.]|\\s|$)"
     tf <- grepl(del, df$specificEpithet)
     if (any(tf)) {
-      df$specificEpithet[tf] <- gsub(del, " ", df$specificEpithet[tf])
-      df$specificEpithet[tf] <- gsub("\\s\\s", " ", df$specificEpithet[tf])
+      df$specificEpithet[tf] <- trimws(gsub(del, " ", df$specificEpithet[tf]))
+      df$specificEpithet[tf] <- gsub("\\s{2,}", " ", df$specificEpithet[tf])
+      df$specificEpithet[tf][!nzchar(df$specificEpithet[tf])] <- NA
     }
 
   }

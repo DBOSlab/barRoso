@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 960" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0B6FA8"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="960" fill="#F3F8FC"/>
+
+  <!-- Title -->
+  <text x="40" y="42" font-size="24" font-weight="700" fill="#0B3D5C">barRoso workflow</text>
+  <text x="40" y="64" font-size="13" fill="#4F6F86">Combine, standardize and reconcile herbarium specimen records, keeping the original data and flagging rather than deleting</text>
+
+  <!-- Stage headers sit in the left margin, level with their boxes, so the
+       connectors between stages never cross header text. -->
+
+  <!-- ============ STAGE 1: Combine sources ============ -->
+  <text font-size="14" font-weight="700" fill="#0B6FA8">
+    <tspan x="40" y="124">1. COMBINE</tspan>
+    <tspan x="40" y="142">SOURCES</tspan>
+  </text>
+
+  <g font-size="13">
+    <rect x="217" y="106" width="170" height="40" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="302" y="131" text-anchor="middle" fill="#0B3D5C">GBIF</text>
+    <rect x="409" y="106" width="170" height="40" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="494" y="131" text-anchor="middle" fill="#0B3D5C">speciesLink</text>
+    <rect x="601" y="106" width="170" height="40" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="686" y="131" text-anchor="middle" fill="#0B3D5C">REFLORA / JABOT</text>
+    <rect x="793" y="106" width="170" height="40" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="878" y="131" text-anchor="middle" fill="#0B3D5C">SEINet and others</text>
+  </g>
+
+  <!-- sources converge into barroso_cat() -->
+  <g stroke="#0B6FA8" stroke-width="2" fill="none">
+    <line x1="302" y1="146" x2="302" y2="162"/>
+    <line x1="494" y1="146" x2="494" y2="162"/>
+    <line x1="686" y1="146" x2="686" y2="162"/>
+    <line x1="878" y1="146" x2="878" y2="162"/>
+    <line x1="302" y1="162" x2="878" y2="162"/>
+    <line x1="590" y1="162" x2="590" y2="176" marker-end="url(#arrow)"/>
+  </g>
+
+  <rect x="430" y="180" width="320" height="58" rx="10" fill="#E6F1F9" stroke="#5DA3D1" stroke-width="1.5"/>
+  <text x="590" y="205" text-anchor="middle" font-size="13.5" fill="#0B3D5C" font-weight="600">barroso_cat()</text>
+  <text x="590" y="224" text-anchor="middle" font-size="11" fill="#4F6F86">Darwin Core columns · datasource · keep_source</text>
+
+  <line x1="590" y1="238" x2="590" y2="266" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ STAGE 2: Standardize (highlighted, full width) ============ -->
+  <rect x="40" y="270" width="1100" height="222" rx="16" fill="#D5E8F5" stroke="#0082C8" stroke-width="2.5"/>
+  <text x="60" y="298" font-size="14" font-weight="700" fill="#0B3D5C">2. STANDARDIZE WITH barroso_std()</text>
+  <text x="60" y="316" font-size="11" fill="#0B3D5C">one call runs all these functions, which can also be used alone &#8212; the original values are kept in *Original columns</text>
+
+  <g font-size="13.5">
+    <rect x="60" y="330" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="230" y="354" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_recordedBy()</text>
+    <text x="230" y="372" text-anchor="middle" fill="#4F6F86" font-size="11">Collector names and numbers,</text>
+    <text x="230" y="387" text-anchor="middle" fill="#4F6F86" font-size="11">“Cardoso, D.B.O.S.” &#8594; “D. B. O. S. Cardoso”</text>
+
+    <rect x="420" y="330" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="590" y="354" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_identifiedBy()</text>
+    <text x="590" y="372" text-anchor="middle" fill="#4F6F86" font-size="11">Determiner names, all kept in the same cell,</text>
+    <text x="590" y="387" text-anchor="middle" fill="#4F6F86" font-size="11">e.g. “D. Cardoso &amp; L. P. Queiroz”</text>
+
+    <rect x="780" y="330" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="950" y="354" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_collection()</text>
+    <text x="950" y="372" text-anchor="middle" fill="#4F6F86" font-size="11">Herbarium acronyms,</text>
+    <text x="950" y="387" text-anchor="middle" fill="#4F6F86" font-size="11">e.g. “MOBOT_BR” &#8594; “MO”</text>
+
+    <rect x="60" y="408" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="230" y="432" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_place()</text>
+    <text x="230" y="450" text-anchor="middle" fill="#4F6F86" font-size="11">Continent, country, state, county,</text>
+    <text x="230" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">municipality and locality</text>
+
+    <rect x="420" y="408" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="590" y="432" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_taxa()</text>
+    <text x="590" y="450" text-anchor="middle" fill="#4F6F86" font-size="11">Family, genus and specific epithet,</text>
+    <text x="590" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">removing “cf.”, “aff.”, “indet.”</text>
+
+    <rect x="780" y="408" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
+    <text x="950" y="432" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_types()</text>
+    <text x="950" y="450" text-anchor="middle" fill="#4F6F86" font-size="11">Type status,</text>
+    <text x="950" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">removing non-type entries</text>
+  </g>
+
+  <!-- connector: stage 2 -> stage 3 -->
+  <g stroke="#0B6FA8" stroke-width="2" fill="none">
+    <path d="M590,492 L590,512 L465,512 L465,530" marker-end="url(#arrow)"/>
+    <path d="M590,512 L905,512 L905,530" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- ============ STAGE 3: Reconcile & check ============ -->
+  <text font-size="14" font-weight="700" fill="#0B6FA8">
+    <tspan x="40" y="566">3. RECONCILE</tspan>
+    <tspan x="40" y="584">&amp; CHECK</tspan>
+  </text>
+
+  <g font-size="13.5">
+    <rect x="265" y="534" width="400" height="124" rx="10" fill="#E6F1F9" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="465" y="560" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_flag_duplicates()</text>
+    <text x="465" y="582" text-anchor="middle" fill="#4F6F86" font-size="11">Blocks of duplicates across herbaria</text>
+    <text x="465" y="598" text-anchor="middle" fill="#4F6F86" font-size="11">Flags conflicting identifications</text>
+    <text x="465" y="614" text-anchor="middle" fill="#4F6F86" font-size="11">Stores herbaria and catalog numbers, e.g. “MO 2839102 | JBB 13548”</text>
+    <text x="465" y="630" text-anchor="middle" fill="#4F6F86" font-size="11">rm_duplicates: keeps the record identified to species,</text>
+    <text x="465" y="646" text-anchor="middle" fill="#4F6F86" font-size="11">with the most frequent name and the most complete data</text>
+
+    <rect x="705" y="534" width="400" height="124" rx="10" fill="#E6F1F9" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="905" y="560" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_coordinates()</text>
+    <text x="905" y="582" text-anchor="middle" fill="#4F6F86" font-size="11">Following the workflow of the bdc package:</text>
+    <text x="905" y="598" text-anchor="middle" fill="#4F6F86" font-size="11">fixes transposed coordinates, and flags empty,</text>
+    <text x="905" y="614" text-anchor="middle" fill="#4F6F86" font-size="11">out of range, low precision and country-inconsistent</text>
+    <text x="905" y="630" text-anchor="middle" fill="#4F6F86" font-size="11">coordinates, capitals, centroids and institutions</text>
+    <text x="905" y="646" text-anchor="middle" fill="#4F6F86" font-size="11">(see the column coordinateIssues)</text>
+  </g>
+
+  <!-- Result box, fed by both functions -->
+  <path d="M465,658 L465,678 L620,678 L620,694" fill="none" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M905,658 L905,678 L760,678 L760,694" fill="none" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="545" y="698" width="290" height="58" rx="10" fill="#0B6FA8"/>
+  <text x="690" y="723" text-anchor="middle" font-size="13.5" fill="#F2F8FC" font-weight="700">Standardized, reconciled records</text>
+  <text x="690" y="740" text-anchor="middle" font-size="11" fill="#F2F8FC">&#8594; maps, analyses and taxonomic treatments</text>
+
+  <!-- ============ STAGE 4: Labels & descriptions ============ -->
+  <text font-size="14" font-weight="700" fill="#0B6FA8">
+    <tspan x="40" y="810">4. LABELS &amp;</tspan>
+    <tspan x="40" y="828">DESCRIPTIONS</tspan>
+  </text>
+
+  <g font-size="13">
+    <rect x="265" y="790" width="320" height="66" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="425" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_labels()</text>
+    <text x="425" y="832" text-anchor="middle" fill="#4F6F86" font-size="11">Herbarium labels from field books,</text>
+    <text x="425" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">with maps and taxon authorities</text>
+
+    <rect x="625" y="790" width="240" height="66" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="745" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_add_char_template()</text>
+    <text x="745" y="832" text-anchor="middle" fill="#4F6F86" font-size="11">Template of morphological</text>
+    <text x="745" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">characters to fill in</text>
+
+    <rect x="895" y="790" width="245" height="66" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
+    <text x="1017" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_write_taxon_descr()</text>
+    <text x="1017" y="832" text-anchor="middle" fill="#4F6F86" font-size="11">Taxonomic descriptions from</text>
+    <text x="1017" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">morphological data (.docx)</text>
+  </g>
+
+  <line x1="865" y1="823" x2="891" y2="823" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Footer: legend + notes, well below every box -->
+  <g font-size="11.5" fill="#4F6F86">
+    <rect x="40" y="884" width="14" height="14" fill="#D5E8F5" stroke="#0082C8"/>
+    <text x="60" y="895">Run together by barroso_std() (Step 2), which also runs barroso_flag_duplicates()</text>
+    <line x1="660" y1="891" x2="700" y2="891" stroke="#0B6FA8" stroke-width="2" stroke-dasharray="5 3"/>
+    <text x="708" y="895">std_coordinates() is run separately</text>
+  </g>
+
+  <text x="40" y="926" font-size="12" fill="#6A8599">Step 4 works from other inputs: field books for labels, and morphological character spreadsheets for descriptions.</text>
+</svg>

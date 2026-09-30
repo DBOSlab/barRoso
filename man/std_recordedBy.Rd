@@ -39,7 +39,8 @@ columns can be preserved or overwritten.
 
 Specifically, this function performs extensive string cleaning including:
 \itemize{
-\item Converting unicode (e.g., Chinese) to Latin names
+\item Converting Chinese names written as unicode escapes (e.g. \code{"<U+674E><U+5149><U+7167>"})
+into abbreviated Latin names, as Chinese authors cite themselves (e.g. \code{"G. Z. Li"})
 \item Parsing and normalizing collector names split by \code{&}, \code{and}, \code{e}, \code{y}, \verb{;}, \code{|}, etc.
 \item Handling cases of one, two, or more collectors
 \item Cleaning spacing, punctuation, and known collector aliases

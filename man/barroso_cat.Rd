@@ -4,7 +4,7 @@
 \alias{barroso_cat}
 \title{Combine and Harmonize Multiple Herbarium Data Sources}
 \usage{
-barroso_cat(list_sources = list(source1, source2, ...),
+barroso_cat(list_sources = list(),
             keep_source = NULL)
 }
 \arguments{
@@ -18,27 +18,58 @@ NULL, all records are retained.}
 }
 \value{
 A harmonized data frame combining all provided herbarium sources, with
-columns aligned and optionally filtered to resolve duplicate collections.
+columns aligned, a \code{datasource} column, and optionally filtered to resolve
+duplicate collections.
 }
 \description{
 Merges herbarium records from two or more biodiversity data sources into a single
 harmonized data frame. Optionally prioritizes specific sources when duplicates
 are detected across herbaria, retaining records based on a flexible exclusion
-strategy. The function keeps non-Brazilian herbaria records by default, assuming
-higher completeness from global repositories.
+strategy.
 }
 \details{
 This function aligns column structures, removes redundant records from overlapping
 herbaria, and merges all sources into a single output. Duplicate filtering is
-based on matching \code{collectionCode} across sources. Users can specify a preferred
-source (\code{keep_source}) when duplicates exist.
+based on matching \code{collectionCode} across sources: when \code{keep_source} is given,
+the records of any herbarium that is also present in \code{keep_source} are removed
+from the other sources. Herbaria shared only among the other sources are kept.
+
+Raw speciesLink downloads, which use lowercase column names such as
+\code{collector}, \code{collectornumber} and \code{collectioncode}, are automatically renamed
+into Darwin Core terms (\code{recordedBy}, \code{recordNumber}, \code{collectionCode}, etc.).
+Records of the REFLORA Virtual Herbarium and of the JABOT collections, as
+returned by the packages \href{https://dboslab.github.io/refloraR-website/}{refloraR}
+and \href{https://dboslab.github.io/jabotR-website/}{jabotR}, already have Darwin
+Core column names, but some of their values are standardized to match the
+other sources:
+\itemize{
+\item REFLORA: the determiner \code{"Administrador"} (the name of the system user, given
+to most records) is set to \code{NA}; dates like \code{"11/10/2006"} or \code{"--/5/1880"}
+become \code{"2006-10-11"} and \code{"1880-05"}; type status in Latin like \code{"ISOTYPUS"}
+becomes \code{"isotype"}; and the institution of RB becomes \code{"JBRJ"}, as in GBIF
+and JABOT.
+\item JABOT: dates like \code{"2008-9-26"} or \code{"22/4/2020"} become \code{"2008-09-26"} and
+\code{"2020-04-22"}.
+}
+
+The sources are recognized by their content, so their names in \code{list_sources}
+can be any name.
+
+Columns with different types across sources (e.g. numeric \code{year} in one source
+and character in another) are combined as character. A column \code{datasource}
+records the source of each record.
 }
 \examples{
+\dontrun{
+reflora <- refloraR::reflora_records(herbarium = "RB", taxon = "Ormosia", save = FALSE)
+jabot <- jabotR::jabot_records(herbarium = "MBM", taxon = "Ormosia", save = FALSE)
 
 combined_df <- barroso_cat(list_sources = list(GBIF = gbif_data,
                                                speciesLink = splink_data,
-                                               JABOT = jabot_data),
-                                keep_source = "GBIF")
+                                               REFLORA = reflora,
+                                               JABOT = jabot),
+                           keep_source = "GBIF")
+}
 
 }
 \author{
