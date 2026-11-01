@@ -6,6 +6,7 @@
 \usage{
 barroso_dwc(df,
             source = c("auto", "speciesLink", "REFLORA", "JABOT", "GBIF"),
+            as_character = TRUE,
             verbose = TRUE)
 }
 \arguments{
@@ -13,6 +14,9 @@ barroso_dwc(df,
 
 \item{source}{The source of the records: \code{"auto"} (default) to recognize it from
 the data, or one of \code{"speciesLink"}, \code{"REFLORA"}, \code{"JABOT"} or \code{"GBIF"}.}
+
+\item{as_character}{Logical; if \code{TRUE} (default), all columns are returned as
+character, so the outputs of different downloads can always be combined.}
 
 \item{verbose}{Logical; if \code{TRUE}, reports the source and what was changed.}
 }
@@ -52,6 +56,12 @@ checked.
 In all sources, a binomial \code{species} column is created from \code{genus} and
 \code{specificEpithet} when missing, as in GBIF downloads. Columns that are not
 Darwin Core terms are kept unchanged.
+
+By default, all columns are returned as character. Downloads of the same source
+may otherwise have different column types, e.g. \code{coordinatePrecision} as integer
+in a species with values and as character in a species without them, as in
+the speciesLink API used by \code{plantR::rspeciesLink()}, and then they cannot be
+combined with \code{dplyr::bind_rows()}.
 
 \code{\link[=barroso_cat]{barroso_cat()}} runs this function on each source before combining them.
 }

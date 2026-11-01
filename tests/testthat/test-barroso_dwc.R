@@ -79,7 +79,7 @@ test_that("the source is recognized, or can be given", {
   expect_equal(barRoso:::.detect_source(gbif), "GBIF")
   expect_equal(barRoso:::.detect_source(data.frame(x = 1)), "unknown")
   expect_message(r <- barroso_dwc(gbif), "barroso_dwc: GBIF format\\s*$")
-  expect_identical(r, gbif)
+  expect_equal(r, gbif)
 
   # Lowercase Darwin Core names of any source are renamed
   r <- barroso_dwc(data.frame(recordedby = "A", decimallatitude = 1), source = "GBIF",
@@ -91,4 +91,17 @@ test_that("the source is recognized, or can be given", {
 
   expect_error(barroso_dwc(1), "must be a data frame")
   expect_error(barroso_dwc(gbif, source = "JSTOR"), "should be one of")
+})
+
+test_that("outputs of different downloads can always be combined", {
+  # As returned by the speciesLink API, with types depending on the values
+  sp1 <- data.frame(recordedby = "A", coordinateprecision = NA_character_, yearcollected = 2001L)
+  sp2 <- data.frame(recordedby = "B", coordinateprecision = 100L, yearcollected = "2002")
+  expect_error(dplyr::bind_rows(sp1, sp2))
+  r <- dplyr::bind_rows(lapply(list(sp1, sp2), barroso_dwc, verbose = FALSE))
+  expect_equal(r$coordinatePrecision, c(NA, "100"))
+  expect_equal(r$year, c("2001", "2002"))
+
+  r <- barroso_dwc(sp2, as_character = FALSE, verbose = FALSE)
+  expect_type(r$coordinatePrecision, "integer")
 })

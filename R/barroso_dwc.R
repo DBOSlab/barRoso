@@ -35,16 +35,25 @@
 #' `specificEpithet` when missing, as in GBIF downloads. Columns that are not
 #' Darwin Core terms are kept unchanged.
 #'
+#' By default, all columns are returned as character. Downloads of the same source
+#' may otherwise have different column types, e.g. `coordinatePrecision` as integer
+#' in a species with values and as character in a species without them, as in
+#' the speciesLink API used by `plantR::rspeciesLink()`, and then they cannot be
+#' combined with `dplyr::bind_rows()`.
+#'
 #' [barroso_cat()] runs this function on each source before combining them.
 #'
 #' @usage
 #' barroso_dwc(df,
 #'             source = c("auto", "speciesLink", "REFLORA", "JABOT", "GBIF"),
+#'             as_character = TRUE,
 #'             verbose = TRUE)
 #'
 #' @param df A data frame of biodiversity records.
 #' @param source The source of the records: `"auto"` (default) to recognize it from
 #' the data, or one of `"speciesLink"`, `"REFLORA"`, `"JABOT"` or `"GBIF"`.
+#' @param as_character Logical; if `TRUE` (default), all columns are returned as
+#' character, so the outputs of different downloads can always be combined.
 #' @param verbose Logical; if `TRUE`, reports the source and what was changed.
 #'
 #' @return The data frame with Darwin Core column names and value formats.
@@ -62,6 +71,7 @@
 
 barroso_dwc <- function(df,
                         source = c("auto", "speciesLink", "REFLORA", "JABOT", "GBIF"),
+                        as_character = TRUE,
                         verbose = TRUE) {
 
   if (!is.data.frame(df)) {
@@ -96,6 +106,11 @@ barroso_dwc <- function(df,
     df$species <- ifelse(is.na(df$genus) | is.na(df$specificEpithet) | df$specificEpithet == "",
                          NA, paste(df$genus, df$specificEpithet))
     changes <- c(changes, "created species from genus and specificEpithet")
+  }
+
+  # The same type for all columns, so different downloads can be combined
+  if (as_character) {
+    df[] <- lapply(df, function(x) if (is.atomic(x)) as.character(x) else x)
   }
 
   if (verbose) {
