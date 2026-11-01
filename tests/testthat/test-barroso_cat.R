@@ -56,7 +56,7 @@ jabot <- data.frame(
 
 test_that("REFLORA and JABOT values are standardized into Darwin Core formats", {
   expect_message(r <- barroso_cat(list(REFLORA = reflora, JABOT = jabot)),
-                 "REFLORA values standardized")
+                 "REFLORA format, values standardized")
   rf <- r[r$datasource == "REFLORA", ]
   jb <- r[r$datasource == "JABOT", ]
 

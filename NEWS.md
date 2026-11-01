@@ -4,6 +4,7 @@
 
 ### New functions
 
+- `barroso_dwc()`: formats a dataset into Darwin Core column names and values. It recognizes the three layouts of speciesLink downloads (e.g. `collector`, `recordedby`, or proper Darwin Core names), and records from REFLORA, JABOT and GBIF. For speciesLink, it also builds `dateIdentified` from the year, month and day of identification, adds the author to `scientificName`, splits epithets like `"cf. platychila"` or `"stygium var. annulatum"`, and takes a missing `recordNumber` from `fieldNumber`. `barroso_cat()` now runs it on each source.
 - `std_identifiedBy()`: standardizes determiner names in `identifiedBy` with the same rules of `std_recordedBy()`, keeping all determiners in the same cell (e.g. `"D. Cardoso & L. P. Queiroz"`) and removing herbarium acronyms and determination dates. It is now part of `barroso_std()` (new argument `colname_identifiedBy`).
 - `std_coordinates()`: fixes transposed coordinates and flags empty, out of range, country-inconsistent and low precision coordinates, as well as coordinates at capitals, centroids, institutions and zero coordinates, following the workflow of the bdc package. Flags use the bdc columns (e.g. `.coordinates_empty`), plus a readable `coordinateIssues` column.
 
@@ -11,6 +12,8 @@
 
 ### Improvements
 
+- `std_types()`: the same type designation in English, Latin or Portuguese and in any case becomes one lowercase Darwin Core term, e.g. `"ISOTYPE"`, `"Isotypus"` and `"isótipo"` into `"isotype"`, or `"Parátipo"` into `"paratype"`, keeping a taxon name after the term. On the Ormosia and Dalea datasets, 58 spellings become 25.
+- `barroso_std()`: cells with the text `"NA"`, as in spreadsheets exported from R, are now missing values, except in code columns like `countryCode`, where `"NA"` is a real code (Namibia).
 - `barroso_cat()`: standardizes records of REFLORA and JABOT (as returned by refloraR and jabotR): the determiner `"Administrador"` of REFLORA becomes `NA`, dates become ISO 8601 (e.g. `"2/12/1940"` into `"1940-12-02"`), REFLORA type status in Latin becomes Darwin Core terms (`"ISOTYPUS"` into `"isotype"`), and the institution of RB becomes `"JBRJ"`.
 
 - `std_recordedBy()` was refactored into small internal helpers (about half of the code), with the same results for all non-Chinese names of the Ormosia GBIF and speciesLink test datasets, and about twice as fast.

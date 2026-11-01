@@ -53,3 +53,16 @@ test_that("barroso_std splits large datasets into chunks", {
   expect_message(r <- barroso_std(big, flag_duplicates = FALSE), "Chunking big: 11 of 11")
   expect_equal(nrow(r), nrow(big))
 })
+
+test_that("barroso_std treats the text \"NA\" as missing, except in code columns", {
+  df <- herb[1:3, ]
+  df$typeStatus <- c("NA", "Holotype", "")
+  df$locality <- c("NA", "Parque da Cidade", "Rio de Contas")
+  df$countryCode <- "NA"
+  r <- suppressMessages(barroso_std(df, flag_duplicates = FALSE))
+  expect_equal(sum(is.na(r$typeStatus)), 2)
+  expect_true("holotype" %in% r$typeStatus)
+  expect_equal(sum(is.na(r$locality)), 1)
+  # "NA" is the country code of Namibia
+  expect_equal(unique(r$countryCode), "NA")
+})

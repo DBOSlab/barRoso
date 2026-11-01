@@ -34,26 +34,12 @@ based on matching \code{collectionCode} across sources: when \code{keep_source} 
 the records of any herbarium that is also present in \code{keep_source} are removed
 from the other sources. Herbaria shared only among the other sources are kept.
 
-Raw speciesLink downloads, which use lowercase column names such as
-\code{collector}, \code{collectornumber} and \code{collectioncode}, are automatically renamed
-into Darwin Core terms (\code{recordedBy}, \code{recordNumber}, \code{collectionCode}, etc.).
-Records of the REFLORA Virtual Herbarium and of the JABOT collections, as
-returned by the packages \href{https://dboslab.github.io/refloraR-website/}{refloraR}
-and \href{https://dboslab.github.io/jabotR-website/}{jabotR}, already have Darwin
-Core column names, but some of their values are standardized to match the
-other sources:
-\itemize{
-\item REFLORA: the determiner \code{"Administrador"} (the name of the system user, given
-to most records) is set to \code{NA}; dates like \code{"11/10/2006"} or \code{"--/5/1880"}
-become \code{"2006-10-11"} and \code{"1880-05"}; type status in Latin like \code{"ISOTYPUS"}
-becomes \code{"isotype"}; and the institution of RB becomes \code{"JBRJ"}, as in GBIF
-and JABOT.
-\item JABOT: dates like \code{"2008-9-26"} or \code{"22/4/2020"} become \code{"2008-09-26"} and
-\code{"2020-04-22"}.
-}
-
-The sources are recognized by their content, so their names in \code{list_sources}
-can be any name.
+Each source is first formatted into Darwin Core column names and values with
+\code{\link[=barroso_dwc]{barroso_dwc()}}, e.g. the columns of speciesLink downloads (\code{collector},
+\code{collectornumber}, \code{recordedby}) are renamed into \code{recordedBy} and
+\code{recordNumber}, and the dates and type status of REFLORA and JABOT records are
+standardized. The sources are recognized by their content, so their names in
+\code{list_sources} can be any name.
 
 Columns with different types across sources (e.g. numeric \code{year} in one source
 and character in another) are combined as character. A column \code{datasource}

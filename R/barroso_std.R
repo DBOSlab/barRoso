@@ -131,7 +131,6 @@ barroso_std <- function(...,
       message(paste("Chunking", paste(n_df, ":", sep=""), i, "of", l_dfchunk))
     }
 
-    # Fill in with NAs all empty cells
     # Fill in with NAs all empty cells, and cells with the text "NA", as in
     # spreadsheets exported from R, except in code columns, where "NA" can be
     # a real code (e.g. countryCode of Namibia, or herbarium acronym)

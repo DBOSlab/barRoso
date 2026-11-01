@@ -30,6 +30,13 @@ This function is used internally in the \code{barRoso} package to prepare
 type status data for reconciliation and label generation. It corrects known
 placeholder or non-type entries (e.g. “Fotografia do Tipo”, “NOTATYPE”, “Epítipo”)
 and simplifies terms like \code{"sim -"} to ensure clean type labels.
+
+The same type designation written in English, Latin or Portuguese, and in
+any case, is converted into the lowercase Darwin Core term in English, e.g.
+\code{"ISOTYPE"}, \code{"Isotypus"} and \code{"isótipo"} into \code{"isotype"}, \code{"Parátipo"} into
+\code{"paratype"}, and \code{"isosintipo"} into \code{"isosyntype"}. A taxon name after the
+term is kept, e.g. \code{"ISOTYPUS of Ormosia amazonica Ducke"} into
+\code{"isotype of Ormosia amazonica Ducke"}.
 }
 \examples{
 \dontrun{

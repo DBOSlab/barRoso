@@ -14,6 +14,13 @@
 #' placeholder or non-type entries (e.g. “Fotografia do Tipo”, “NOTATYPE”, “Epítipo”)
 #' and simplifies terms like `"sim -"` to ensure clean type labels.
 #'
+#' The same type designation written in English, Latin or Portuguese, and in
+#' any case, is converted into the lowercase Darwin Core term in English, e.g.
+#' `"ISOTYPE"`, `"Isotypus"` and `"isótipo"` into `"isotype"`, `"Parátipo"` into
+#' `"paratype"`, and `"isosintipo"` into `"isosyntype"`. A taxon name after the
+#' term is kept, e.g. `"ISOTYPUS of Ormosia amazonica Ducke"` into
+#' `"isotype of Ormosia amazonica Ducke"`.
+#'
 #' @usage
 #' std_types(df = NULL,
 #'           colname_typeStatus = "typeStatus",

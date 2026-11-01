@@ -2,6 +2,7 @@
 
 export(barroso_add_char_template)
 export(barroso_cat)
+export(barroso_dwc)
 export(barroso_flag_duplicates)
 export(barroso_labels)
 export(barroso_std)

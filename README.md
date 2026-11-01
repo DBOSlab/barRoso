@@ -123,14 +123,17 @@ The functions below follow the order of the [workflow](#workflow).
 
 ### 1. `barroso_cat()`: Combine Herbarium Sources
 
-Merges records from two or more sources into a single data frame. Raw
-speciesLink columns (e.g. `collector`, `collectornumber`) are renamed
-into Darwin Core terms (`recordedBy`, `recordNumber`), and a column
-`datasource` stores the source of each record. With `keep_source`, the
-records of herbaria also present in the preferred source are removed
-from the other sources.
+Merges records from two or more sources into a single data frame. Each
+source is first formatted into Darwin Core with `barroso_dwc()`, which
+can also be used alone: e.g. speciesLink columns like `collector` or
+`recordedby` become `recordedBy`, and the dates and type status of
+REFLORA and JABOT records are standardized. A column `datasource` stores
+the source of each record. With `keep_source`, the records of herbaria
+also present in the preferred source are removed from the other sources.
 
 ``` r
+splink <- barroso_dwc(splink)   # optional, barroso_cat() also runs it
+
 combined <- barroso_cat(list_sources = list(GBIF = gbif,
                                             speciesLink = splink),
                         keep_source = "GBIF")

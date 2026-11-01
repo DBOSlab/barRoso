@@ -4,3 +4,4 @@
 ^barRoso\.Rproj$
 ^\.github$
 ^README\.Rmd$
+^data-raw$

@@ -19,11 +19,30 @@ test_that("std_types removes entries that are not types", {
   df <- data.frame(typeStatus = c("Holotype", "Fotografia do Tipo", "NOTATYPE", "sim - Isótipo",
                                   NA, "Epítipo"))
   r <- suppressMessages(std_types(df, rm_original_column = FALSE))
-  expect_equal(r$typeStatus, c("Holotype", NA, NA, "Isótipo", NA, NA))
+  expect_equal(r$typeStatus, c("holotype", NA, NA, "isotype", NA, NA))
   expect_equal(r$typeStatusOriginal, df$typeStatus)
 
   r <- suppressMessages(std_types(setNames(df, "tipo"), colname_typeStatus = "tipo"))
   expect_equal(names(r), "tipo")
+
+  # Also in other cases, and the text "NA"
+  df <- data.frame(typeStatus = c("possible type", "notatype", "NA", "não"))
+  expect_true(all(is.na(suppressMessages(std_types(df))$typeStatus)))
+})
+
+test_that("std_types unifies type status in English, Latin and Portuguese", {
+  df <- data.frame(typeStatus = c(
+    "ISOTYPE", "Isotype", "isotype", "ISOTYPUS", "Isotypus", "isotipo", "Isótipo",
+    "HOLOTYPUS", "Holótipo", "holotipo", "SYNTYPE", "Syntype", "SYNTYPUS",
+    "ISOSYNTYPUS", "isosintipo", "Parátipo", "paratipo", "Isoparatypus", "isoparatipo",
+    "ISOLECTOTYPUS", "TYPUS", "Tipo", "TYPE", "ORIGINALMATERIAL", "type fragment",
+    "ISOTYPUS of Ormosia amazonica Ducke", "TYPUS of Ormosia excelsa Benth."))
+  r <- suppressMessages(std_types(df))
+  expect_equal(r$typeStatus, c(
+    rep("isotype", 7), rep("holotype", 3), rep("syntype", 3),
+    "isosyntype", "isosyntype", "paratype", "paratype", "isoparatype", "isoparatype",
+    "isolectotype", "type", "type", "type", "original material", "type fragment",
+    "isotype of Ormosia amazonica Ducke", "type of Ormosia excelsa Benth."))
 })
 
 test_that("remove_authorship removes authors, also around infraspecific ranks", {
