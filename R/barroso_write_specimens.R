@@ -34,6 +34,9 @@
 #'   `"en"` (default) or `"pt"`.
 #' @param catalog_numbers Logical. If `TRUE`, the catalog number is written after
 #'   each herbarium, e.g. `"(IAC no. 14754, NY no. 1162464)"` in Brittonia. Default `FALSE`.
+#' @param type_status Logical. If `TRUE`, the type status is written before the
+#'   herbaria of type specimens, e.g. `"(holotype HUEFS; isotypes K, RB)"`. Default
+#'   `FALSE`, as type specimens are usually cited apart from the examined specimens.
 #' @param dir Folder where the .docx file is saved. By default, the folder of
 #'   `path`, or `"results_specimens"` when the records are given in `df`.
 #' @param filename Name of the .docx file. By default, the name of `path` (or
@@ -148,6 +151,7 @@ barroso_write_specimens <- function(df = NULL,
                                     header = NULL,
                                     language = "en",
                                     catalog_numbers = FALSE,
+                                    type_status = FALSE,
                                     dir = NULL,
                                     filename = NULL,
                                     font_family = "Times New Roman",
@@ -197,7 +201,7 @@ barroso_write_specimens <- function(df = NULL,
   }
 
   # One entry per specimen, with all herbaria of its duplicates ####
-  specimens <- .specimen_entries(df, style, language, catalog_numbers)
+  specimens <- .specimen_entries(df, style, language, catalog_numbers, type_status)
 
   # Document ####
   # Formats like "bold", "italic", "smallcaps", "upper" (uppercase letters),
@@ -521,7 +525,7 @@ barroso_write_specimens <- function(df = NULL,
 }
 
 # Build the text of each specimen, merging duplicates ####
-.specimen_entries <- function(df, style, language, catalog_numbers) {
+.specimen_entries <- function(df, style, language, catalog_numbers, type_status = FALSE) {
 
   # Values without double spaces, e.g. "Serra  do Orob\u00f3"
   col <- function(x) gsub("\\s{2,}", " ", .col_or_empty(df, x))
@@ -545,7 +549,7 @@ barroso_write_specimens <- function(df = NULL,
   cat_nr <- col("catalogNumber")
   dup_herb <- col("duplicateCollectionCodes")
   dup_cat <- col("duplicateCatalogNumbers")
-  type <- tolower(col("typeStatus"))
+  type <- if (type_status) tolower(col("typeStatus")) else rep("", nrow(df))
   # Herbarium acronyms of databases not standardized with std_collection,
   # e.g. "F-Seedplants" or "Herbario INPA"
   clean_code <- function(code) {

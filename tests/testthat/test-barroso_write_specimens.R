@@ -43,7 +43,7 @@ test_that("specimens are grouped by species and place, merging duplicates", {
   # Duplicates of Cardoso 1350 in HUEFS and RB are merged, with their types
   expect_equal(concinna, c(
     paste("Salvador, Parque da Cidade, 12°58′17″S, 38°30′05″W,",
-          "5 Mar 2010 (fl), D.B.O.S. Cardoso et al. 1350 (holotype HUEFS; isotype RB)"),
+          "5 Mar 2010 (fl), D.B.O.S. Cardoso et al. 1350 (HUEFS, RB)"),
     paste("Diamantina, Serra do Espinhaço, 18°14′24″S, 43°36′00″W,",
           "Jul 2015, A. Queiroz-Lima & D.B.O.S. Cardoso 88 (DIAM)")))
   crenulata <- strsplit(res$specimens_text[2], "\n")[[1]]
@@ -81,7 +81,7 @@ test_that("each journal has its own format", {
   expect_match(first("Rodriguesia"), "12º58’17”S, 38º30’05”W, 5.III.2010, fl,",
                fixed = TRUE)
   expect_match(first("Brittonia", catalog_numbers = TRUE),
-               "(holotype HUEFS no. HUEFS000123; isotype RB no. 456)", fixed = TRUE)
+               "(HUEFS no. HUEFS000123, RB no. 456)", fixed = TRUE)
 
   # Rodriguesia cites the catalog number of collections without number
   res <- write_specimens(dir, "Rodriguésia")
@@ -155,7 +155,7 @@ test_that("Acta Botanica Brasilica marks the herbaria seen", {
   res <- write_specimens(dir, "Acta Botanica Brasilica")
   expect_match(res$specimens_text[1],
                paste("12°58’17” S, 38°30’05” W, 5 March 2010, (fl),",
-                     "D.B.O.S. Cardoso et al. 1350 (holotype HUEFS!; isotype RB!)"), fixed = TRUE)
+                     "D.B.O.S. Cardoso et al. 1350 (HUEFS!, RB!)"), fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Additional specimens examined: BRAZIL. Bahia:")))
 })
 
@@ -210,7 +210,7 @@ test_that("collector names, et al. and numbers are in the format of each journal
 test_that("Plant Ecology and Evolution separates specimens by bullets", {
   dir <- withr::local_tempdir()
   res <- write_specimens(dir, "Plant Ecology and Evolution")
-  expect_match(res$specimens_text[1], "5 Mar. 2010 (fl); Cardoso et al. 1350; holotype HUEFS; isotype RB",
+  expect_match(res$specimens_text[1], "5 Mar. 2010 (fl); Cardoso et al. 1350; HUEFS, RB",
                fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir),
                              "Additional material examined. BRAZIL \u2022 Bahia, Salvador, Parque")))
@@ -287,4 +287,15 @@ test_that("Botanical Journal of the Linnean Society has dates like 5.iii.2010", 
   expect_match(res$specimens_text[1], "5.iii.2010, D.B.O.S. Cardoso et al. 1350", fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Representative specimens examined: BRAZIL. Bahia: Salvador")))
   expect_equal(barRoso:::.format_date(8, 5, 1994, format = "roman_lower_dots"), "8.v.1994")
+})
+
+test_that("type status is written only with type_status = TRUE", {
+  dir <- withr::local_tempdir()
+  res <- write_specimens(dir)
+  expect_false(any(grepl("holotype|isotype", res$specimens_text)))
+  res <- write_specimens(dir, type_status = TRUE)
+  expect_match(res$specimens_text[1], "1350 (holotype HUEFS; isotype RB)", fixed = TRUE)
+  res <- write_specimens(dir, "Brittonia", type_status = TRUE, catalog_numbers = TRUE)
+  expect_match(res$specimens_text[1], "(holotype HUEFS no. HUEFS000123; isotype RB no. 456)",
+               fixed = TRUE)
 })

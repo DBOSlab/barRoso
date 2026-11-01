@@ -17,6 +17,7 @@ barroso_write_specimens(
   header = NULL,
   language = "en",
   catalog_numbers = FALSE,
+  type_status = FALSE,
   dir = NULL,
   filename = NULL,
   font_family = "Times New Roman",
@@ -59,6 +60,10 @@ Systematic Botany. Use \code{""} to write no header.}
 
 \item{catalog_numbers}{Logical. If \code{TRUE}, the catalog number is written after
 each herbarium, e.g. \code{"(IAC no. 14754, NY no. 1162464)"} in Brittonia. Default \code{FALSE}.}
+
+\item{type_status}{Logical. If \code{TRUE}, the type status is written before the
+herbaria of type specimens, e.g. \code{"(holotype HUEFS; isotypes K, RB)"}. Default
+\code{FALSE}, as type specimens are usually cited apart from the examined specimens.}
 
 \item{dir}{Folder where the .docx file is saved. By default, the folder of
 \code{path}, or \code{"results_specimens"} when the records are given in \code{df}.}
