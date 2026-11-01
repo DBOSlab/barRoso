@@ -17,7 +17,6 @@ barroso_write_specimens(
   header = NULL,
   language = "en",
   catalog_numbers = FALSE,
-  type_status = FALSE,
   dir = NULL,
   filename = NULL,
   font_family = "Times New Roman",
@@ -61,10 +60,6 @@ Systematic Botany. Use \code{""} to write no header.}
 \item{catalog_numbers}{Logical. If \code{TRUE}, the catalog number is written after
 each herbarium, e.g. \code{"(IAC no. 14754, NY no. 1162464)"} in Brittonia. Default \code{FALSE}.}
 
-\item{type_status}{Logical. If \code{TRUE}, the type status is written before the
-herbaria of type specimens, e.g. \code{"(holotype HUEFS; isotypes K, RB)"}. Default
-\code{FALSE}, as type specimens are usually cited apart from the examined specimens.}
-
 \item{dir}{Folder where the .docx file is saved. By default, the folder of
 \code{path}, or \code{"results_specimens"} when the records are given in \code{df}.}
 
@@ -95,7 +90,7 @@ from other sources, e.g. speciesLink. The columns used are \code{species},
 \code{country}, \code{stateProvince}, \code{municipality}, \code{locality}, \code{decimalLatitude},
 \code{decimalLongitude}, \code{minimumElevationInMeters}, \code{maximumElevationInMeters},
 \code{day}, \code{month}, \code{year}, \code{reproductiveCondition}, \code{recordedBy}, \code{addCollector},
-\code{recordNumber}, \code{collectionCode}, \code{catalogNumber} and \code{typeStatus}; and, when
+\code{recordNumber}, \code{collectionCode} and \code{catalogNumber}; and, when
 present, the columns of \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}} with all herbaria of each
 specimen (\code{duplicateCollectionCodes}, \code{duplicateCatalogNumbers}). The author
 of each species comes from \code{scientificNameAuthorship}, \code{acceptedScientificName}

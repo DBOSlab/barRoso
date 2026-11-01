@@ -40,7 +40,7 @@ test_that("specimens are grouped by species and place, merging duplicates", {
   # The record without species is skipped
   expect_equal(res$species_name, c("Ouratea concinna", "Ouratea crenulata"))
   concinna <- strsplit(res$specimens_text[1], "\n")[[1]]
-  # Duplicates of Cardoso 1350 in HUEFS and RB are merged, with their types
+  # Duplicates of Cardoso 1350 in HUEFS and RB are merged, without type status
   expect_equal(concinna, c(
     paste("Salvador, Parque da Cidade, 12°58′17″S, 38°30′05″W,",
           "5 Mar 2010 (fl), D.B.O.S. Cardoso et al. 1350 (HUEFS, RB)"),
@@ -143,9 +143,6 @@ test_that("coordinates, dates, collectors and herbaria are formatted", {
                                            c("Etal", NA, "A. M. Giulietti"), style),
                list(name = c("D.B.O.S. Cardoso", "Anonymous", "R.M. Harley & A.M. Giulietti"),
                     etal = c("et al.", "", "")))
-  expect_equal(barRoso:::.format_herbaria(c("K", "RB"), character(0), "K"), "K, RB")
-  expect_equal(barRoso:::.format_herbaria(c("HUEFS", "K", "RB"), c("isotype K", "isotype RB"), "K"),
-               "isotypes K, RB; HUEFS")
   expect_equal(barRoso:::.format_elevation(c("650", "650", ""), c("700", "", ""), " m"),
                c("650–700 m", "650 m", ""))
 })
@@ -287,15 +284,4 @@ test_that("Botanical Journal of the Linnean Society has dates like 5.iii.2010", 
   expect_match(res$specimens_text[1], "5.iii.2010, D.B.O.S. Cardoso et al. 1350", fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Representative specimens examined: BRAZIL. Bahia: Salvador")))
   expect_equal(barRoso:::.format_date(8, 5, 1994, format = "roman_lower_dots"), "8.v.1994")
-})
-
-test_that("type status is written only with type_status = TRUE", {
-  dir <- withr::local_tempdir()
-  res <- write_specimens(dir)
-  expect_false(any(grepl("holotype|isotype", res$specimens_text)))
-  res <- write_specimens(dir, type_status = TRUE)
-  expect_match(res$specimens_text[1], "1350 (holotype HUEFS; isotype RB)", fixed = TRUE)
-  res <- write_specimens(dir, "Brittonia", type_status = TRUE, catalog_numbers = TRUE)
-  expect_match(res$specimens_text[1], "(holotype HUEFS no. HUEFS000123; isotype RB no. 456)",
-               fixed = TRUE)
 })

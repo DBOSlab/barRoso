@@ -34,9 +34,6 @@
 #'   `"en"` (default) or `"pt"`.
 #' @param catalog_numbers Logical. If `TRUE`, the catalog number is written after
 #'   each herbarium, e.g. `"(IAC no. 14754, NY no. 1162464)"` in Brittonia. Default `FALSE`.
-#' @param type_status Logical. If `TRUE`, the type status is written before the
-#'   herbaria of type specimens, e.g. `"(holotype HUEFS; isotypes K, RB)"`. Default
-#'   `FALSE`, as type specimens are usually cited apart from the examined specimens.
 #' @param dir Folder where the .docx file is saved. By default, the folder of
 #'   `path`, or `"results_specimens"` when the records are given in `df`.
 #' @param filename Name of the .docx file. By default, the name of `path` (or
@@ -52,7 +49,7 @@
 #' `country`, `stateProvince`, `municipality`, `locality`, `decimalLatitude`,
 #' `decimalLongitude`, `minimumElevationInMeters`, `maximumElevationInMeters`,
 #' `day`, `month`, `year`, `reproductiveCondition`, `recordedBy`, `addCollector`,
-#' `recordNumber`, `collectionCode`, `catalogNumber` and `typeStatus`; and, when
+#' `recordNumber`, `collectionCode` and `catalogNumber`; and, when
 #' present, the columns of [barroso_flag_duplicates()] with all herbaria of each
 #' specimen (`duplicateCollectionCodes`, `duplicateCatalogNumbers`). The author
 #' of each species comes from `scientificNameAuthorship`, `acceptedScientificName`
@@ -151,7 +148,6 @@ barroso_write_specimens <- function(df = NULL,
                                     header = NULL,
                                     language = "en",
                                     catalog_numbers = FALSE,
-                                    type_status = FALSE,
                                     dir = NULL,
                                     filename = NULL,
                                     font_family = "Times New Roman",
@@ -201,7 +197,7 @@ barroso_write_specimens <- function(df = NULL,
   }
 
   # One entry per specimen, with all herbaria of its duplicates ####
-  specimens <- .specimen_entries(df, style, language, catalog_numbers, type_status)
+  specimens <- .specimen_entries(df, style, language, catalog_numbers)
 
   # Document ####
   # Formats like "bold", "italic", "smallcaps", "upper" (uppercase letters),
@@ -525,7 +521,7 @@ barroso_write_specimens <- function(df = NULL,
 }
 
 # Build the text of each specimen, merging duplicates ####
-.specimen_entries <- function(df, style, language, catalog_numbers, type_status = FALSE) {
+.specimen_entries <- function(df, style, language, catalog_numbers) {
 
   # Values without double spaces, e.g. "Serra  do Orob\u00f3"
   col <- function(x) gsub("\\s{2,}", " ", .col_or_empty(df, x))
@@ -549,7 +545,6 @@ barroso_write_specimens <- function(df = NULL,
   cat_nr <- col("catalogNumber")
   dup_herb <- col("duplicateCollectionCodes")
   dup_cat <- col("duplicateCatalogNumbers")
-  type <- if (type_status) tolower(col("typeStatus")) else rep("", nrow(df))
   # Herbarium acronyms of databases not standardized with std_collection,
   # e.g. "F-Seedplants" or "Herbario INPA"
   clean_code <- function(code) {
@@ -573,8 +568,6 @@ barroso_write_specimens <- function(df = NULL,
     data.frame(code = clean_code(code), nr = nr)
   })
   herb <- clean_code(herb)
-  herb_type <- ifelse(nzchar(type) & !is.na(herb) & nzchar(herb),
-                      paste0(type, " ", herb, style$herbarium_mark), "")
 
   # Fields of each specimen ####
   coords <- mapply(.format_coordinates,
@@ -631,7 +624,6 @@ barroso_write_specimens <- function(df = NULL,
                        hp$nr, sprintf(style$catalog, hp$code, hp$nr)),
                 hp$code)
     h <- paste0(h, if (nrow(hp)) style$herbarium_mark)
-    tp <- unique(herb_type[i][nzchar(herb_type[i])])
     data.frame(species = df$species[i[1]],
                country = first(country, i), country_label = first(country_label, i),
                state = first(state, i), state_label = first(state_label, i),
@@ -640,7 +632,7 @@ barroso_write_specimens <- function(df = NULL,
                year = first(col("year"), i), month = first(col("month"), i),
                day = first(col("day"), i), coll_name = collector$name[i[1]],
                coll_etal = collector$etal[i[1]], coll_number = number[i[1]],
-               herbaria = .format_herbaria(h, tp, herb[i]))
+               herbaria = paste(h, collapse = ", "))
   })
   sp <- do.call(rbind, rows)
 
@@ -674,24 +666,6 @@ barroso_write_specimens <- function(df = NULL,
   o <- order(!nzchar(sp$country), sp$country, !nzchar(sp$state), sp$state, sp$muni,
              num_or(sp$year), num_or(sp$month), num_or(sp$day), sp$collector)
   sp[o, , drop = FALSE]
-}
-
-# Herbaria of a specimen, with types first, e.g. "holotype HUEFS; isotypes K, RB; NY"
-.format_herbaria <- function(herbaria, herb_type, herb) {
-  if (length(herbaria) == 0) return("")
-  if (length(herb_type) == 0) return(paste(herbaria, collapse = ", "))
-  terms <- sub("\\s+\\S+$", "", herb_type)
-  codes <- sub(".*\\s", "", herb_type)
-  # Herbaria with their catalog numbers, e.g. "holotype HUEFS no. 123"
-  first_code <- sub("[!]$", "", sub("\\s.*", "", herbaria))
-  codes <- sub("[!]$", "", codes)
-  types <- vapply(unique(terms), function(t) {
-    h <- unique(codes[terms == t])
-    h <- c(herbaria[first_code %in% h], h[!h %in% first_code])
-    paste(if (length(h) > 1 && !grepl("s$", t)) paste0(t, "s") else t, paste(h, collapse = ", "))
-  }, "", USE.NAMES = FALSE)
-  others <- herbaria[!first_code %in% codes]
-  paste(c(types, if (length(others)) paste(others, collapse = ", ")), collapse = "; ")
 }
 
 # Collector names as cited in each journal, from names standardized by
