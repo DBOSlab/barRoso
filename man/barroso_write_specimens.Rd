@@ -10,6 +10,7 @@ barroso_write_specimens(
   sheet = 1,
   species = NULL,
   journal = c("Systematic Botany", "Acta Botanica Brasilica",
+    "Annals of the Missouri Botanical Garden",
     "Botanical Journal of the Linnean Society", "Brazilian Journal of Botany",
     "Brittonia", "Candollea", "Edinburgh Journal of Botany", "Kew Bulletin",
     "Nordic Journal of Botany", "Phytotaxa", "Plant Ecology and Evolution", "PhytoKeys",
@@ -39,7 +40,8 @@ If \code{NULL} (default), the specimens of all species are written.}
 
 \item{journal}{Name of the journal whose format is followed, as in recent
 papers of the journal: \code{"Systematic Botany"} (default),
-\code{"Acta Botanica Brasilica"}, \code{"Botanical Journal of the Linnean Society"},
+\code{"Acta Botanica Brasilica"}, \code{"Annals of the Missouri Botanical Garden"},
+\code{"Botanical Journal of the Linnean Society"},
 \code{"Brazilian Journal of Botany"}, \code{"Brittonia"},
 \code{"Candollea"}, \code{"Edinburgh Journal of Botany"}, \code{"Kew Bulletin"},
 \code{"Nordic Journal of Botany"}, \code{"Phytotaxa"}, \code{"PhytoKeys"},
@@ -132,6 +134,9 @@ PhytoKeys: Additional specimens examined. Brazil. Bahia: Mun. Abaíra, Catolés,
 Willdenowia: Brazil: Bahia: Municipality Abaíra, Catolés, 13°23'S, 41°48'W, 1200 m,
   8 May 1994, D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
   Municipality Mucugê, ... . — Minas Gerais: ... (header once, before all species)
+Annals of the Missouri Botanical Garden: Additional specimens examined. BRAZIL.
+  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl), D. B. O. S.
+  Cardoso et al. 2066 (HUEFS, RB).
 Botanical Journal of the Linnean Society: Representative specimens examined: BRAZIL.
   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994, D.B.O.S. Cardoso et al.
   2066 (HUEFS, RB); Serra do Barbado, ...

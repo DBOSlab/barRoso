@@ -285,3 +285,11 @@ test_that("Botanical Journal of the Linnean Society has dates like 5.iii.2010", 
   expect_true(any(startsWith(docx_lines(dir), "Representative specimens examined: BRAZIL. Bahia: Salvador")))
   expect_equal(barRoso:::.format_date(8, 5, 1994, format = "roman_lower_dots"), "8.v.1994")
 })
+
+test_that("Annals of the Missouri Botanical Garden has states in bold", {
+  dir <- withr::local_tempdir()
+  res <- write_specimens(dir, "Annals of the Missouri Botanical Garden")
+  expect_match(res$specimens_text[1], "5 Mar. 2010 (fl), D. B. O. S. Cardoso et al. 1350 (HUEFS, RB)",
+               fixed = TRUE)
+  expect_true(any(startsWith(docx_lines(dir), "Additional specimens examined. BRAZIL. Bahia: Salvador")))
+})

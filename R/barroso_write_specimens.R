@@ -17,7 +17,8 @@
 #'   If `NULL` (default), the specimens of all species are written.
 #' @param journal Name of the journal whose format is followed, as in recent
 #'   papers of the journal: `"Systematic Botany"` (default),
-#'   `"Acta Botanica Brasilica"`, `"Botanical Journal of the Linnean Society"`,
+#'   `"Acta Botanica Brasilica"`, `"Annals of the Missouri Botanical Garden"`,
+#'   `"Botanical Journal of the Linnean Society"`,
 #'   `"Brazilian Journal of Botany"`, `"Brittonia"`,
 #'   `"Candollea"`, `"Edinburgh Journal of Botany"`, `"Kew Bulletin"`,
 #'   `"Nordic Journal of Botany"`, `"Phytotaxa"`, `"PhytoKeys"`,
@@ -91,6 +92,9 @@
 #' Willdenowia: Brazil: Bahia: Municipality Abaíra, Catolés, 13°23'S, 41°48'W, 1200 m,
 #'   8 May 1994, D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
 #'   Municipality Mucugê, ... . — Minas Gerais: ... (header once, before all species)
+#' Annals of the Missouri Botanical Garden: Additional specimens examined. BRAZIL.
+#'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl), D. B. O. S.
+#'   Cardoso et al. 2066 (HUEFS, RB).
 #' Botanical Journal of the Linnean Society: Representative specimens examined: BRAZIL.
 #'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994, D.B.O.S. Cardoso et al.
 #'   2066 (HUEFS, RB); Serra do Barbado, ...
@@ -134,6 +138,7 @@ barroso_write_specimens <- function(df = NULL,
                                     species = NULL,
                                     journal = c("Systematic Botany",
                                                 "Acta Botanica Brasilica",
+                                                "Annals of the Missouri Botanical Garden",
                                                 "Botanical Journal of the Linnean Society",
                                                 "Brazilian Journal of Botany",
                                                 "Brittonia", "Candollea",
@@ -442,6 +447,9 @@ barroso_write_specimens <- function(df = NULL,
     header = "Additional specimens analysed", header_format = "bold",
     header_punct_format = "bold", primes = c("'", "\""), date = "full",
     phenology = NULL, collector = "spaced"),
+  "Annals of the Missouri Botanical Garden" = list(
+    state_format = "bold", state_colon_format = TRUE, date = "abbr_dot",
+    collector = "spaced"),
   "Botanical Journal of the Linnean Society" = list(
     header = "Representative specimens examined", header_punct = ":", header_end = " ",
     state_format = "bold", date = "roman_lower_dots", phenology = NULL,
