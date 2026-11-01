@@ -72,6 +72,8 @@ std_identifiedBy <- function(df = NULL,
 # Standardize a vector of determiners, keeping all names in the same element ####
 .std_determiners <- function(x) {
 
+  # Chinese characters into unicode escapes, as in std_recordedBy
+  x <- .han_chars_to_escapes(x)
   x <- .predetclean(x)
 
   # Split each element into single names

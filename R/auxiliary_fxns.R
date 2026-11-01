@@ -13,31 +13,27 @@
 
 
 #_______________________________________________________________________________
-# Delete all records associated with just wood, seed or spirit collections  ####
+# Delete all records of wood, seed, fruit, pollen or spirit collections, and ####
+# observations without a specimen
 #' @keywords internal
 #' @noRd
 .delunvouchered <- function(df,
                             colname_collectionCode) {
 
-  temp <- c("BCTW",
-            "INPAW",
-            "SPFW",
-            "BOTUW",
-            "BCTW",
-            "HDJFW",
-            "HTSAW",
-            "HVASFW",
-            "JOIW",
-            "HTSA-CARPOTECA",
-            "UFP-CARPOTECA",
-            "INPA-CARPOTECA",
-            "Seeds",
-            "Economic Botany Collection",
-            "Spirit Collection")
+  # Wood collections like "BCTw", "INPAw", "MADW", carpological collections like
+  # "INPA-Carpoteca", "BHZBcarpo", "MFS-FRUTOS", and other unvouchered collections
+  code <- trimws(as.character(df[[colname_collectionCode]]))
+  temp <- paste0("^(BCT|INPA|SPF|BOTU|HDJF|HTSA|HVASF|JOI|MEXU|FCAB|MAD|F)w$|",
+                 "carpo|-FRUTOS$|^Seeds?$|^Economic Botany|^Spirit|POLLEN")
+  tf <- grepl(temp, code, ignore.case = TRUE)
 
-  if (any(df[[colname_collectionCode]] %in% temp)) {
-    tf <- which(df[[colname_collectionCode]] %in% temp)
-    df <- df[-tf, , drop = FALSE]
+  # Records of observations, e.g. "HUMAN_OBSERVATION", "MachineObservation"
+  if ("basisOfRecord" %in% names(df)) {
+    tf <- tf | grepl("observation", df$basisOfRecord, ignore.case = TRUE)
+  }
+
+  if (any(tf)) {
+    df <- df[!tf, , drop = FALSE]
   }
 
   return(df)

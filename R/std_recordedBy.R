@@ -85,6 +85,22 @@ std_recordedBy <- function(df = NULL,
   df$recordedBy <- .decode_html(df$recordedBy)
   df$recordedBy <- gsub("^Collector[(]s[)]:\\s*(unknown,\\s*)?", "", df$recordedBy)
 
+  # Identifiers after the names, e.g. "E. Marcano (Wikidata Q5850623)" or
+  # "Rodriguez,D. et al. 2688 [DR-02688]"
+  df$recordedBy <- gsub("\\s*[(]?Wikidata\\s+Q[0-9]+[)]?|\\s*\\[[A-Z]{1,4}-[0-9]+\\]", "",
+                        df$recordedBy)
+
+  # Chinese names written in Chinese characters, e.g. "\u4e01\u5e7f\u5947",
+  # into unicode escapes like "<U+4E01><U+5E7F><U+5947>", converted below
+  df$recordedBy <- .han_chars_to_escapes(df$recordedBy)
+
+  # Given names in lowercase, e.g. "katherine Bravo", and abbreviated with a
+  # full period and no space, e.g. "Edm.Pereira", "Wim.Jacobs" into "E. Pereira"
+  df$recordedBy <- gsub("^(\\p{Ll})(\\p{Ll}{2,}\\s+\\p{Lu}\\p{Ll})", "\\U\\1\\E\\2",
+                        df$recordedBy, perl = TRUE)
+  df$recordedBy <- gsub("^(\\p{Lu})\\p{Ll}{1,3}[.]\\s*(\\p{Lu}\\p{Ll}{2,})(?=$|\\s*[;,&])", "\\1. \\2",
+                        df$recordedBy, perl = TRUE)
+
   # Links to useful codes and regular expressions for filtering char patterns
   # by using regular expressions [regex]
   # https://rstudio.com/wp-content/uploads/2016/09/RegExCheatsheet.pdf
@@ -143,11 +159,16 @@ std_recordedBy <- function(df = NULL,
 
   #_____________________________________________________________________________
   # Putting back original collectors when written as "Expeditions", etc
-  tf <- grepl("\\sExpedition|^Flora\\sof\\s|\\sProject", df$recordedByOriginal)
+  # or teams and herbaria, e.g. "Equipe do Jardim Botanico de Brasilia",
+  # "Belem Herbarium", "Herb. Amazonas", "Neth.Ind.For.Service", "Kings Collector"
+  tf <- grepl(paste0("\\sExpedition|^Flora\\sof\\s|\\sProject|\\bHerb([.]|ari)|^Equipe\\s|",
+                     "^Pessoal\\s|\\sTeam$|Service$|^Kings Collector$|^R[e\u00e9]serv[ea]\\s"),
+              df$recordedByOriginal)
   if (any(tf)) {
     df$recordedBy[tf] <- df$recordedByOriginal[tf]
     df$recordNumber[tf] <- df$recordNumberOriginal[tf]
   }
+  teams <- tf
 
   #_____________________________________________________________________________
   # Particles before surnames, based on the original collector column ####
@@ -156,6 +177,10 @@ std_recordedBy <- function(df = NULL,
   #_____________________________________________________________________________
   # Final cleaning of the collector names
   df$recordedBy <- .final_collclean(df$recordedBy)
+  df$recordedBy[teams] <- df$recordedByOriginal[teams]
+  # Hyphenated given names ending in a single letter, e.g. "C. -I Peng" into "C.-I. Peng"
+  df$recordedBy <- gsub("\\b(\\p{Lu})[.]\\s-(\\p{Lu})(\\s|$)", "\\1.-\\2.\\3",
+                        df$recordedBy, perl = TRUE)
   if (any(han)) df$recordedBy[han] <- han_names
 
   #_____________________________________________________________________________
@@ -1342,6 +1367,38 @@ std_recordedBy <- function(df = NULL,
   df$addCollector <- .han_to_latin(df$addCollector)
 
   return(df)
+}
+
+# Chinese characters into unicode escapes, e.g. "\u674e\u5149\u7167" into
+# "<U+674E><U+5149><U+7167>", so they are converted as the escapes of GBIF data
+# When the name is also written in Latin, e.g. "K.C.Yang \u694a\u570b\u798e",
+# "Peng, Ching-I (\u5f6d\u93e1\u6bc5)", keep just the Latin name, as cited by the
+# collector
+.han_chars_to_escapes <- function(x) {
+  tf <- !is.na(x) & grepl("\\p{Han}", x, perl = TRUE)
+  if (!any(tf)) return(x)
+
+  y <- x[tf]
+  latin <- grepl("[A-Za-z]{2,}", y)
+  y[latin] <- gsub("[(\\[\uff08]?\\s*[\\p{Han}\u3001\uff0c]+\\s*[)\\]\uff09]?", " ", y[latin],
+                   perl = TRUE)
+  # Leading codes, e.g. "3D28 XIE QICONG", and separators left at the ends
+  y[latin] <- sub("^[0-9][0-9A-Z]*\\s+", "", y[latin])
+  y[latin] <- trimws(gsub("\\s+", " ", gsub("^[/,;[:space:]]+|[/,;[:space:]]+$", "", y[latin])))
+
+  # Chinese commas "\uff0c" and semicolons "\uff1b" as "\u3001", and the ideographic space
+  y[!latin] <- vapply(y[!latin], function(s) {
+    cp <- utf8ToInt(s)
+    if (anyNA(cp)) return(s)
+    cp[cp %in% c(0xFF0C, 0xFF1B)] <- 0x3001
+    cp[cp == 0x3000] <- 0x20
+    cp <- cp[cp <= 0xFFFF]
+    paste(ifelse(cp > 0x2E7F, sprintf("<U+%04X>", cp),
+                 vapply(cp, intToUtf8, character(1))), collapse = "")
+  }, character(1), USE.NAMES = FALSE)
+
+  x[tf] <- y
+  x
 }
 
 # Names written just with unicode escapes, e.g. "<U+674E><U+5149><U+7167>"

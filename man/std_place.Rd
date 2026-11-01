@@ -49,7 +49,9 @@ reconciliation, duplicate detection, and label generation across different
 biodiversity databases. It ensures consistency of location fields by correcting
 common mistakes and variations. Country names are translated to English and
 harmonized using \code{countrycode} Brazilian and U.S. state abbreviations are
-expanded to full names.
+expanded to full names. Words for municipality in \code{county} and \code{municipality},
+e.g. \code{"Manaus Mun."}, \code{"Mun. de Castelo"}, \code{"Município de Mucugê"} or
+\code{"Arriaga Municipio"}, are removed, leaving just the name.
 }
 \examples{
 \dontrun{

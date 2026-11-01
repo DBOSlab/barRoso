@@ -28,7 +28,8 @@ Imports:
     openxlsx,
     readxl,
     tidyr,
-    lcvplants
+    lcvplants,
+    xml2
 Suggests:
     bdc,
     CoordinateCleaner,

@@ -49,3 +49,14 @@ test_that("Venezuela is spelled correctly and gets its continent", {
   expect_equal(r$country, c("Venezuela", "Venezuela"))
   expect_equal(r$continent, c("South America", "South America"))
 })
+
+test_that("std_place removes words for municipality from county and municipality", {
+  df <- data.frame(country = "Brazil",
+                   county = c("Manaus Mun.", "Mun. de Castelo", "Novo Mundo", "MUN. ITACOATIARA"),
+                   municipality = c("Município de Mucugê", "Arriaga Municipio",
+                                    "Linhares (Município)", "Mpio. Ocosingo"),
+                   locality = "Mata")
+  r <- suppressMessages(std_place(df))
+  expect_equal(r$county, c("Manaus", "Castelo", "Novo Mundo", "Itacoatiara"))
+  expect_equal(r$municipality, c("Mucugê", "Arriaga", "Linhares", "Ocosingo"))
+})

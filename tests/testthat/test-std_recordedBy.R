@@ -117,3 +117,23 @@ test_that("collector numbers are standardized", {
                                        rm_original_column = TRUE))
   expect_false(any(grepl("Original$", names(r))))
 })
+
+test_that("std_recordedBy converts names written in Chinese characters", {
+  r <- std_coll(c("丁广奇、余莲", "周根生等",
+                  "K.C.Yang 楊國禎", "Peng, Ching-I (彭鏡毅)",
+                  "780植被组", "丘，李，农"))
+  expect_equal(r$recordedBy, c("G. Q. Ding", "G. S. Zhou", "K. C. Yang", "C.-I. Peng",
+                               "780 Zhi Bei Zu", "Qiu"))
+  expect_equal(r$addCollector, c("L. Yu", "et al.", NA, NA, NA, "et al."))
+
+  expect_equal(suppressMessages(barRoso:::.std_determiners(
+    c("周以良 杨衔晋", "T.C.Huang 黃增泉"))),
+    c("Y. L. Zhou & X. J. Yang", "T. C. Huang"))
+})
+
+test_that("std_recordedBy cleans identifiers, lowercase and team names", {
+  r <- std_coll(c("E. Marcano (Wikidata Q5850623)", "katherine Bravo", "Wim.Jacobs",
+                  "Belem Herbarium", "Equipe do Jardim Botanico de Brasilia"))
+  expect_equal(r$recordedBy, c("E. Marcano", "K. Bravo", "W. Jacobs", "Belem Herbarium",
+                               "Equipe do Jardim Bot\u00e2nico de Bras\u00edlia"))
+})

@@ -15,7 +15,9 @@
 #' biodiversity databases. It ensures consistency of location fields by correcting
 #' common mistakes and variations. Country names are translated to English and
 #' harmonized using `countrycode` Brazilian and U.S. state abbreviations are
-#' expanded to full names.
+#' expanded to full names. Words for municipality in `county` and `municipality`,
+#' e.g. `"Manaus Mun."`, `"Mun. de Castelo"`, `"Município de Mucugê"` or
+#' `"Arriaga Municipio"`, are removed, leaving just the name.
 #'
 #' @usage
 #' std_place(df = NULL,
@@ -383,6 +385,7 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_county, "' column removed"))
     }
 
+    df$county <- .rm_municipality_word(df$county)
     df$county[which(df$county %in% c("NO DISPONIBLE",
                                      "Unknown",
                                      "Unknown-E",
@@ -434,6 +437,7 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_municipality, "' and ", colname_locality, "' columns removed"))
     }
 
+    df$municipality <- .rm_municipality_word(df$municipality)
     tf <- grepl("[[:upper:]]{4,}", df$municipality)
     if (any(tf)) {
       df$municipality[tf] <- toTitleCase(tolower(df$municipality[tf]))
@@ -657,5 +661,20 @@ std_place <- function(df = NULL,
 # Side function make first letter to upper case ####
 .firstUp <- function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+
+# Remove words for municipality from county and municipality names, e.g.
+# "Manaus Mun.", "Mun. de Castelo", "Mpio. Ocosingo", "Munic\u00edpio de Mucug\u00ea",
+# "Municipio Gran Sabana", "Arriaga Municipio", "Mecayapan Municipality" or
+# "Linhares (Munic\u00edpio)", but not names like "Novo Mundo" ####
+.rm_municipality_word <- function(x) {
+  word <- "(mun|mpio|munic)[.]|munic[i\u00ed]pio|municipality|municipalidad"
+  x <- gsub(paste0("(?i)^\\s*(", word, ")\\s*((de|do|da|dos|das|del|of)\\s+)?"), "",
+            x, perl = TRUE)
+  x <- gsub(paste0("(?i)[\\s,-]*[(]?\\b(", word, "|mun|mpio)[)]?\\s*$"), "", x, perl = TRUE)
+  x <- trimws(x)
+  x[x %in% ""] <- NA
   x
 }

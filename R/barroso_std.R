@@ -41,7 +41,10 @@
 #'             rm_original_column = TRUE)
 #'
 #' @param ... Input data frame containing raw biodiversity records.
-#' @param unvouchered Logical; if `TRUE`, remove unvouchered wood/seed/spirit specimens (default: `TRUE`).
+#' @param unvouchered Logical; if `TRUE`, remove records of wood, seed, fruit,
+#'   pollen and spirit collections (e.g. `"INPAw"`, `"INPA-Carpoteca"`), and
+#'   observations without a specimen (`basisOfRecord` like `"HUMAN_OBSERVATION"`)
+#'   (default: `TRUE`).
 #' @param delunkcoll Logical; if `TRUE`, removes records with unknown collectors (default: `FALSE`).
 #' @param flag_missid Reserved for future use. Currently not implemented.
 #' @param flag_duplicates Logical; if `TRUE`, flags duplicates with a logical column (default: `TRUE`).
@@ -114,6 +117,14 @@ barroso_std <- function(...,
   #_____________________________________________________________________________
   # Standardizing and cleaning the database ####
   message(paste("Standardizing", n_df, "herbarium database"))
+
+  # Remove records of wood, seed, fruit or spirit collections, and observations,
+  # before the codes like "INPA-Carpoteca" are standardized into "INPA"
+  if (unvouchered) {
+    df <- .delunvouchered(df,
+                          colname_collectionCode = colname_collectionCode)
+    l_df <- nrow(df)
+  }
 
   # Divide too large entered database
   if (l_df > 10000) {
@@ -191,12 +202,6 @@ barroso_std <- function(...,
                   colname_typeStatus = colname_typeStatus,
                   rm_original_column = rm_original_column)
 
-  #_____________________________________________________________________________
-  # Remove specimen/records from mostly unvouchered wood or seed or spirit collections
-  if (unvouchered) {
-    df <- .delunvouchered(df,
-                          colname_collectionCode = colname_collectionCode)
-  }
 
   #_____________________________________________________________________________
   # Remove herbarium records with unknown collector ####

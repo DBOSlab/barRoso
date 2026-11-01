@@ -30,7 +30,10 @@ barroso_std(...,
 \arguments{
 \item{...}{Input data frame containing raw biodiversity records.}
 
-\item{unvouchered}{Logical; if \code{TRUE}, remove unvouchered wood/seed/spirit specimens (default: \code{TRUE}).}
+\item{unvouchered}{Logical; if \code{TRUE}, remove records of wood, seed, fruit,
+pollen and spirit collections (e.g. \code{"INPAw"}, \code{"INPA-Carpoteca"}), and
+observations without a specimen (\code{basisOfRecord} like \code{"HUMAN_OBSERVATION"})
+(default: \code{TRUE}).}
 
 \item{delunkcoll}{Logical; if \code{TRUE}, removes records with unknown collectors (default: \code{FALSE}).}
 

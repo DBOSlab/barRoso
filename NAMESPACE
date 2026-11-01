@@ -30,7 +30,6 @@ importFrom(cowplot,
 importFrom(dplyr,
   across,
   all_of,
-  arrange,
   bind_rows,
   filter,
   first,
@@ -102,4 +101,10 @@ importFrom(tools,
   file_ext,
   file_path_sans_ext,
   toTitleCase
+)
+importFrom(utils,read.csv)
+importFrom(xml2,
+  "xml_attr<-",
+  xml_find_all,
+  xml_set_name
 )

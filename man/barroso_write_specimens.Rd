@@ -2,159 +2,159 @@
 % Please edit documentation in R/barroso_write_specimens.R
 \name{barroso_write_specimens}
 \alias{barroso_write_specimens}
-\title{Write examined specimens from a database to Word (.docx) in journal format}
+\title{Write lists of examined specimens in the format of a journal}
 \usage{
 barroso_write_specimens(
-  xlsx_path,
-  species_cols,
+  df = NULL,
+  path = NULL,
   sheet = 1,
-  species_filter = NULL,
-  journal = "SystematicBotany",
+  species = NULL,
+  journal = c("Systematic Botany", "Acta Botanica Brasilica",
+    "Botanical Journal of the Linnean Society", "Brazilian Journal of Botany",
+    "Brittonia", "Candollea", "Edinburgh Journal of Botany", "Kew Bulletin",
+    "Nordic Journal of Botany", "Phytotaxa", "Plant Ecology and Evolution", "PhytoKeys",
+    "Willdenowia", "Rodriguesia", "Systematics and Biodiversity", "Taxon"),
+  header = NULL,
   language = "en",
-  add_representative = TRUE,
-  colname_recordedBy = "recordedBy",
-  colname_recordNumber = "recordNumber",
-  colname_continent = "continent",
-  colname_country = "country",
-  colname_stateProvince = "stateProvince",
-  colname_county = "county",
-  colname_municipality = "municipality",
-  colname_locality = "locality",
-  colname_decimalLatitude = "decimalLatitude",
-  colname_decimalLongitude = "decimalLongitude",
-  colname_day = "day",
-  colname_month = "month",
-  colname_year = "year",
-  colname_collectionCode = "collectionCode",
-  colname_institutionCode = "institutionCode",
-  colname_typeStatus = "typeStatus",
+  catalog_numbers = FALSE,
+  dir = NULL,
+  filename = NULL,
   font_family = "Times New Roman",
   font_size = 12,
-  species_bold = TRUE,
-  species_italic = TRUE,
-  country_bold = TRUE,
-  state_smallcaps = TRUE,
-  verbose = TRUE,
-  dir = NULL,
-  filename = NULL
+  verbose = TRUE
 )
 }
 \arguments{
-\item{xlsx_path}{Character. Path to the .xlsx file containing specimen data.}
+\item{df}{A data frame of herbarium records in Darwin Core format, e.g. the
+output of \code{\link[=barroso_std]{barroso_std()}} or \code{\link[=barroso_dwc]{barroso_dwc()}}. Not needed when \code{path} is given.}
 
-\item{species_cols}{Character/integer. Columns used to build the species header.}
+\item{path}{Path to an .xlsx, .xls or .csv file with the herbarium records,
+used when \code{df} is \code{NULL}.}
 
-\item{sheet}{Sheet name or index. Default 1.}
+\item{sheet}{Sheet name or index of the .xlsx file. Default 1.}
 
-\item{species_filter}{Optional character vector to filter species.}
+\item{species}{Character vector of species names, with or without authors
+(e.g. \code{"Ormosia arborea"}), to write the specimens of just these species.
+If \code{NULL} (default), the specimens of all species are written.}
 
-\item{journal}{Character. Journal style format. Currently supports
-"SystematicBotany" and "Taxon". Default is "SystematicBotany".}
+\item{journal}{Name of the journal whose format is followed, as in recent
+papers of the journal: \code{"Systematic Botany"} (default),
+\code{"Acta Botanica Brasilica"}, \code{"Botanical Journal of the Linnean Society"},
+\code{"Brazilian Journal of Botany"}, \code{"Brittonia"},
+\code{"Candollea"}, \code{"Edinburgh Journal of Botany"}, \code{"Kew Bulletin"},
+\code{"Nordic Journal of Botany"}, \code{"Phytotaxa"}, \code{"PhytoKeys"},
+\code{"Plant Ecology and Evolution"},
+\code{"Rodriguesia"}, \code{"Systematics and Biodiversity"}, \code{"Taxon"} or \code{"Willdenowia"}. The name can
+be written in any case, with or without accents, and abbreviated
+(e.g. \code{"systematic botany"}, \code{"Kew"}, \code{"Edinburgh"}, \code{"Rodriguésia"}).}
 
-\item{language}{Character. Language for output ("en" for English, "pt" for
-Portuguese). Affects month names and country translations. Default "en".}
+\item{header}{Text of the header before the specimens, e.g.
+\code{"Additional specimens examined"}, \code{"Paratypes"} or \code{"Selected specimens"},
+written with the format and punctuation of the journal. If \code{NULL} (default),
+the header of the journal, e.g. \code{"Representative Specimens Examined"} in
+Systematic Botany. Use \code{""} to write no header.}
 
-\item{add_representative}{Logical. Should "Representative Specimens Examined"
-header be added? Default TRUE.}
+\item{language}{Language of the section header, months and countries:
+\code{"en"} (default) or \code{"pt"}.}
 
-\item{colname_recordedBy}{Character. Column name for collector name. Default "recordedBy".}
+\item{catalog_numbers}{Logical. If \code{TRUE}, the catalog number is written after
+each herbarium, e.g. \code{"(IAC no. 14754, NY no. 1162464)"} in Brittonia. Default \code{FALSE}.}
 
-\item{colname_recordNumber}{Character. Column name for collector number. Default "recordNumber".}
+\item{dir}{Folder where the .docx file is saved. By default, the folder of
+\code{path}, or \code{"results_specimens"} when the records are given in \code{df}.}
 
-\item{colname_continent}{Character. Column name for continent. Default "continent".}
+\item{filename}{Name of the .docx file. By default, the name of \code{path} (or
+\code{"specimens"}) followed by the journal, e.g.
+\code{"Ormosia_herbarium_records_Systematic_Botany.docx"}.}
 
-\item{colname_country}{Character. Column name for country. Default "country".}
+\item{font_family}{Font of the document. Default \code{"Times New Roman"}.}
 
-\item{colname_stateProvince}{Character. Column name for state/province. Default "stateProvince".}
+\item{font_size}{Font size in points. Default 12.}
 
-\item{colname_county}{Character. Column name for county. Default "county".}
-
-\item{colname_municipality}{Character. Column name for municipality. Default "municipality".}
-
-\item{colname_locality}{Character. Column name for locality description. Default "locality".}
-
-\item{colname_decimalLatitude}{Character. Column name for latitude. Default "decimalLatitude".}
-
-\item{colname_decimalLongitude}{Character. Column name for longitude. Default "decimalLongitude".}
-
-\item{colname_day}{Character. Column name for collection day. Default "day".}
-
-\item{colname_month}{Character. Column name for collection month. Default "month".}
-
-\item{colname_year}{Character. Column name for collection year. Default "year".}
-
-\item{colname_collectionCode}{Character. Column name for herbarium code. Default "collectionCode".}
-
-\item{colname_institutionCode}{Character. Column name for institution code. Default "institutionCode".}
-
-\item{colname_typeStatus}{Character. Column name for type status. Default "typeStatus".}
-
-\item{font_family}{Character. Font family for Word document. Default "Times New Roman".}
-
-\item{font_size}{Numeric. Font size in points. Default 12.}
-
-\item{species_bold}{Logical. Make species names bold. Default TRUE.}
-
-\item{species_italic}{Logical. Make species names italic. Default TRUE.}
-
-\item{country_bold}{Logical. Make country names bold. Default TRUE.}
-
-\item{state_smallcaps}{Logical. Use small caps for state/province names. Default TRUE.}
-
-\item{verbose}{Logical. Print progress messages. Default TRUE.}
-
-\item{dir}{Output directory. Default NULL.}
-
-\item{filename}{Output file base name. Default NULL.}
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
-Invisibly returns a data.frame with species names and formatted text.
-Writes a .docx file as the main side effect.
+Invisibly, a data frame with the species (\code{species_name}) and their
+examined specimens (\code{specimens_text}, one specimen per line). The .docx file
+is written as a side effect.
 }
 \description{
-This function reads specimen data from an Excel spreadsheet and
-generates formatted lists of examined specimens in the style required by
-specific scientific journals (Systematic Botany, Taxon, etc.). It handles
-duplicate specimens (same collector and number) by grouping multiple herbaria
-into a single entry, formats geographic hierarchy (country, state/province,
-municipality), and localizes month names and country names according to the
-specified language.
+Writes the lists of examined specimens of one, several or all
+species of a database of herbarium records in Darwin Core format, as
+standardized by \code{\link[=barroso_std]{barroso_std()}}, into a Word (.docx) file, in the format of
+a botanical journal, e.g. Systematic Botany, Taxon, Kew Bulletin or Phytotaxa.
 }
 \details{
-\strong{Specimen format by journal:}
+The records are formatted with \code{\link[=barroso_dwc]{barroso_dwc()}}, so the columns may also come
+from other sources, e.g. speciesLink. The columns used are \code{species},
+\code{country}, \code{stateProvince}, \code{municipality}, \code{locality}, \code{decimalLatitude},
+\code{decimalLongitude}, \code{minimumElevationInMeters}, \code{maximumElevationInMeters},
+\code{day}, \code{month}, \code{year}, \code{reproductiveCondition}, \code{recordedBy}, \code{addCollector},
+\code{recordNumber}, \code{collectionCode}, \code{catalogNumber} and \code{typeStatus}; and, when
+present, the columns of \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}} with all herbaria of each
+specimen (\code{duplicateCollectionCodes}, \code{duplicateCatalogNumbers}). The author
+of each species comes from \code{scientificNameAuthorship}, \code{acceptedScientificName}
+or \code{scientificName}.
 
-For Systematic Botany:
-\preformatted{
-Representative Specimens Examined—Country. —STATE/PROVINCE: Locality,
-coordinates, date (phenology), Collector Name ## (HERBARIUM1, HERBARIUM2).
-}
+Duplicates of the same collection (same collector and number, or same
+collector, date and locality when there is no number) are written once, with
+all their herbaria. The specimens are ordered by country, state, municipality
+and date.
 
-For Taxon:
+Examples of the format of each journal:
+
 \preformatted{
-Country. —State/Province: Locality, coordinates, date (phenology),
-Collector Name ## (HERBARIUM1, HERBARIUM2).
+Systematic Botany: Representative Specimens Examined—Brazil. —Bahia: Abaíra,
+  Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl), D.B.O.S. Cardoso et al.
+  2066 (HUEFS, RB). (header and states in small capitals, countries in bold,
+  collectors and numbers in italics, as also in Taxon and Acta Botanica Brasilica)
+Taxon: Additional specimens examined. – BRAZIL. BAHIA: Abaíra, Catolés,
+  13°23′S, 41°48′W, 1200 m a.s.l., 8 May 1994 (fl), D.B.O.S. Cardoso & al. 2066
+  (HUEFS, RB).
+Kew Bulletin: SPECIMENS EXAMINED. BRAZIL. Bahia: Abaíra, Catolés, 13°23'S,
+  41°48'W, 1200 m, 8 May 1994 (fl), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+Phytotaxa: Additional specimens examined:―BRAZIL. Bahia: Abaíra: Catolés, ...,
+  8 May 1994 (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
+Brittonia: Additional specimens examined.—BRAZIL. Bahia: ..., 8 May 1994 [fl],
+  D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+Candollea: Additional specimens examined. – Brazil. Bahia: ..., 13°23'S 41°48'W,
+  1200 m, 8.V.1994, Cardoso et al. 2066 (HUEFS, RB).
+Edinburgh Journal of Botany: Additional specimens examined. BRAZIL. Bahia: ...,
+  8 v 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+Systematics and Biodiversity: Additional specimens examined. BRAZIL. Bahia: ...,
+  8 May 1994, D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+Acta Botanica Brasilica: Additional specimens examined: BRAZIL. Bahia: ...,
+  13°23’ S, 41°48’ W, 8 May 1994, (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!).
+Plant Ecology and Evolution: Additional material examined. BRAZIL • Bahia, Abaíra,
+  Catolés; 13°23′S, 41°48′W; 1200 m; 8 May 1994 (fl); Cardoso et al. 2066; HUEFS, RB.
+PhytoKeys: Additional specimens examined. Brazil. Bahia: Mun. Abaíra, Catolés,
+  13°23'S, 41°48'W, 1200 m alt., 8 May 1994, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
+Willdenowia: Brazil: Bahia: Municipality Abaíra, Catolés, 13°23'S, 41°48'W, 1200 m,
+  8 May 1994, D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
+  Municipality Mucugê, ... . — Minas Gerais: ... (header once, before all species)
+Botanical Journal of the Linnean Society: Representative specimens examined: BRAZIL.
+  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994, D.B.O.S. Cardoso et al.
+  2066 (HUEFS, RB); Serra do Barbado, ...
+Brazilian Journal of Botany: Selected additional specimens—BRAZIL. Bahia: ...,
+  08 May 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+Nordic Journal of Botany: Ormosia arborea – Brazil, Bahia, Abaíra, Catolés, ...,
+  8 May 1994, (fl), Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...
+Rodriguésia: Additional material examined: BRAZIL. BAHIA: Abaíra, Catolés, ...,
+  8.V.1994, fl, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...,
+  A. Fernandes (EAC 11356).
 }
 }
 \examples{
 \dontrun{
-# Basic usage with default column names
-barroso_write_specimens(
-  xlsx_path = "specimens.xlsx",
-  species_cols = c("Genus", "Species", "Author"),
-  journal = "SystematicBotany",
-  language = "en"
-)
+# All species of a database standardized by barRoso
+barroso_write_specimens(path = "results/Ormosia_herbarium_records.xlsx",
+                        journal = "Systematic Botany")
 
-# Custom column names
-barroso_write_specimens(
-  xlsx_path = "specimens.xlsx",
-  species_cols = c("Genus", "Species", "Author"),
-  colname_country = "Country",
-  colname_stateProvince = "State",
-  colname_locality = "Location",
-  colname_recordedBy = "Collector",
-  colname_recordNumber = "Number"
-)
+# Two species, in the format of Kew Bulletin
+barroso_write_specimens(df = data_all_clean,
+                        species = c("Ormosia arborea", "Ormosia fastigiata"),
+                        journal = "Kew Bulletin",
+                        dir = "results")
 }
 
 }

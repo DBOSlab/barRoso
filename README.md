@@ -44,7 +44,8 @@ revealed.
 Instead of static dictionaries, `barRoso` uses an extensive set of
 regular expressions tested on real datasets, which generalizes across
 sources and spelling variations. It also generates herbarium labels from
-field books and taxonomic descriptions from morphological data.
+field books, lists of examined specimens in the format of botanical
+journals, and taxonomic descriptions from morphological data.
 
 ### Data preservation philosophy
 
@@ -69,7 +70,7 @@ biodiversity research.
 Core columns
 
 ✅ Standardize collector and determiner names and collection numbers,
-including Chinese names written in unicode
+including Chinese names written in Chinese characters or in unicode
 
 ✅ Clean herbarium acronyms and geographic, taxonomic and type status
 fields
@@ -82,6 +83,9 @@ identifications
 
 ✅ Generate herbarium labels from field books, with maps and taxon
 authorities from [LCVP](https://github.com/idiv-biodiversity/LCVP)
+
+✅ Write lists of examined specimens in the format of 16 botanical
+journals
 
 ✅ Generate taxonomic descriptions from morphological data
 
@@ -148,12 +152,12 @@ functions, which can also be used alone:
 |----|----|----|
 | `std_recordedBy()` | collector names and numbers; additional collectors go to `addCollector` | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
 | `std_identifiedBy()` | determiner names, all kept in the same cell | `Lobato, LC; Soares, CRA` → `L. C. Lobato & C. R. A. Soares` |
-| `std_collection()` | herbarium acronyms | `MOBOT_BR` → `MO` |
+| `std_collection()` | herbarium acronyms | `Herbario INPA` → `INPA` |
 | `std_place()` | continent, country, state, county, municipality and locality | `BRASIL` → `Brazil` |
 | `std_taxa()` | family, genus and specific epithet | `Leguminosae` → `Fabaceae` |
 | `std_types()` | type status | `Fotografia do Tipo` → removed |
 
-Chinese names written as unicode escapes
+Chinese names written in Chinese characters or as unicode escapes
 (e.g. `<U+674E><U+5149><U+7167>`, 李光照) are converted as Chinese
 authors cite themselves in publications (e.g. `G. Z. Li`). The original
 values are kept in columns with the suffix `Original`, and all column
@@ -222,7 +226,31 @@ barroso_labels(fieldbook = df,
                file_label = "herbarium_labels.pdf")
 ```
 
-### 6. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
+### 6. `barroso_write_specimens()`: Write Lists of Examined Specimens
+
+Writes the lists of examined specimens of one, several or all species of
+a database into a Word (.docx) file, in the format of a botanical
+journal, with its bold, italics and small capitals: Systematic Botany,
+Acta Botanica Brasilica, Botanical Journal of the Linnean Society,
+Brazilian Journal of Botany, Brittonia, Candollea, Edinburgh Journal of
+Botany, Kew Bulletin, Nordic Journal of Botany, Phytotaxa, PhytoKeys,
+Plant Ecology and Evolution, Rodriguésia, Systematics and Biodiversity,
+Taxon and Willdenowia. Duplicates are cited once with all their
+herbaria, and the header can be changed (e.g. `header = "Paratypes"`).
+
+``` r
+barroso_write_specimens(path = "Ormosia_herbarium_records.xlsx",
+                        species = c("Ormosia arborea", "Ormosia excelsa"),
+                        journal = "Systematic Botany")
+```
+
+> ***Representative Specimens Examined***—**Brazil.**
+> —<span class="smallcaps">Bahia</span>: Itaberaba, Serra do Orobó,
+> 12°25′01″S, 40°30′59″W, 398 m, 16 Jun 2007 (fl), *D.B.O.S. Cardoso et
+> al. 2066* (HUEFS, RB); Mucugê, Estrada para Andaraí, 13°00′17″S,
+> 41°22′15″W, 12 Nov 1988 (fr), *L.P. Queiroz 4021* (K).
+
+### 7. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
 
 Builds standardized species descriptions from a spreadsheet of
 morphological characters, and exports them to a Word (.docx) file. The

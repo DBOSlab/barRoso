@@ -27,24 +27,43 @@ If \code{rm_original_column = FALSE}, the original values are saved with a \verb
 Cleans and standardizes herbarium acronyms in biodiversity datasets by harmonizing
 values from the \code{collectionCode} and \code{institutionCode} fields. The function
 corrects common issues in GBIF and other aggregated records, replacing ambiguous
-or placeholder codes with recognized herbarium acronyms. It also flags missing
-values with fallback rules and optional original column retention.
+or placeholder codes with the herbarium acronyms of
+\href{https://sweetgum.nybg.org/science/ih/}{Index Herbariorum}.
 }
 \details{
-This function is part of the \code{barRoso} package, and applies a large set of
-conditional replacements based on known patterns and integrates fallback from
-\code{institutionCode} when \code{collectionCode} is missing or ambiguous. Common aliases
-like \code{"Herbarium"}, \code{"Botany"}, or \code{"Angiosperms"} are converted to valid acronyms
-when possible.
+This function is part of the \code{barRoso} package. Instead of a dictionary of
+every code, it uses regular expressions that generalize across datasets, in
+the following order:
+\itemize{
+\item Aggregated collections like \code{"Tropicos"} or \code{"MO-Duplicates"} are replaced
+with the herbarium of the specimen given in \code{institutionCode} (e.g. \code{"NY"}),
+or with \code{"MO"} when it is missing.
+\item Generic words like \code{"Botany"}, \code{"Herbarium"}, \code{"Vascular Plants"} or
+\code{"PNGplants"} are replaced with the acronym in \code{institutionCode} or, when
+missing, with the acronym at the beginning of \code{catalogNumber} (e.g.
+\code{"U.1317533"} into \code{"U"}) or in \code{occurrenceID} (e.g. \code{"urn:catalog:INB:..."}).
+\item Names of collections, like \code{"F-Seedplants"}, \code{"BHCB-Fanerogamas"},
+\code{"INPA-Carpoteca"}, \code{"R-Tipos"}, \code{"UIS-H"} or \code{"BSMvplantscoll"}, are reduced
+to the herbarium acronym. Codes of wood collections, like \code{"INPAw"}, are
+kept, as they are Index Herbariorum codes.
+\item Names of herbaria and institutions, like \code{"Herbario INPA"},
+\code{"Herbario Nacional de Costa Rica (CR)"} or \code{"Instituto de Botanica de Sao Paulo"},
+are replaced with the acronym given in the name or with the known acronym.
+\item Codes that are not acronyms, like observation projects (\code{"Observations"},
+\code{"Dados de Pesquisa SISBio"}), companies (\code{"Ecopetrol S.A"}) or numbers,
+are replaced with the acronym in \code{institutionCode} or \code{catalogNumber}, or
+with \code{NA}.
+}
+
+The columns \code{catalogNumber} and \code{occurrenceID} are used when present.
 }
 \examples{
-\dontrun{
-df <- read.csv("gbif_download.csv")
-df_clean <- std_collection(df,
-                           colname_collectionCode = "collection_code",
-                           colname_institutionCode = "institution_code",
-                           rm_original_column = FALSE)
-}
+df <- data.frame(collectionCode = c("Tropicos", "Botany", "F-Seedplants",
+                                    "Herbario INPA", "Observations"),
+                 institutionCode = c("NY", NA, "F", "INPA", "iNaturalist"),
+                 catalogNumber = c("100595392", "U.1317533", "V0059731F",
+                                   "123", "340214363"))
+std_collection(df)$collectionCode
 
 }
 \author{
