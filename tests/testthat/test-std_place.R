@@ -60,3 +60,12 @@ test_that("std_place removes words for municipality from county and municipality
   expect_equal(r$county, c("Manaus", "Castelo", "Novo Mundo", "Itacoatiara"))
   expect_equal(r$municipality, c("Mucugê", "Arriaga", "Linhares", "Ocosingo"))
 })
+
+test_that("std_place writes particles in lowercase", {
+  df <- data.frame(country = "Brazil", stateProvince = "Rio Grande Do Norte",
+                   county = "Alvorada Do Norte", municipality = "Brejo Dos Santos",
+                   locality = "Mata")
+  r <- suppressMessages(std_place(df))
+  expect_equal(c(r$stateProvince, r$county, r$municipality),
+               c("Rio Grande do Norte", "Alvorada do Norte", "Brejo dos Santos"))
+})

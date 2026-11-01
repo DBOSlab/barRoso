@@ -221,6 +221,8 @@ std_place <- function(df = NULL,
     df$stateProvince <- gsub("\\sDe\\s", " de ", df$stateProvince)
     df$stateProvince <- gsub("\\sLos\\s", " los ", df$stateProvince)
     df$stateProvince <- gsub("\\sLa\\s", " la ", df$stateProvince)
+    # Portuguese and Spanish particles, e.g. "Rio Grande Do Norte", "Alvorada Do Norte"
+    df$stateProvince <- gsub("\\s(Do|Da|Dos|Das|Del|E|Y)\\s", " \\L\\1 ", df$stateProvince, perl = TRUE)
 
     # Get state/province name whenever it is lacking but information is at the locality
     tf <- is.na(df$stateProvince)
@@ -407,6 +409,8 @@ std_place <- function(df = NULL,
     df$county <- gsub("\\sDe\\s", " de ", df$county)
     df$county <- gsub("\\sLos\\s", " los ", df$county)
     df$county <- gsub("\\sLa\\s", " la ", df$county)
+    # Portuguese and Spanish particles, e.g. "Rio Grande Do Norte", "Alvorada Do Norte"
+    df$county <- gsub("\\s(Do|Da|Dos|Das|Del|E|Y)\\s", " \\L\\1 ", df$county, perl = TRUE)
 
     # Put original county name back ####
     if (colname_county != "county") {
@@ -445,6 +449,8 @@ std_place <- function(df = NULL,
     df$municipality <- gsub("\\sDe\\s", " de ", df$municipality)
     df$municipality <- gsub("\\sLos\\s", " los ", df$municipality)
     df$municipality <- gsub("\\sLa\\s", " la ", df$municipality)
+    # Portuguese and Spanish particles, e.g. "Rio Grande Do Norte", "Alvorada Do Norte"
+    df$municipality <- gsub("\\s(Do|Da|Dos|Das|Del|E|Y)\\s", " \\L\\1 ", df$municipality, perl = TRUE)
 
     # Get county/municipality name whenever it is lacking but information is at the locality
     tf <- is.na(df$municipality)

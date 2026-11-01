@@ -361,6 +361,10 @@ barroso_write_specimens <- function(df = NULL,
       runs[[k]]$value <- sub("^\\s+", "", runs[[k]]$value)
     }
   }
+  runs <- runs[nzchar(vapply(runs, `[[`, "", "value"))]
+  # Without a space at the end of the paragraph
+  n <- length(runs)
+  if (n > 0) runs[[n]]$value <- sub("\\s+$", "", runs[[n]]$value)
   runs[nzchar(vapply(runs, `[[`, "", "value"))]
 }
 

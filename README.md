@@ -240,16 +240,19 @@ Duplicates are cited once with all their herbaria, and the header can be
 changed (e.g. `header = "Paratypes"`).
 
 ``` r
-barroso_write_specimens(path = "Ormosia_herbarium_records.xlsx",
-                        species = c("Ormosia arborea", "Ormosia excelsa"),
+barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",
+                        species = "Luetzelburgia auriculata",
                         journal = "Systematic Botany")
 ```
 
 > ***Representative Specimens Examined***—**Brazil.**
-> —<span class="smallcaps">Bahia</span>: Itaberaba, Serra do Orobó,
-> 12°25′01″S, 40°30′59″W, 398 m, 16 Jun 2007 (fl), *D.B.O.S. Cardoso et
-> al. 2066* (HUEFS, RB); Mucugê, Estrada para Andaraí, 13°00′17″S,
-> 41°22′15″W, 12 Nov 1988 (fr), *L.P. Queiroz 4021* (K).
+> —<span class="smallcaps">Bahia</span>: Barreiras, Prainha, margem do
+> Rio das Ondas, 12°08′48″S, 45°00′55″W, 1 May 2009, *D. Cardoso 2628*
+> (HUEFS). —<span class="smallcaps">Ceará</span>: Caucaia, Lagoa dos
+> Caetanos, 3°S, 38°W, 21 Jan 2009, *D. Cardoso et al. 2379* (ASE, BOTU,
+> CNMT, HDJF, HEPH, HUCS, HUEFS, HUESB, SORO, UB, UESC, VIC); Crateús,
+> RPPN Serra das Almas, 5°09′44″S, 40°53′18″W, 15 Jun 2014, *F.H.F.
+> Nascimento 1402* (HUEFS).
 
 ### 7. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
 
