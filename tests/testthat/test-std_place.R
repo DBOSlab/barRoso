@@ -69,3 +69,28 @@ test_that("std_place writes particles in lowercase", {
   expect_equal(c(r$stateProvince, r$county, r$municipality),
                c("Rio Grande do Norte", "Alvorada do Norte", "Brejo dos Santos"))
 })
+
+test_that("std_place converts country codes and finds missing countries", {
+  df <- data.frame(
+    country = c("BR", "GY", "BRA", NA, NA, NA, "Brazil", NA, NA, "Colombia", "French Guiana"),
+    stateProvince = c("Bahia", NA, NA, "Par\u00e1", NA, "Amazonas", "Amazonas", "Amazonas", NA,
+                      "Amazonas", NA),
+    county = c(NA, NA, NA, NA, NA, "Manaus", "Manaus", NA, NA, "Leticia", NA),
+    municipality = NA,
+    locality = c(NA, NA, NA, NA, "Rio Negro, Brasil", "Reserva Ducke", NA, "Rio Negro",
+                 "Puerto Arturo, Georgia", NA, NA),
+    stringsAsFactors = FALSE)
+  out <- suppressMessages(std_place(df))
+  expect_equal(out$country, c("Brazil", "Guyana", "Brazil", "Brazil", "Brazil", "Brazil",
+                              "Brazil", NA, NA, "Colombia", "French Guiana"))
+})
+
+test_that("std_place takes missing municipalities from the county", {
+  df <- data.frame(country = "Brazil", stateProvince = "Bahia",
+                   county = c("Mucug\u00ea", "Len\u00e7\u00f3is", "inc.sed.cty."),
+                   municipality = c(NA, "Palmeiras", NA), locality = "x",
+                   stringsAsFactors = FALSE)
+  out <- suppressMessages(std_place(df))
+  expect_equal(out$municipality, c("Mucug\u00ea", "Palmeiras", NA))
+  expect_equal(out$county, c("Mucug\u00ea", "Len\u00e7\u00f3is", NA))
+})

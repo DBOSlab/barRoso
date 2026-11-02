@@ -48,8 +48,12 @@ This function is used internally by the \code{barRoso} package to support record
 reconciliation, duplicate detection, and label generation across different
 biodiversity databases. It ensures consistency of location fields by correcting
 common mistakes and variations. Country names are translated to English and
-harmonized using \code{countrycode} Brazilian and U.S. state abbreviations are
-expanded to full names. Words for municipality in \code{county} and \code{municipality},
+harmonized using \code{countrycode}, and country codes like \code{"BR"} or \code{"BRA"} are
+converted into names. Missing countries are taken from the Brazilian state
+(e.g. \code{"Bahia"}), from a country name in the locality (e.g. \code{"Manaus, Brasil"}),
+or from other records with the same state and county. Brazilian and U.S.
+state abbreviations are expanded to full names. Missing municipalities are
+taken from the county. Words for municipality in \code{county} and \code{municipality},
 e.g. \code{"Manaus Mun."}, \code{"Mun. de Castelo"}, \code{"Município de Mucugê"} or
 \code{"Arriaga Municipio"}, are removed, leaving just the name.
 }

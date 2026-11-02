@@ -9,12 +9,15 @@ barroso_write_specimens(
   path = NULL,
   sheet = 1,
   species = NULL,
-  journal = c("Systematic Botany", "Acta Botanica Brasilica",
-    "Annals of the Missouri Botanical Garden",
-    "Botanical Journal of the Linnean Society", "Brazilian Journal of Botany",
-    "Brittonia", "Candollea", "Edinburgh Journal of Botany", "Kew Bulletin",
-    "Nordic Journal of Botany", "Phytotaxa", "Plant Ecology and Evolution", "PhytoKeys",
-    "Willdenowia", "Rodriguesia", "Systematics and Biodiversity", "Taxon"),
+  journal = c("Systematic Botany", "Acta Amazonica", "Acta Botanica Brasilica",
+    "Acta Botanica Mexicana", "Annals of the Missouri Botanical Garden",
+    "Botanical Journal of the Linnean Society", "Botany Letters",
+    "Brazilian Journal of Botany", "Brittonia", "Candollea", "Darwiniana",
+    "Edinburgh Journal of Botany", "Feddes Repertorium", "Hoehnea", "Kew Bulletin",
+    "Nordic Journal of Botany", "Phytotaxa", "Plant Ecology and Evolution",
+    "Plant Systematics and Evolution", "PhytoKeys", "Willdenowia", "Rodriguesia",
+    "Systematics and Biodiversity", 
+     "Taxon"),
   header = NULL,
   language = "en",
   catalog_numbers = FALSE,
@@ -111,42 +114,63 @@ Systematic Botany: Representative Specimens Examined—Brazil. —Bahia: Abaíra
   2066 (HUEFS, RB). (header and states in small capitals, countries in bold,
   collectors and numbers in italics, as also in Taxon and Acta Botanica Brasilica)
 Taxon: Additional specimens examined. – BRAZIL. BAHIA: Abaíra, Catolés,
-  13°23′S, 41°48′W, 1200 m a.s.l., 8 May 1994 (fl), D.B.O.S. Cardoso & al. 2066
+  13°23′S, 41°48′W, 1200 m a.s.l., 8 May 1994 (fl.), D.B.O.S. Cardoso & al. 2066
   (HUEFS, RB).
 Kew Bulletin: SPECIMENS EXAMINED. BRAZIL. Bahia: Abaíra, Catolés, 13°23'S,
-  41°48'W, 1200 m, 8 May 1994 (fl), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+  41°48'W, 1200 m, 8 May 1994 (fl.), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 Phytotaxa: Additional specimens examined:―BRAZIL. Bahia: Abaíra: Catolés, ...,
   8 May 1994 (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
 Brittonia: Additional specimens examined.—BRAZIL. Bahia: ..., 8 May 1994 [fl],
   D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 Candollea: Additional specimens examined. – Brazil. Bahia: ..., 13°23'S 41°48'W,
-  1200 m, 8.V.1994, Cardoso et al. 2066 (HUEFS, RB).
+  1200 m, 8.V.1994, fl., Cardoso et al. 2066 (HUEFS, RB).
 Edinburgh Journal of Botany: Additional specimens examined. BRAZIL. Bahia: ...,
   8 v 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
 Systematics and Biodiversity: Additional specimens examined. BRAZIL. Bahia: ...,
-  8 May 1994, D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+  8 May 1994 (fl), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 Acta Botanica Brasilica: Additional specimens examined: BRAZIL. Bahia: ...,
-  13°23’ S, 41°48’ W, 8 May 1994, (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!).
+  13°23’ S, 41°48’ W, 8 May 1994, (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!).
 Plant Ecology and Evolution: Additional material examined. BRAZIL • Bahia, Abaíra,
   Catolés; 13°23′S, 41°48′W; 1200 m; 8 May 1994 (fl); Cardoso et al. 2066; HUEFS, RB.
 PhytoKeys: Additional specimens examined. Brazil. Bahia: Mun. Abaíra, Catolés,
-  13°23'S, 41°48'W, 1200 m alt., 8 May 1994, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
+  13°23'S, 41°48'W, 1200 m alt., 8 May 1994 (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
 Willdenowia: Brazil: Bahia: Municipality Abaíra, Catolés, 13°23'S, 41°48'W, 1200 m,
-  8 May 1994, D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
+  8 May 1994 (fl), D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
   Municipality Mucugê, ... . — Minas Gerais: ... (header once, before all species)
 Annals of the Missouri Botanical Garden: Additional specimens examined. BRAZIL.
-  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl), D. B. O. S.
+  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl./fr.), D. B. O. S.
   Cardoso et al. 2066 (HUEFS, RB).
 Botanical Journal of the Linnean Society: Representative specimens examined: BRAZIL.
-  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994, D.B.O.S. Cardoso et al.
+  Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994 (fl), D.B.O.S. Cardoso et al.
   2066 (HUEFS, RB); Serra do Barbado, ...
 Brazilian Journal of Botany: Selected additional specimens—BRAZIL. Bahia: ...,
-  08 May 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+  08 May 1994 (fl and fr), Cardoso et al. 2066 (HUEFS, RB).
 Nordic Journal of Botany: Ormosia arborea – Brazil, Bahia, Abaíra, Catolés, ...,
-  8 May 1994, (fl), Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...
+  8 May 1994, (fl. fr.), Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...
 Rodriguésia: Additional material examined: BRAZIL. BAHIA: Abaíra, Catolés, ...,
-  8.V.1994, fl, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...,
+  8.V.1994, fl., D.B.O.S. Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...,
   A. Fernandes (EAC 11356).
+Acta Amazonica: Additional specimens examined: BRAZIL. Bahia: Abaíra, Catolés.
+  13º23’S, 41º48’W. Elev. 1200m. Fl. 8 May 1994, D.B.O.S. Cardoso et al. 2066
+  (HUEFS, RB).
+Acta Botanica Mexicana: Specimens examined: BRAZIL. Bahia, municipio Abaíra,
+  Catolés, 1200 m, 13°23'S, 41°48'W, 8.V.1994 (fl), D. B. O. S. Cardoso et al.
+  2066 (HUEFS, RB); loc. cit., 9.V.1994 (fr), ...
+Botany Letters: Representative specimens examined: BRAZIL. — BAHIA: Abaíra,
+  Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl.), D.B.O.S. Cardoso et al.
+  2066 (HUEFS, RB). — MINAS GERAIS: ...
+Darwiniana: Material examinado: BRASIL. Bahia, Abaíra, Catolés, 13º23’ S,
+  41º48’ O, 1200 m s. m., 8-V-1994 (fl), D.B.O.S. Cardoso et al. 2066
+  (HUEFS, RB); ídem, ... (with language = "es")
+Feddes Repertorium: Additional specimens: BRAZIL. Bahia: Abaíra, Catolés, ...,
+  8 May 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+Hoehnea: Material examinado: BRASIL. BAHIA: Abaíra, Catolés, 13°23’S,
+  41°48’W, 1200 m, 8-V-1994 (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB);
+  l.c., Serra do Barbado, ... (state in small capitals, with language = "pt")
+Plant Systematics and Evolution: Additional specimens examined: BRAZIL.
+  Bahia. Abaíra, Catolés, 1200 m a. s. l., 13° 23′ S, 41° 48′ W, 8 May 1994
+  (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!). Serra do Barbado, ...;
+  Mucugê, ...
 }
 }
 \examples{

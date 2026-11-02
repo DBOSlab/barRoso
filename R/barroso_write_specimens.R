@@ -69,42 +69,63 @@
 #'   2066 (HUEFS, RB). (header and states in small capitals, countries in bold,
 #'   collectors and numbers in italics, as also in Taxon and Acta Botanica Brasilica)
 #' Taxon: Additional specimens examined. – BRAZIL. BAHIA: Abaíra, Catolés,
-#'   13°23′S, 41°48′W, 1200 m a.s.l., 8 May 1994 (fl), D.B.O.S. Cardoso & al. 2066
+#'   13°23′S, 41°48′W, 1200 m a.s.l., 8 May 1994 (fl.), D.B.O.S. Cardoso & al. 2066
 #'   (HUEFS, RB).
 #' Kew Bulletin: SPECIMENS EXAMINED. BRAZIL. Bahia: Abaíra, Catolés, 13°23'S,
-#'   41°48'W, 1200 m, 8 May 1994 (fl), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+#'   41°48'W, 1200 m, 8 May 1994 (fl.), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 #' Phytotaxa: Additional specimens examined:―BRAZIL. Bahia: Abaíra: Catolés, ...,
 #'   8 May 1994 (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
 #' Brittonia: Additional specimens examined.—BRAZIL. Bahia: ..., 8 May 1994 [fl],
 #'   D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 #' Candollea: Additional specimens examined. – Brazil. Bahia: ..., 13°23'S 41°48'W,
-#'   1200 m, 8.V.1994, Cardoso et al. 2066 (HUEFS, RB).
+#'   1200 m, 8.V.1994, fl., Cardoso et al. 2066 (HUEFS, RB).
 #' Edinburgh Journal of Botany: Additional specimens examined. BRAZIL. Bahia: ...,
 #'   8 v 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
 #' Systematics and Biodiversity: Additional specimens examined. BRAZIL. Bahia: ...,
-#'   8 May 1994, D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
+#'   8 May 1994 (fl), D. B. O. S. Cardoso et al. 2066 (HUEFS, RB).
 #' Acta Botanica Brasilica: Additional specimens examined: BRAZIL. Bahia: ...,
-#'   13°23’ S, 41°48’ W, 8 May 1994, (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!).
+#'   13°23’ S, 41°48’ W, 8 May 1994, (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!).
 #' Plant Ecology and Evolution: Additional material examined. BRAZIL • Bahia, Abaíra,
 #'   Catolés; 13°23′S, 41°48′W; 1200 m; 8 May 1994 (fl); Cardoso et al. 2066; HUEFS, RB.
 #' PhytoKeys: Additional specimens examined. Brazil. Bahia: Mun. Abaíra, Catolés,
-#'   13°23'S, 41°48'W, 1200 m alt., 8 May 1994, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
+#'   13°23'S, 41°48'W, 1200 m alt., 8 May 1994 (fl), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB).
 #' Willdenowia: Brazil: Bahia: Municipality Abaíra, Catolés, 13°23'S, 41°48'W, 1200 m,
-#'   8 May 1994, D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
+#'   8 May 1994 (fl), D. B. O. S. Cardoso & al. 2066 (HUEFS, RB); Serra do Barbado, ...
 #'   Municipality Mucugê, ... . — Minas Gerais: ... (header once, before all species)
 #' Annals of the Missouri Botanical Garden: Additional specimens examined. BRAZIL.
-#'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl), D. B. O. S.
+#'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl./fr.), D. B. O. S.
 #'   Cardoso et al. 2066 (HUEFS, RB).
 #' Botanical Journal of the Linnean Society: Representative specimens examined: BRAZIL.
-#'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994, D.B.O.S. Cardoso et al.
+#'   Bahia: Abaíra, Catolés, 13°23′S, 41°48′W, 1200 m, 8.v.1994 (fl), D.B.O.S. Cardoso et al.
 #'   2066 (HUEFS, RB); Serra do Barbado, ...
 #' Brazilian Journal of Botany: Selected additional specimens—BRAZIL. Bahia: ...,
-#'   08 May 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+#'   08 May 1994 (fl and fr), Cardoso et al. 2066 (HUEFS, RB).
 #' Nordic Journal of Botany: Ormosia arborea – Brazil, Bahia, Abaíra, Catolés, ...,
-#'   8 May 1994, (fl), Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...
+#'   8 May 1994, (fl. fr.), Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...
 #' Rodriguésia: Additional material examined: BRAZIL. BAHIA: Abaíra, Catolés, ...,
-#'   8.V.1994, fl, D.B.O.S. Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...,
+#'   8.V.1994, fl., D.B.O.S. Cardoso et al. 2066 (HUEFS, RB). Mucugê, ...,
 #'   A. Fernandes (EAC 11356).
+#' Acta Amazonica: Additional specimens examined: BRAZIL. Bahia: Abaíra, Catolés.
+#'   13º23’S, 41º48’W. Elev. 1200m. Fl. 8 May 1994, D.B.O.S. Cardoso et al. 2066
+#'   (HUEFS, RB).
+#' Acta Botanica Mexicana: Specimens examined: BRAZIL. Bahia, municipio Abaíra,
+#'   Catolés, 1200 m, 13°23'S, 41°48'W, 8.V.1994 (fl), D. B. O. S. Cardoso et al.
+#'   2066 (HUEFS, RB); loc. cit., 9.V.1994 (fr), ...
+#' Botany Letters: Representative specimens examined: BRAZIL. — BAHIA: Abaíra,
+#'   Catolés, 13°23′S, 41°48′W, 1200 m, 8 May 1994 (fl.), D.B.O.S. Cardoso et al.
+#'   2066 (HUEFS, RB). — MINAS GERAIS: ...
+#' Darwiniana: Material examinado: BRASIL. Bahia, Abaíra, Catolés, 13º23’ S,
+#'   41º48’ O, 1200 m s. m., 8-V-1994 (fl), D.B.O.S. Cardoso et al. 2066
+#'   (HUEFS, RB); ídem, ... (with language = "es")
+#' Feddes Repertorium: Additional specimens: BRAZIL. Bahia: Abaíra, Catolés, ...,
+#'   8 May 1994 (fl), Cardoso et al. 2066 (HUEFS, RB).
+#' Hoehnea: Material examinado: BRASIL. BAHIA: Abaíra, Catolés, 13°23’S,
+#'   41°48’W, 1200 m, 8-V-1994 (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS, RB);
+#'   l.c., Serra do Barbado, ... (state in small capitals, with language = "pt")
+#' Plant Systematics and Evolution: Additional specimens examined: BRAZIL.
+#'   Bahia. Abaíra, Catolés, 1200 m a. s. l., 13° 23′ S, 41° 48′ W, 8 May 1994
+#'   (fl.), D.B.O.S. Cardoso et al. 2066 (HUEFS!, RB!). Serra do Barbado, ...;
+#'   Mucugê, ...
 #' }
 #'
 #' @return Invisibly, a data frame with the species (`species_name`) and their
@@ -137,16 +158,21 @@ barroso_write_specimens <- function(df = NULL,
                                     sheet = 1,
                                     species = NULL,
                                     journal = c("Systematic Botany",
+                                                "Acta Amazonica",
                                                 "Acta Botanica Brasilica",
+                                                "Acta Botanica Mexicana",
                                                 "Annals of the Missouri Botanical Garden",
                                                 "Botanical Journal of the Linnean Society",
+                                                "Botany Letters",
                                                 "Brazilian Journal of Botany",
-                                                "Brittonia", "Candollea",
+                                                "Brittonia", "Candollea", "Darwiniana",
                                                 "Edinburgh Journal of Botany",
+                                                "Feddes Repertorium", "Hoehnea",
                                                 "Kew Bulletin",
                                                 "Nordic Journal of Botany",
                                                 "Phytotaxa",
                                                 "Plant Ecology and Evolution",
+                                                "Plant Systematics and Evolution",
                                                 "PhytoKeys",
                                                 "Willdenowia",
                                                 "Rodriguesia",
@@ -169,7 +195,9 @@ barroso_write_specimens <- function(df = NULL,
     df <- .read_records(path, sheet)
   }
   if (!is.data.frame(df)) stop("`df` must be a data frame.", call. = FALSE)
-  if (!language %in% c("en", "pt")) stop("`language` must be \"en\" or \"pt\".", call. = FALSE)
+  if (!is.character(language) || length(language) != 1 || !language %in% c("en", "pt", "es")) {
+    stop("`language` must be \"en\", \"pt\" or \"es\".", call. = FALSE)
+  }
 
   # The first journal by default, as in match.arg()
   if (length(journal) > 1) journal <- journal[1]
@@ -228,7 +256,7 @@ barroso_write_specimens <- function(df = NULL,
   doc <- officer::read_docx()
   out <- data.frame(species_name = character(0), specimens_text = character(0))
   if (is.null(header)) {
-    header <- if (language == "pt") style$header_pt else style$header
+    header <- switch(language, pt = style$header_pt, es = style$header_es, style$header)
   }
   if (!is.character(header) || length(header) != 1) {
     stop("`header` must be a single text, e.g. \"Paratypes\".", call. = FALSE)
@@ -284,8 +312,13 @@ barroso_write_specimens <- function(df = NULL,
             if (st_df$muni[j + 1] != st_df$muni[j]) style$municipality_sep else style$specimen_sep
           same <- style$municipality_once && j > 1 && nzchar(st_df$muni[j]) &&
             st_df$muni[j] == st_df$muni[j - 1]
-          before <- if (same) st_df$before_same[j] else st_df$before[j]
-          if (nzchar(before)) runs <- c(runs, list(run(paste0(before, style$field_sep))))
+          # The same place as the previous specimen, e.g. "loc. cit." in Acta
+          # Botanica Mexicana
+          same_place <- !is.null(style$place_repeat) && j > 1 &&
+            nzchar(st_df$place_key[j]) && st_df$place_key[j] == st_df$place_key[j - 1]
+          before <- if (same_place) st_df$before_place[j] else
+            if (same) st_df$before_same[j] else st_df$before[j]
+          if (nzchar(before)) runs <- c(runs, list(run(paste0(before, style$collector_sep))))
           # Collector, "et al." and number, each in the format of the journal
           # The herbaria start with their own separator, e.g. " (" or "; "
           parts <- list(c(st_df$coll_name[j], style$name_format, ""),
@@ -391,13 +424,26 @@ barroso_write_specimens <- function(df = NULL,
 # collector: "compact" (D.B.O.S. Cardoso), "spaced" (D. B. O. S. Cardoso) or
 # "surname" (Cardoso), with name_format, etal_format and number_format
 # date: "abbr" (8 May 1994), "abbr_dot" (8 Nov. 1994), "kew" (8 Jan. 1994),
-# "full" (8 January 1994), "roman_dots" (8.V.1994), "roman_lower_dots" (8.v.1994)
-# or "roman_lower" (8 v 1994)
-# phenology: brackets around reproductiveCondition, or NULL to omit it
+# "full" (8 January 1994), "roman_dots" (8.V.1994), "roman_lower_dots" (8.v.1994),
+# "roman_hyphen" (8-V-1994) or "roman_lower" (8 v 1994)
+# phenology: brackets around the phenology (column phenology or
+# reproductiveCondition), e.g. "(fl, fr)", or NULL to omit it; written with
+# phenology_dot ("fl."), phenology_join (", ", "/" or " and "), after the date
+# (phenology_position "after") or as a field before it ("before", e.g.
+# "Fl. 15 April 1987" with phenology_capital), and sterile for "st" (e.g. "veg")
+# elevation_first: elevation before the coordinates; elevation_prefix, e.g. "Elev. "
+# dms_sep: space between degrees, minutes and seconds, e.g. "8@u00b0 09@u2032 04@u2033 S"
+# collector_sep: separator before the collector, e.g. ", " after fields
+# separated by ". " (field_sep) in Acta Amazonica; coll_and: word between two
+# collectors, e.g. "&" or "and"
+# municipality_repeat: text for the municipality of the previous specimen, with
+# municipality_once, e.g. "l.c." in Hoehnea; place_repeat: text for the same
+# place of the previous specimen, e.g. "loc. cit."
 # sn: text for collections without number, which are also cited with the
 # catalog number of the first herbarium, e.g. "A. Fernandes (EAC 11356)"
 .style_defaults <- list(
   header = "Additional specimens examined", header_pt = "Material examinado",
+  header_es = "Material examinado",
   header_format = "italic", header_punct = ".", header_punct_format = "italic",
   header_end = " ", species_inline = FALSE,
   country_case = "upper", country_format = "plain", country_end = ". ",
@@ -406,6 +452,10 @@ barroso_write_specimens <- function(df = NULL,
   specimen_sep = "; ", coord_sep = ", ", degree = "\u00b0",
   primes = c("\u2032", "\u2033"), hemisphere_sep = "", elevation = " m",
   date = "abbr", day_zero = FALSE, phenology = c("(", ")"), phenology_sep = " ",
+  phenology_dot = FALSE, phenology_join = ", ", phenology_position = "after",
+  phenology_capital = FALSE, sterile = NULL, elevation_first = FALSE,
+  elevation_prefix = "", dms_sep = "", collector_sep = NULL, coll_and = "&",
+  municipality_repeat = "", place_repeat = NULL,
   collector = "compact", name_format = "italic", etal_format = "italic",
   number_format = "italic", etal = "et al.", sn = "s.n.", catalog = "%s %s",
   herbarium_mark = "", field_sep = ", ", herbaria_open = " (", herbaria_close = ")",
@@ -413,24 +463,40 @@ barroso_write_specimens <- function(df = NULL,
   header_once = FALSE)
 
 .journal_styles <- list(
+  "Acta Amazonica" = list(
+    header_format = "bold", header_punct = ":", header_punct_format = "bold",
+    field_sep = ". ", collector_sep = ", ", degree = "\u00ba",
+    primes = c("\u2019", "\u201d"), elevation = "m", elevation_prefix = "Elev. ",
+    date = "full", phenology = c("", ""), phenology_dot = TRUE,
+    phenology_position = "before", phenology_capital = TRUE, name_format = "plain",
+    etal_format = "plain", number_format = "plain"),
   "Acta Botanica Brasilica" = list(
     header_format = "bold", header_punct = ":", header_punct_format = "bold",
     country_format = "bold", state_format = "bold", state_colon_format = TRUE,
     primes = c("\u2019", "\u201d"), hemisphere_sep = " ", date = "full",
-    phenology_sep = ", ", herbarium_mark = "!", catalog = "%s barcode %s",
-    municipality_sep = ". ", municipality_once = TRUE),
+    phenology_sep = ", ", phenology_dot = TRUE, herbarium_mark = "!",
+    catalog = "%s barcode %s", municipality_sep = ". ", municipality_once = TRUE),
+  "Acta Botanica Mexicana" = list(
+    header = "Specimens examined", header_es = "Ejemplares examinados",
+    header_format = "plain", header_punct = ":", header_punct_format = "plain",
+    state_end = ", ", municipality_prefix = "municipio ", elevation_first = TRUE,
+    primes = c("'", "''"), date = "roman_dots", collector = "spaced",
+    coll_and = "and", place_repeat = "loc. cit."),
   "Systematic Botany" = list(
-    header = "Representative Specimens Examined", header_format = "bold+italic",
+    header = "Representative Specimens Examined", header_pt = "Material representativo examinado",
+    header_es = "Material representativo examinado", header_format = "bold+italic",
     header_punct = "", header_end = "\u2014", country_case = "title",
     country_format = "bold", state_format = "smallcaps", state_prefix = "\u2014",
     state_prefix_next = "\u2014"),
   "Taxon" = list(
     header_end = " \u2013 ", state_format = "upper", state_sep = "; ",
-    elevation = " m a.s.l.", etal = "& al.", catalog = "%s barcode %s"),
+    elevation = " m a.s.l.", phenology_dot = TRUE, etal = "& al.",
+    catalog = "%s barcode %s"),
   "Kew Bulletin" = list(
     header = "Specimens examined", header_format = "bold+upper+sans",
     header_punct_format = "bold+sans", country_format = "bold+sans",
-    primes = c("'", "\""), date = "kew", collector = "spaced", number_format = "plain"),
+    primes = c("'", "\""), date = "kew", phenology_dot = TRUE, collector = "spaced",
+    number_format = "plain"),
   "Phytotaxa" = list(
     header_format = "bold", header_punct = ":\u2015", header_punct_format = "bold",
     header_end = "", municipality_end = ": ", primes = c("\u2019", "\u201d"),
@@ -442,30 +508,51 @@ barroso_write_specimens <- function(df = NULL,
   "Candollea" = list(
     header_end = " \u2013 ", country_case = "title", country_format = "bold+smallcaps",
     state_format = "bold", state_colon_format = TRUE, coord_sep = " ",
-    primes = c("'", "\""), date = "roman_dots", phenology = NULL, collector = "surname"),
+    primes = c("'", "\""), date = "roman_dots", phenology = c("", ""),
+    phenology_sep = ", ", phenology_dot = TRUE, collector = "surname"),
+  "Darwiniana" = list(
+    header = "Material examined", header_format = "sans", header_punct = ":",
+    header_punct_format = "sans", state_format = "bold", state_end = ", ",
+    degree = "\u00ba", primes = c("\u2019", "\u201d"), hemisphere_sep = " ",
+    elevation = " m s. m.", date = "roman_hyphen", sterile = "veg",
+    place_repeat = "\u00eddem"),
   "Edinburgh Journal of Botany" = list(
     country_format = "bold", state_format = "bold", date = "roman_lower",
     collector = "surname", etal_format = "plain", number_format = "plain",
     catalog = "%s [%s]", municipality_sep = ". "),
+  "Feddes Repertorium" = list(
+    header = "Additional specimens", header_format = "bold", header_punct = ":",
+    header_punct_format = "bold", country_format = "bold", state_format = "bold",
+    state_colon_format = TRUE, date = "abbr_dot", collector = "surname",
+    number_format = "plain", catalog = "%s [%s]"),
+  "Hoehnea" = list(
+    header = "Material examined", header_format = "plain", header_punct = ":",
+    header_punct_format = "plain", state_format = "smallcaps",
+    primes = c("\u2019", "\u201d"), date = "roman_hyphen", phenology_dot = TRUE,
+    municipality_once = TRUE, municipality_repeat = "l.c."),
   "Systematics and Biodiversity" = list(
     header = "Additional specimens analysed", header_format = "bold",
     header_punct_format = "bold", primes = c("'", "\""), date = "full",
-    phenology = NULL, collector = "spaced"),
+    collector = "spaced"),
   "Annals of the Missouri Botanical Garden" = list(
     state_format = "bold", state_colon_format = TRUE, date = "abbr_dot",
-    collector = "spaced"),
+    phenology_dot = TRUE, phenology_join = "/", collector = "spaced"),
   "Botanical Journal of the Linnean Society" = list(
     header = "Representative specimens examined", header_punct = ":", header_end = " ",
-    state_format = "bold", date = "roman_lower_dots", phenology = NULL,
-    municipality_once = TRUE),
+    state_format = "bold", date = "roman_lower_dots", municipality_once = TRUE),
+  "Botany Letters" = list(
+    header = "Representative specimens examined", header_format = "bold",
+    header_punct = ":", header_punct_format = "bold", country_format = "bold",
+    state_format = "upper", state_prefix = "\u2014 ", state_prefix_next = "\u2014 ",
+    date = "full", phenology_dot = TRUE, number_format = "plain"),
   "Brazilian Journal of Botany" = list(
     header = "Selected additional specimens", header_punct = "", header_end = "\u2014",
-    day_zero = TRUE, collector = "surname", sn = "sn"),
+    day_zero = TRUE, phenology_join = " and ", collector = "surname", sn = "sn"),
   "Nordic Journal of Botany" = list(
     header = "Additional specimen examined", header_format = "bold", header_punct = "",
     header_end = "", species_inline = TRUE, country_case = "title", country_end = ", ",
     state_end = ", ", specimen_sep = ". ", date = "abbr_dot", phenology_sep = ", ",
-    collector = "surname", name_format = "plain", etal_format = "plain",
+    phenology_dot = TRUE, phenology_join = " ", collector = "surname", name_format = "plain", etal_format = "plain",
     number_format = "plain", catalog = "%s%s"),
   "Plant Ecology and Evolution" = list(
     header = "Additional material examined", header_format = "bold",
@@ -473,22 +560,30 @@ barroso_write_specimens <- function(df = NULL,
     state_sep = " \u2022 ", specimen_sep = " \u2022 ", field_sep = "; ",
     primes = c("\u2019", "\u201d"), date = "abbr_dot", collector = "surname",
     herbaria_open = "; ", herbaria_close = ""),
+  "Plant Systematics and Evolution" = list(
+    header_format = "italic", header_punct = ":", header_punct_format = "plain",
+    country_format = "bold", state_format = "bold", state_end = ". ",
+    elevation = " m a. s. l.", elevation_first = TRUE, dms_sep = " ",
+    hemisphere_sep = " ", phenology_dot = TRUE, etal_format = "plain",
+    herbarium_mark = "!", catalog = "%s barcode %s", specimen_sep = ". ",
+    municipality_sep = "; ", municipality_once = TRUE),
   "PhytoKeys" = list(
     header_format = "bold", header_punct_format = "bold", country_case = "title",
     country_format = "bold+smallcaps", state_format = "bold", state_colon_format = TRUE,
     municipality_prefix = "Mun. ", primes = c("'", "\""), elevation = " m alt.",
-    date = "abbr_dot", phenology = NULL, catalog = "%s [%s]"),
+    date = "abbr_dot", catalog = "%s [%s]"),
   "Willdenowia" = list(
     header_format = "bold", header_punct_format = "bold", header_once = TRUE,
     country_case = "title", country_format = "smallcaps", country_end = ": ",
     state_format = "smallcaps", state_prefix_next = "\u2014 ", municipality_prefix = "Municipality ",
     municipality_sep = ". ", municipality_once = TRUE, primes = c("'", "\""),
-    phenology = NULL, collector = "spaced", etal = "& al."),
+    collector = "spaced", etal = "& al."),
   "Rodrigu\u00e9sia" = list(
     header = "Additional material examined", header_format = "bold",
     header_punct = ":", header_punct_format = "bold", state_format = "upper",
     specimen_sep = ". ", degree = "\u00ba", primes = c("\u2019", "\u201d"),
-    date = "roman_dots", phenology = c("", ""), phenology_sep = ", ", sn = ""))
+    date = "roman_dots", phenology = c("", ""), phenology_sep = ", ", phenology_dot = TRUE,
+    phenology_join = " and ", sn = ""))
 
 # Find the style of a journal from its name, in any case or abbreviated,
 # e.g. "systematic botany", "SystematicBotany", "Kew", "Edimburgh"
@@ -508,6 +603,7 @@ barroso_write_specimens <- function(df = NULL,
   style <- utils::modifyList(.style_defaults, .journal_styles[[i]], keep.null = TRUE)
   style$name <- names(.journal_styles)[i]
   if (is.null(style$municipality_sep)) style$municipality_sep <- style$specimen_sep
+  if (is.null(style$collector_sep)) style$collector_sep <- style$field_sep
   style
 }
 
@@ -588,24 +684,36 @@ barroso_write_specimens <- function(df = NULL,
                    suppressWarnings(as.numeric(col("decimalLatitude"))),
                    suppressWarnings(as.numeric(col("decimalLongitude"))),
                    MoreArgs = list(primes = style$primes, sep = style$coord_sep,
-                                   degree = style$degree, hemisphere_sep = style$hemisphere_sep),
+                                   degree = style$degree, hemisphere_sep = style$hemisphere_sep,
+                                   dms_sep = style$dms_sep,
+                                   # "O" (oeste) for west in Spanish, e.g. in Darwiniana
+                                   west = if (language == "es") "O" else "W"),
                    USE.NAMES = FALSE)
   elev <- .format_elevation(col("minimumElevationInMeters"), col("maximumElevationInMeters"),
-                            style$elevation)
+                            style$elevation, style$elevation_prefix)
   date <- mapply(.format_date, col("day"), col("month"), col("year"),
                  MoreArgs = list(language = language, format = style$date,
                                  day_zero = style$day_zero), USE.NAMES = FALSE)
-  phen <- col("reproductiveCondition")
+  # Phenology, e.g. "fl, fr", from the column phenology (as in records from
+  # REFLORA or JABOT) or reproductiveCondition, after the date, e.g.
+  # "8 May 1994 (fl., fr.)", or as a field before it, e.g. "Fl. 15 April 1987"
+  phen <- col("phenology")
+  phen[!nzchar(phen)] <- col("reproductiveCondition")[!nzchar(phen)]
+  phen <- .format_phenology(phen, style, language)
+  phen_before <- rep("", nrow(df))
   if (!is.null(style$phenology)) {
-    phen <- paste0(style$phenology[1], phen, style$phenology[2])
-    date <- ifelse(nzchar(col("reproductiveCondition")),
-                   ifelse(nzchar(date), paste0(date, style$phenology_sep, phen), phen), date)
+    phen <- ifelse(nzchar(phen), paste0(style$phenology[1], phen, style$phenology[2]), "")
+    if (style$phenology_position == "before") {
+      phen_before <- phen
+    } else {
+      date <- ifelse(nzchar(phen),
+                     ifelse(nzchar(date), paste0(date, style$phenology_sep, phen), phen), date)
+    }
   }
-  collector <- .format_collector(coll, col("addCollector"), style)
+  collector <- .format_collector(coll, col("addCollector"), style, language)
   number <- ifelse(nzchar(num), num, style$sn)
 
-  country <- col("country")
-  if (language == "pt") country <- vapply(country, .translate_country, "", USE.NAMES = FALSE)
+  country <- .translate_country(col("country"), language)
   country_label <- if (style$country_case == "upper") toupper(country) else country
   state <- col("stateProvince")
   state_label <- if (grepl("upper", style$state_format)) toupper(state) else state
@@ -643,6 +751,7 @@ barroso_write_specimens <- function(df = NULL,
                state = first(state, i), state_label = first(state_label, i),
                muni = first(muni, i), locality = first(locality, i),
                coords = first(coords, i), elev = first(elev, i), date = first(date, i),
+               phen = first(phen_before, i),
                year = first(col("year"), i), month = first(col("month"), i),
                day = first(col("day"), i), coll_name = collector$name[i[1]],
                coll_etal = collector$etal[i[1]], coll_number = number[i[1]],
@@ -656,19 +765,40 @@ barroso_write_specimens <- function(df = NULL,
                   paste0(sp$muni, style$municipality_end, sp$locality),
                   paste0(sp$muni, sp$locality))
   # Text before the collector, the collector with number, and the herbaria
+  # Without double periods, e.g. "Fl." followed by ". " in Acta Amazonica
   join <- function(...) apply(cbind(...), 1, function(x) {
-    paste(trimws(x[nzchar(trimws(x))]), collapse = style$field_sep)
+    gsub("[.]{2,}", ".", paste(trimws(x[nzchar(trimws(x))]), collapse = style$field_sep))
   })
-  sp$before <- join(place, sp$coords, sp$elev, sp$date)
+  # Place, coordinates, elevation (before the coordinates in journals like
+  # Plant Systematics and Evolution), phenology as a field, and date
+  fields <- function(place) {
+    if (style$elevation_first) {
+      join(place, sp$elev, sp$coords, sp$phen, sp$date)
+    } else {
+      join(place, sp$coords, sp$elev, sp$phen, sp$date)
+    }
+  }
+  sp$before <- fields(place)
   # Without the municipality, for the next specimens of the same municipality
-  # in journals like Willdenowia
-  sp$before_same <- join(sp$locality, sp$coords, sp$elev, sp$date)
+  # in journals like Willdenowia, or with a text like "l.c." in Hoehnea
+  repeat_muni <- style$municipality_repeat
+  sp$before_same <- fields(if (nzchar(repeat_muni)) {
+    ifelse(nzchar(sp$locality), paste0(repeat_muni, style$municipality_end, sp$locality),
+           repeat_muni)
+  } else {
+    sp$locality
+  })
+  # The same place of the previous specimen, e.g. "loc. cit., 2.II.2022 (fl)"
+  sp$place_key <- paste(sp$muni, sp$locality, sp$coords, sp$elev, sep = "|")
+  sp$place_key[!nzchar(sp$muni) & !nzchar(sp$locality)] <- ""
+  sp$before_place <- join(if (is.null(style$place_repeat)) "" else style$place_repeat,
+                          sp$phen, sp$date)
   sp$collector <- trimws(gsub("\\s+", " ", paste(sp$coll_name, sp$coll_etal, sp$coll_number)))
   # Herbaria between parentheses, e.g. "(HUEFS, RB)", or after a semicolon in
   # Plant Ecology and Evolution
   sp$herb_text <- ifelse(nzchar(sp$herbaria),
                          paste0(style$herbaria_open, sp$herbaria, style$herbaria_close), "")
-  sp$text <- paste0(ifelse(nzchar(sp$before), paste0(sp$before, style$field_sep), ""),
+  sp$text <- paste0(ifelse(nzchar(sp$before), paste0(sp$before, style$collector_sep), ""),
                     sp$collector, sp$herb_text)
   sp$text <- gsub("\\s{2,}", " ", sp$text)
   # Without a final period, e.g. after "s.n.", before separators like ". "
@@ -684,7 +814,7 @@ barroso_write_specimens <- function(df = NULL,
 
 # Collector names as cited in each journal, from names standardized by
 # std_recordedBy like "D. B. O. S. Cardoso", with the additional collector
-.format_collector <- function(coll, add, style) {
+.format_collector <- function(coll, add, style, language = "en") {
   fmt <- function(x) {
     switch(style$collector,
            compact = gsub("(\\p{Lu}[.])\\s+(?=\\p{Lu}[.])", "\\1", x, perl = TRUE),
@@ -697,24 +827,25 @@ barroso_write_specimens <- function(df = NULL,
   etal <- grepl("^(et\\.?\\s*al\\.?|&\\s*al\\.?)$", add, ignore.case = TRUE)
   # The second collector, e.g. "R.M. Harley & A.M. Giulietti", or "et al."
   two <- nzchar(add) & !etal
-  name[two] <- paste(name[two], "&", fmt(add[two]))
+  name[two] <- paste(name[two], .translate_and(style$coll_and, language), fmt(add[two]))
   list(name = name, etal = ifelse(etal, style$etal, ""))
 }
 
 # Elevation, e.g. "650 m" or "650–700 m a.s.l."
-.format_elevation <- function(min, max, unit) {
+.format_elevation <- function(min, max, unit, prefix = "") {
   min <- sub("[.]0+$", "", min)
   max <- sub("[.]0+$", "", max)
   elev <- ifelse(nzchar(min) & nzchar(max) & min != max, paste0(min, "\u2013", max),
                  ifelse(nzchar(min), min, max))
-  ifelse(nzchar(elev), paste0(elev, unit), "")
+  ifelse(nzchar(elev), paste0(prefix, elev, unit), "")
 }
 
 #' Format coordinates for display
 #' @keywords internal
 #' @noRd
 .format_coordinates <- function(lat, lon, primes = c("\u2032", "\u2033"), sep = ", ",
-                               degree = "\u00b0", hemisphere_sep = "") {
+                               degree = "\u00b0", hemisphere_sep = "", dms_sep = "",
+                               west = "W") {
   if (is.na(lat) || is.na(lon)) return("")
   if (abs(lat) > 90 || abs(lon) > 180 || (lat == 0 && lon == 0)) return("")
 
@@ -729,12 +860,13 @@ barroso_write_specimens <- function(df = NULL,
   la <- dms(lat)
   lo <- dms(lon)
   lat_dir <- if (lat >= 0) "N" else "S"
-  lon_dir <- if (lon >= 0) "E" else "W"
+  lon_dir <- if (lon >= 0) "E" else west
   fmt <- function(d, h, sec, min) {
     paste0(d[1], degree,
-           # Minutes and seconds with two digits, e.g. 13\u00b000\u203217\u2033S
-           if (min) paste0(sprintf("%02d", d[2]), primes[1]) else "",
-           if (sec) paste0(sprintf("%02d", d[3]), primes[2]) else "", hemisphere_sep, h)
+           # Minutes and seconds with two digits, e.g. 13\u00b000\u203217\u2033S,
+           # or with spaces, e.g. 8\u00b0 09\u2032 04\u2033 S
+           if (min) paste0(dms_sep, sprintf("%02d", d[2]), primes[1]) else "",
+           if (sec) paste0(dms_sep, sprintf("%02d", d[3]), primes[2]) else "", hemisphere_sep, h)
   }
   sec <- la[3] > 0 || lo[3] > 0
   min <- sec || la[2] > 0 || lo[2] > 0
@@ -755,18 +887,18 @@ barroso_write_specimens <- function(df = NULL,
   if (is.na(m)) m <- match(tolower(substr(.na_to_empty(month), 1, 3)), tolower(month.abb))
   if (is.na(m) || m < 1 || m > 12) return(year)
 
-  months <- if (language == "pt") {
-    c("janeiro", "fevereiro", "mar\u00e7o", "abril", "maio", "junho", "julho",
-      "agosto", "setembro", "outubro", "novembro", "dezembro")
-  } else {
-    month.name
-  }
+  months <- switch(language,
+    pt = c("janeiro", "fevereiro", "mar\u00e7o", "abril", "maio", "junho", "julho",
+           "agosto", "setembro", "outubro", "novembro", "dezembro"),
+    es = c("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+           "septiembre", "octubre", "noviembre", "diciembre"),
+    month.name)
   roman <- c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII")
   kew <- c("Jan.", "Feb.", "March", "April", "May", "June", "July", "Aug.", "Sept.",
            "Oct.", "Nov.", "Dec.")
   mon <- switch(format,
                 full = months[m],
-                kew = if (language == "pt") substr(months[m], 1, 3) else kew[m],
+                kew = if (language != "en") substr(months[m], 1, 3) else kew[m],
                 roman_dots = roman[m],
                 roman_lower = tolower(roman[m]),
                 abbr_dot = if (nchar(months[m]) > 4) paste0(substr(months[m], 1, 3), ".") else months[m],
@@ -776,6 +908,9 @@ barroso_write_specimens <- function(df = NULL,
   }
   if (format == "roman_dots") {
     return(paste(c(if (nzchar(day)) day, mon, year), collapse = "."))
+  }
+  if (format == "roman_hyphen") {
+    return(paste(c(if (nzchar(day)) day, roman[m], year), collapse = "-"))
   }
   paste(c(if (nzchar(day)) day, mon, year), collapse = " ")
 }
@@ -789,21 +924,49 @@ barroso_write_specimens <- function(df = NULL,
   x
 }
 
-#' Translate country names to Portuguese
+#' Translate country names to Portuguese or Spanish, e.g. "Brasil"
 #' @keywords internal
 #' @noRd
-.translate_country <- function(country) {
-  translations <- c(
-    "Brazil" = "Brasil", "United States" = "Estados Unidos", "USA" = "EUA",
-    "Colombia" = "Col\u00f4mbia", "Ecuador" = "Equador", "Bolivia" = "Bol\u00edvia",
-    "Paraguay" = "Paraguai", "Uruguay" = "Uruguai", "Guyana" = "Guiana",
-    "French Guiana" = "Guiana Francesa", "France" = "Fran\u00e7a", "Germany" = "Alemanha",
-    "Italy" = "It\u00e1lia", "Spain" = "Espanha", "United Kingdom" = "Reino Unido",
-    "Mexico" = "M\u00e9xico", "Canada" = "Canad\u00e1", "Panama" = "Panam\u00e1",
-    "Costa Rica" = "Costa Rica", "Nicaragua" = "Nicar\u00e1gua", "Belize" = "Belize",
-    "Honduras" = "Honduras", "Cuba" = "Cuba", "China" = "China", "Japan" = "Jap\u00e3o",
-    "Vietnam" = "Vietn\u00e3", "Thailand" = "Tail\u00e2ndia", "Indonesia" = "Indon\u00e9sia",
-    "Malaysia" = "Mal\u00e1sia", "Philippines" = "Filipinas", "India" = "\u00cdndia",
-    "Australia" = "Austr\u00e1lia")
-  if (country %in% names(translations)) translations[[country]] else country
+.translate_country <- function(country, language = "en") {
+  if (language == "en" || length(country) == 0) return(country)
+  tr <- suppressWarnings(countrycode::countrycode(country, "country.name",
+                                                  paste0("cldr.name.", language),
+                                                  warn = FALSE))
+  ifelse(is.na(tr) | !nzchar(country), country, tr)
+}
+
+#' Translate "and", e.g. "fl and fr" into "fl e fr" in Portuguese
+#' @keywords internal
+#' @noRd
+.translate_and <- function(x, language = "en") {
+  switch(language, pt = gsub("\\band\\b", "e", x), es = gsub("\\band\\b", "y", x), x)
+}
+
+#' Phenology as abbreviations, e.g. "flower, fruit" or "fl, fr" into "fl, fr",
+#' "fl., fr." or "fl./fr.", with "bud" (bot in Portuguese and Spanish), "fl",
+#' "fr" and "st" (sterile, est in Portuguese and Spanish)
+#' @keywords internal
+#' @noRd
+.format_phenology <- function(x, style, language = "en") {
+  words <- switch(language,
+                  en = c(bud = "bud", fl = "fl", fr = "fr", st = "st"),
+                  c(bud = "bot", fl = "fl", fr = "fr", st = "est"))
+  if (!is.null(style$sterile)) words[["st"]] <- style$sterile
+  join <- .translate_and(style$phenology_join, language)
+  vapply(.na_to_empty(x), function(v) {
+    t <- strsplit(tolower(stringi::stri_trans_general(trimws(v), "Latin-ASCII")),
+                  "\\s*(,|;|/|&|[+]|\\band\\b|\\be\\b|\\by\\b)\\s*")[[1]]
+    t <- t[nzchar(t)]
+    k <- ifelse(grepl("^(bud|bot)", t), "bud",
+                ifelse(grepl("^(fl|flor|anth|antes)", t), "fl",
+                       ifelse(grepl("^(fr|fruit|frut)", t), "fr",
+                              ifelse(grepl("^(st|ster|est|veg)", t), "st", NA))))
+    k <- intersect(c("bud", "fl", "fr", "st"), k)
+    # Sterile only when there are no flowers or fruits
+    if (length(k) > 1) k <- setdiff(k, "st")
+    if (length(k) == 0) return("")
+    out <- paste(paste0(words[k], if (style$phenology_dot) "."), collapse = join)
+    if (style$phenology_capital) out <- paste0(toupper(substr(out, 1, 1)), substring(out, 2))
+    out
+  }, "", USE.NAMES = FALSE)
 }

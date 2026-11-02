@@ -84,7 +84,7 @@ identifications
 ✅ Generate herbarium labels from field books, with maps and taxon
 authorities from [LCVP](https://github.com/idiv-biodiversity/LCVP)
 
-✅ Write lists of examined specimens in the format of 17 botanical
+✅ Write lists of examined specimens in the format of 24 botanical
 journals
 
 ✅ Generate taxonomic descriptions from morphological data
@@ -231,13 +231,17 @@ barroso_labels(fieldbook = df,
 Writes the lists of examined specimens of one, several or all species of
 a database into a Word (.docx) file, in the format of a botanical
 journal, with its bold, italics and small capitals: Systematic Botany,
-Acta Botanica Brasilica, Annals of the Missouri Botanical Garden,
-Botanical Journal of the Linnean Society, Brazilian Journal of Botany,
-Brittonia, Candollea, Edinburgh Journal of Botany, Kew Bulletin, Nordic
-Journal of Botany, Phytotaxa, PhytoKeys, Plant Ecology and Evolution,
+Acta Amazonica, Acta Botanica Brasilica, Acta Botanica Mexicana, Annals
+of the Missouri Botanical Garden, Botanical Journal of the Linnean
+Society, Botany Letters, Brazilian Journal of Botany, Brittonia,
+Candollea, Darwiniana, Edinburgh Journal of Botany, Feddes Repertorium,
+Hoehnea, Kew Bulletin, Nordic Journal of Botany, Phytotaxa, PhytoKeys,
+Plant Ecology and Evolution, Plant Systematics and Evolution,
 Rodriguésia, Systematics and Biodiversity, Taxon and Willdenowia.
-Duplicates are cited once with all their herbaria, and the header can be
-changed (e.g. `header = "Paratypes"`).
+Duplicates are cited once with all their herbaria, the phenology is
+written as in each journal (e.g. `"(fl, fr)"` or `"(fl./fr.)"`), the
+list can be in English, Portuguese or Spanish (`language`), and the
+header can be changed (e.g. `header = "Paratypes"`).
 
 ``` r
 barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",

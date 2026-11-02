@@ -14,8 +14,12 @@
 #' reconciliation, duplicate detection, and label generation across different
 #' biodiversity databases. It ensures consistency of location fields by correcting
 #' common mistakes and variations. Country names are translated to English and
-#' harmonized using `countrycode` Brazilian and U.S. state abbreviations are
-#' expanded to full names. Words for municipality in `county` and `municipality`,
+#' harmonized using `countrycode`, and country codes like `"BR"` or `"BRA"` are
+#' converted into names. Missing countries are taken from the Brazilian state
+#' (e.g. `"Bahia"`), from a country name in the locality (e.g. `"Manaus, Brasil"`),
+#' or from other records with the same state and county. Brazilian and U.S.
+#' state abbreviations are expanded to full names. Missing municipalities are
+#' taken from the county. Words for municipality in `county` and `municipality`,
 #' e.g. `"Manaus Mun."`, `"Mun. de Castelo"`, `"Município de Mucugê"` or
 #' `"Arriaga Municipio"`, are removed, leaving just the name.
 #'
@@ -128,6 +132,13 @@ std_place <- function(df = NULL,
 
     # Fix country names such as put them in English ####
     df <- .fix_country_names(df)
+
+    # Country codes into names, e.g. "BR", "GY" or "BRA" ####
+    df$country <- .country_code_to_name(df$country)
+
+    # Missing countries from the state or the locality, e.g. "Bahia" or
+    # "Manaus, Brasil" ####
+    df <- .country_from_place(df)
 
 
   }
@@ -392,6 +403,8 @@ std_place <- function(df = NULL,
                                      "Unknown",
                                      "Unknown-E",
                                      "Unplaced"))] <- NA
+    # Unknown county, e.g. "inc.sed.cty." (incertae sedis county)
+    df$county[grepl("^inc[.]?\\s*sed", df$county, ignore.case = TRUE)] <- NA
 
     df$county <- gsub("^[(]", "", df$county)
     df$county <- gsub("[)]$", "", df$county)
@@ -513,6 +526,15 @@ std_place <- function(df = NULL,
                                    df$locality[tf][tftf])
     }
 
+    # Municipality from the county, when missing, e.g. in GBIF records of
+    # Brazil, where the municipality is often in the county ####
+    if (colname_county %in% names(df)) {
+      county <- df[[colname_county]]
+      tf <- (is.na(df$municipality) | !nzchar(trimws(df$municipality))) &
+        !is.na(county) & nzchar(trimws(county))
+      df$municipality[tf] <- county[tf]
+    }
+
     # Put original municipality name back ####
     if (colname_municipality != "municipality") {
       names(df)[names(df) %in% "municipality"] <- colname_municipality
@@ -571,7 +593,7 @@ std_place <- function(df = NULL,
 
   temp <- c("ane anglaise$", "ane Anglaise$", "^Guyana$", "ane angloise$", "^Guian$",
             "Guyanna$", "Guyane[?]$", "^Guyanne$", "^Guyane$", "ane Guyane$",
-            "Guayne$", "Guiana$", "Guiana Brit", "Guiana ang", "Guyane ang",
+            "Guayne$", "^Guiana$", "^British Guiana$", "Guiana Brit", "Guiana ang", "Guyane ang",
             "^Guiane$", "ana Inglesa$", "ane britannique$", "^Grayanae$",
             "British gu", "British Gu")
   pattern <- paste0(temp, collapse = "|")
@@ -580,7 +602,7 @@ std_place <- function(df = NULL,
     df$country[tf] <- "Guyana"
   }
 
-  temp <- c("Guyana fra", "Guyane Fra", "Guyanne fra", "Guyane fra", "Guinana Fra",
+  temp <- c("Guyana fra", "Guyane Fra", "Guyanne fra", "Guyane fra", "Guiane fra", "Guinana Fra",
             "Guiana Fra")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
@@ -662,6 +684,91 @@ std_place <- function(df = NULL,
   # }
 
   return(df)
+}
+
+# Brazilian states ####
+.brazil_states <- c("Acre", "Alagoas", "Amap\u00e1", "Amazonas", "Bahia", "Cear\u00e1",
+                    "Distrito Federal", "Esp\u00edrito Santo", "Goi\u00e1s", "Maranh\u00e3o",
+                    "Mato Grosso", "Mato Grosso do Sul", "Minas Gerais", "Par\u00e1",
+                    "Para\u00edba", "Paran\u00e1", "Pernambuco", "Piau\u00ed", "Rio de Janeiro",
+                    "Rio Grande do Norte", "Rio Grande do Sul", "Rond\u00f4nia", "Roraima",
+                    "Santa Catarina", "S\u00e3o Paulo", "Sergipe", "Tocantins")
+
+# Country codes into country names, e.g. "BR" or "BRA" into "Brazil" ####
+.country_code_to_name <- function(x) {
+  for (code in c("iso2c", "iso3c")) {
+    tf <- grepl(if (code == "iso2c") "^[A-Z]{2}$" else "^[A-Z]{3}$", x)
+    if (any(tf)) {
+      en <- suppressWarnings(countrycode::countrycode(x[tf], code, "country.name.en",
+                                                      warn = FALSE))
+      x[tf][!is.na(en)] <- en[!is.na(en)]
+    }
+  }
+  x
+}
+
+# Missing countries from other place columns ####
+# 1. Brazilian states, except names also used in other countries, e.g.
+# "Amazonas" (also in Colombia, Peru and Venezuela) or "Distrito Federal"
+# 2. Country names at the start or end of the locality, e.g. "Brasil" or
+# "Manaus, Brazil"
+# 3. The country of other records with the same state and county, or the same
+# state, when all of them are from a single country, e.g. "Amazonas, Manaus"
+.country_from_place <- function(df) {
+  miss <- function() is.na(df$country) | !nzchar(trimws(df$country))
+  if (!any(miss())) return(df)
+  norm <- function(x) tolower(trimws(stringi::stri_trans_general(x, "Latin-ASCII")))
+  state <- if ("stateProvince" %in% names(df)) norm(df$stateProvince) else rep(NA, nrow(df))
+  county <- if ("county" %in% names(df)) norm(df$county) else rep(NA, nrow(df))
+
+  # 1. Brazilian states
+  br <- norm(setdiff(.brazil_states, c("Amazonas", "Distrito Federal")))
+  tf <- miss() & state %in% br
+  df$country[tf] <- "Brazil"
+
+  # 2. Country names in the locality
+  if ("locality" %in% names(df) && any(miss())) {
+    i <- which(miss() & !is.na(df$locality))
+    parts <- strsplit(df$locality[i], "\\s*[],;:.()[]\\s*")
+    ends <- lapply(parts, function(x) {
+      x <- x[nzchar(x)]
+      unique(c(x[1], x[length(x)]))
+    })
+    seg <- unique(unlist(ends))
+    seg <- as.character(seg[!is.na(seg)])
+    en <- if (length(seg) > 0) {
+      suppressWarnings(countrycode::countryname(seg, "country.name.en", warn = FALSE))
+    } else {
+      character(0)
+    }
+    # Only whole names of countries, also in other languages, and not names
+    # also used for people or places, e.g. "Georgia" or "Jordan"
+    ok <- !is.na(en) & en %in% countrycode::codelist$country.name.en &
+      !en %in% c("Unknown", "Georgia", "Jordan", "Chad", "Niger") &
+      nchar(seg) >= 4 & !grepl("\\d", seg) &
+      lengths(strsplit(seg, "\\s+")) <= lengths(strsplit(en, "\\s+")) + 1
+    found <- vapply(ends, function(x) {
+      m <- en[match(x, seg)][ok[match(x, seg)]]
+      m <- unique(m[!is.na(m)])
+      if (length(m) == 1) m else NA_character_
+    }, character(1))
+    df$country[i][!is.na(found)] <- found[!is.na(found)]
+    # Brazilian states as the locality, e.g. "Par\u00e1"
+    tf <- miss() & norm(df$locality) %in% br
+    df$country[tf] <- "Brazil"
+  }
+
+  # 3. Country of other records with the same state (and county)
+  for (key in list(paste(state, county), state)) {
+    if (!any(miss())) break
+    known <- !miss() & !is.na(state)
+    if (!any(known)) break
+    countries <- tapply(df$country[known], key[known], function(x) unique(x))
+    single <- countries[lengths(countries) == 1]
+    tf <- miss() & !is.na(state) & key %in% names(single)
+    df$country[tf] <- unlist(single)[key[tf]]
+  }
+  df
 }
 
 # Side function make first letter to upper case ####

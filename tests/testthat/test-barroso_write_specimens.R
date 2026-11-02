@@ -66,19 +66,19 @@ test_that("each journal has its own format", {
     strsplit(write_specimens(dir, journal, ...)$specimens_text[1], "\n")[[1]][1]
   }
   expect_match(first("Taxon"), "D.B.O.S. Cardoso & al. 1350", fixed = TRUE)
-  expect_match(first("Kew"), "5 March 2010 (fl), D. B. O. S. Cardoso et al. 1350", fixed = TRUE)
+  expect_match(first("Kew"), "5 March 2010 (fl.), D. B. O. S. Cardoso et al. 1350", fixed = TRUE)
   expect_match(first("Kew"), "12°58'17\"S, 38°30'05\"W", fixed = TRUE)
   expect_match(first("Phytotaxa"), "Salvador: Parque da Cidade, ", fixed = TRUE)
   expect_match(first("Phytotaxa"), "5 March 2010", fixed = TRUE)
   expect_match(first("Brittonia"), "5 Mar 2010 [fl]", fixed = TRUE)
-  expect_match(first("candollea"), "12°58'17\"S 38°30'05\"W, 5.III.2010, Cardoso et al. 1350",
+  expect_match(first("candollea"), "12°58'17\"S 38°30'05\"W, 5.III.2010, fl., Cardoso et al. 1350",
                fixed = TRUE)
   expect_match(first("Edimburgh"), "5 iii 2010 (fl), Cardoso et al. 1350", fixed = TRUE)
-  expect_match(first("Systematics and Biodiversity"), "5 March 2010, D. B. O. S. Cardoso", fixed = TRUE)
+  expect_match(first("Systematics and Biodiversity"), "5 March 2010 (fl), D. B. O. S. Cardoso", fixed = TRUE)
   expect_match(first("Brazilian Journal of Botany"), "05 Mar 2010 (fl), Cardoso et al. 1350",
                fixed = TRUE)
-  expect_match(first("Nordic"), "5 Mar. 2010, (fl), Cardoso et al. 1350", fixed = TRUE)
-  expect_match(first("Rodriguesia"), "12º58’17”S, 38º30’05”W, 5.III.2010, fl,",
+  expect_match(first("Nordic"), "5 Mar. 2010, (fl.), Cardoso et al. 1350", fixed = TRUE)
+  expect_match(first("Rodriguesia"), "12º58’17”S, 38º30’05”W, 5.III.2010, fl.,",
                fixed = TRUE)
   expect_match(first("Brittonia", catalog_numbers = TRUE),
                "(HUEFS no. HUEFS000123, RB no. 456)", fixed = TRUE)
@@ -108,7 +108,7 @@ test_that("species are filtered, files are read, and Portuguese is used", {
   expect_equal(res$species_name, "Ouratea crenulata")
   expect_match(res$specimens_text, "12 nov 1988", fixed = TRUE)
   lines <- docx_lines(dir, "records_Systematic_Botany")
-  expect_true(any(startsWith(lines, "Material examinado—Bolívia.")))
+  expect_true(any(startsWith(lines, "Material representativo examinado—Bolívia.")))
 
   csv <- file.path(dir, "records.csv")
   utils::write.csv(specimens, csv, row.names = FALSE, fileEncoding = "UTF-8")
@@ -119,7 +119,7 @@ test_that("species are filtered, files are read, and Portuguese is used", {
                  "No records of Ouratea nonexistens")
   expect_null(res)
   expect_error(barroso_write_specimens(), "Provide the records")
-  expect_error(barroso_write_specimens(df = specimens, language = "es"), "language")
+  expect_error(barroso_write_specimens(df = specimens, language = "fr"), "language")
 })
 
 test_that("coordinates, dates, collectors and herbaria are formatted", {
@@ -135,8 +135,9 @@ test_that("coordinates, dates, collectors and herbaria are formatted", {
   expect_equal(barRoso:::.format_date(NA, NA, NA), "")
   expect_equal(barRoso:::.format_date(8, 5, 1994, format = "abbr_dot"), "8 May 1994")
   expect_equal(barRoso:::.format_date(8, 9, 1994, format = "kew"), "8 Sept. 1994")
-  expect_equal(barRoso:::.translate_country("Mexico"), "México")
-  expect_equal(barRoso:::.translate_country("Narnia"), "Narnia")
+  expect_equal(barRoso:::.translate_country("Mexico", "pt"), "México")
+  expect_equal(barRoso:::.translate_country("Brazil", "es"), "Brasil")
+  expect_equal(barRoso:::.translate_country("Narnia", "pt"), "Narnia")
 
   style <- barRoso:::.journal_style("Systematic Botany")
   expect_equal(barRoso:::.format_collector(c("D. B. O. S. Cardoso", "", "R. M. Harley"),
@@ -151,7 +152,7 @@ test_that("Acta Botanica Brasilica marks the herbaria seen", {
   dir <- withr::local_tempdir()
   res <- write_specimens(dir, "Acta Botanica Brasilica")
   expect_match(res$specimens_text[1],
-               paste("12°58’17” S, 38°30’05” W, 5 March 2010, (fl),",
+               paste("12°58’17” S, 38°30’05” W, 5 March 2010, (fl.),",
                      "D.B.O.S. Cardoso et al. 1350 (HUEFS!, RB!)"), fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Additional specimens examined: BRAZIL. Bahia:")))
 })
@@ -217,7 +218,7 @@ test_that("PhytoKeys writes municipalities after Mun.", {
   dir <- withr::local_tempdir()
   res <- write_specimens(dir, "PhytoKeys")
   expect_match(res$specimens_text[1],
-               "Mun. Salvador, Parque da Cidade, 12\u00b058'17\"S, 38\u00b030'05\"W, 5 Mar. 2010, D.B.O.S. Cardoso et al. 1350",
+               "Mun. Salvador, Parque da Cidade, 12\u00b058'17\"S, 38\u00b030'05\"W, 5 Mar. 2010 (fl), D.B.O.S. Cardoso et al. 1350",
                fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Additional specimens examined. Brazil. Bahia: Mun. Salvador")))
 })
@@ -281,7 +282,7 @@ test_that("Kew Bulletin writes the header and countries in bold Arial", {
 test_that("Botanical Journal of the Linnean Society has dates like 5.iii.2010", {
   dir <- withr::local_tempdir()
   res <- write_specimens(dir, "Botanical Journal of the Linnean Society")
-  expect_match(res$specimens_text[1], "5.iii.2010, D.B.O.S. Cardoso et al. 1350", fixed = TRUE)
+  expect_match(res$specimens_text[1], "5.iii.2010 (fl), D.B.O.S. Cardoso et al. 1350", fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Representative specimens examined: BRAZIL. Bahia: Salvador")))
   expect_equal(barRoso:::.format_date(8, 5, 1994, format = "roman_lower_dots"), "8.v.1994")
 })
@@ -289,7 +290,79 @@ test_that("Botanical Journal of the Linnean Society has dates like 5.iii.2010", 
 test_that("Annals of the Missouri Botanical Garden has states in bold", {
   dir <- withr::local_tempdir()
   res <- write_specimens(dir, "Annals of the Missouri Botanical Garden")
-  expect_match(res$specimens_text[1], "5 Mar. 2010 (fl), D. B. O. S. Cardoso et al. 1350 (HUEFS, RB)",
+  expect_match(res$specimens_text[1], "5 Mar. 2010 (fl.), D. B. O. S. Cardoso et al. 1350 (HUEFS, RB)",
                fixed = TRUE)
   expect_true(any(startsWith(docx_lines(dir), "Additional specimens examined. BRAZIL. Bahia: Salvador")))
+})
+
+test_that("phenology comes from the column phenology, in the format of each journal", {
+  dir <- withr::local_tempdir()
+  df <- specimens
+  df$phenology <- c("fl, fr", NA, "flower", "st", "fruit", NA)
+  first <- function(journal, ...) {
+    res <- barroso_write_specimens(df = df, journal = journal, dir = dir, filename = "out",
+                                   verbose = FALSE, ...)
+    strsplit(res$specimens_text, "\n")[[1]]
+  }
+  expect_match(first("Systematic Botany")[1], "5 Mar 2010 (fl, fr), ", fixed = TRUE)
+  expect_match(first("Systematic Botany")[2], "Jul 2015 (fl), ", fixed = TRUE)
+  expect_match(first("Taxon")[1], "(fl., fr.)", fixed = TRUE)
+  expect_match(first("Annals of the Missouri")[1], "5 Mar. 2010 (fl./fr.), ", fixed = TRUE)
+  expect_match(first("Brittonia")[1], "[fl, fr]", fixed = TRUE)
+  expect_match(first("Brazilian Journal of Botany")[1], "(fl and fr)", fixed = TRUE)
+  expect_match(first("Brazilian Journal of Botany", language = "pt")[1], "(fl e fr)", fixed = TRUE)
+  expect_match(first("Rodriguesia")[1], "5.III.2010, fl. and fr., ", fixed = TRUE)
+  expect_match(first("Nordic")[1], "(fl. fr.)", fixed = TRUE)
+  expect_match(first("Acta Amazonica")[1], "Fl., fr. 5 March 2010, ", fixed = TRUE)
+  expect_equal(barRoso:::.format_phenology(c("st", "Estéril", "fl, st", "fértil", NA),
+                                           barRoso:::.journal_style("Hoehnea"), "pt"),
+               c("est.", "est.", "fl.", "", ""))
+  expect_equal(barRoso:::.format_phenology(c("vegetative", "flower, veg"),
+                                           barRoso:::.journal_style("Darwiniana"), "es"),
+               c("veg", "fl"))
+})
+
+test_that("the new journals have their own format", {
+  dir <- withr::local_tempdir()
+  first <- function(journal, ...) {
+    strsplit(write_specimens(dir, journal, ...)$specimens_text[1], "\n")[[1]][1]
+  }
+  expect_match(first("Hoehnea"), "12°58’17”S, 38°30’05”W, 5-III-2010 (fl.), D.B.O.S. Cardoso et al. 1350",
+               fixed = TRUE)
+  expect_match(first("Plant Systematics and Evolution"),
+               "Cardoso et al. 1350 (HUEFS!, RB!)", fixed = TRUE)
+  expect_match(first("Plant Systematics and Evolution"), "12° 58′ 17″ S, 38° 30′ 05″ W, 5 Mar 2010 (fl.)",
+               fixed = TRUE)
+  expect_match(first("Acta Amazonica"), "Salvador, Parque da Cidade. 12º58’17”S, 38º30’05”W. Fl. 5 March 2010, D.B.O.S. Cardoso et al. 1350 (HUEFS, RB)",
+               fixed = TRUE)
+  expect_match(first("Darwiniana", language = "es"), "12º58’17” S, 38º30’05” O, 5-III-2010 (fl), ",
+               fixed = TRUE)
+  expect_match(first("Botany Letters"), "5 March 2010 (fl.), D.B.O.S. Cardoso et al. 1350", fixed = TRUE)
+  expect_match(first("Feddes"), "5 Mar. 2010 (fl), Cardoso et al. 1350", fixed = TRUE)
+  expect_match(first("Acta Botanica Mexicana"), "municipio Salvador, Parque da Cidade, 12°58'17''S, 38°30'05''W, 5.III.2010 (fl)",
+               fixed = TRUE)
+  lines <- docx_lines(dir)
+  expect_true(any(grepl("Specimens examined: BRAZIL. Bahia, municipio Salvador", lines, fixed = TRUE)))
+
+  write_specimens(dir, "Darwiniana", language = "es")
+  expect_true(any(startsWith(docx_lines(dir), "Material examinado: BRASIL. Bahia, Salvador")))
+  write_specimens(dir, "Hoehnea", language = "pt")
+  expect_true(any(startsWith(docx_lines(dir), "Material examinado: BRASIL. Bahia: Salvador")))
+  write_specimens(dir, "Botany Letters")
+  expect_true(any(grepl("examined: BRAZIL. \u2014 BAHIA: Salvador", docx_lines(dir), fixed = TRUE)))
+})
+
+test_that("repeated places are written as l.c. or loc. cit.", {
+  dir <- withr::local_tempdir()
+  df <- specimens[c(1, 1, 1), ]
+  df$recordNumber <- c("1", "2", "3")
+  df$locality <- c("Parque da Cidade", "Parque da Cidade", "Dunas")
+  df$decimalLatitude[3] <- NA
+  res <- barroso_write_specimens(df = df, journal = "Acta Botanica Mexicana", dir = dir,
+                                 filename = "out", verbose = FALSE)
+  expect_true(any(grepl("(HUEFS); loc. cit., 5.III.2010 (fl), D. B. O. S. Cardoso et al. 2",
+                        docx_lines(dir), fixed = TRUE)))
+  barroso_write_specimens(df = df, journal = "Hoehnea", dir = dir, filename = "out", verbose = FALSE)
+  expect_true(any(grepl("(HUEFS); l.c., Dunas, 5-III-2010 (fl.), D.B.O.S. Cardoso et al. 3",
+                        docx_lines(dir), fixed = TRUE)))
 })
