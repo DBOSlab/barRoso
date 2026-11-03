@@ -113,7 +113,7 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_country, "' column removed"))
     }
 
-    temp <- c("unknown or invalid", "Unknown", "Sem procedência", "s.", "s.loc.",
+    temp <- c("unknown or invalid", "Unknown", "Sem proced\u00eancia", "s.", "s.loc.",
               "s.l.",  "S.loc.", "s/localidade", "Indeterminada", "Indeterminado",
               "?")
     tf <- df$country %in% temp
@@ -163,13 +163,13 @@ std_place <- function(df = NULL,
 
     if (any(df$country %in% "Brazil")) {
       # Convert Brazilian states acronyms into their full name
-      BrazilStates <- data.frame(states=c("Acre","Alagoas","Amapá","Amazonas","Bahia",
-                                          "Ceará","Distrito Federal","Espírito Santo",
-                                          "Goiás","Maranhão","Mato Grosso","Mato Grosso do Sul",
-                                          "Minas Gerais","Pará","Paraíba","Paraná",
-                                          "Pernambuco","Piauí","Rio de Janeiro",
+      BrazilStates <- data.frame(states=c("Acre","Alagoas","Amap\u00e1","Amazonas","Bahia",
+                                          "Cear\u00e1","Distrito Federal","Esp\u00edrito Santo",
+                                          "Goi\u00e1s","Maranh\u00e3o","Mato Grosso","Mato Grosso do Sul",
+                                          "Minas Gerais","Par\u00e1","Para\u00edba","Paran\u00e1",
+                                          "Pernambuco","Piau\u00ed","Rio de Janeiro",
                                           "Rio Grande do Norte","Rio Grande do Sul",
-                                          "Rondônia","Roraima","Santa Catarina","São Paulo",
+                                          "Rond\u00f4nia","Roraima","Santa Catarina","S\u00e3o Paulo",
                                           "Sergipe","Tocantins"),
                                  acronyms1=c("AC","AL","AP","AM","BA","CE","DF","ES",
                                              "GO","MA","MT","MS","MG","PA","PB","PR",
@@ -191,11 +191,11 @@ std_place <- function(df = NULL,
       # Further standardizing Brazilian states
       # More on ifelse expression: https://www.datamentor.io/r-programming/if-else-statement/
       df$stateProvince <- ifelse(df$stateProvince == "Amap&#225;",
-                                 "Amapá", as.character(df$stateProvince))
-      df$stateProvince <- ifelse(df$stateProvince %in% c("Para", "ParÃ¡", "Par&#225;"),
-                                 "Pará", as.character(df$stateProvince))
+                                 "Amap\u00e1", as.character(df$stateProvince))
+      df$stateProvince <- ifelse(df$stateProvince %in% c("Para", "Par\u00c3\u00a1", "Par&#225;"),
+                                 "Par\u00e1", as.character(df$stateProvince))
       df$stateProvince <- ifelse(df$stateProvince == "Rond&#244;nia",
-                                 "Rondônia", as.character(df$stateProvince))
+                                 "Rond\u00f4nia", as.character(df$stateProvince))
     }
 
     usa <- df$country %in% c("United States", "United States of America", "USA")
@@ -338,9 +338,9 @@ std_place <- function(df = NULL,
     {
       # Cleaning the names in the column continent
       df$continent <- ifelse(df$continent %in% "Asia-Temperate", "Asia", as.character(df$continent))
-      df$continent <- ifelse(df$continent %in% c("América", "AMERIQUE DU SUD",
+      df$continent <- ifelse(df$continent %in% c("Am\u00e9rica", "AMERIQUE DU SUD",
                                                  "South America - Neotropics",
-                                                 "América do Sul", "Southern America",
+                                                 "Am\u00e9rica do Sul", "Southern America",
                                                  "Middle and South America", "SOUTH_AMERICA"),
                              "South America", as.character(df$continent))
       df$continent <- ifelse(df$continent %in% c("Northern America", "NORTH_AMERICA"),
@@ -572,19 +572,19 @@ std_place <- function(df = NULL,
 
   # SOUTH AMERICA ####
   temp <- c("Bra$", "Braail", "Brail", "Brasi", "Brasiil", "BraSil", "Brasl",
-            "Brasil", "Brésil austral", "Brésil central", "Bésil",
-            "Brésil méridional", "Brésil septentrional", "Brasil.", "Brsail",
-            "Brasilia tropica", "Brasil australs", "Brasilia tropicae", "Brézil",
-            "Brésil", "BRazil", "Brébrsil", "Brasiliae", "Brasiliae tropicae",
-            "Brasill", "Brébrsil", "Btasil", "Bresil", "Bresille", "Basil",
-            "Barsil", "Brésil")
+            "Brasil", "Br\u00e9sil austral", "Br\u00e9sil central", "B\u00e9sil",
+            "Br\u00e9sil m\u00e9ridional", "Br\u00e9sil septentrional", "Brasil.", "Brsail",
+            "Brasilia tropica", "Brasil australs", "Brasilia tropicae", "Br\u00e9zil",
+            "Br\u00e9sil", "BRazil", "Br\u00e9brsil", "Brasiliae", "Brasiliae tropicae",
+            "Brasill", "Br\u00e9brsil", "Btasil", "Bresil", "Bresille", "Basil",
+            "Barsil", "Br\u00e9sil")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
     df$country[tf] <- "Brazil"
   }
 
-  temp <- c("Bolívia", "Bolivia", "Bolovie", "Bolivie", "Bol  via")
+  temp <- c("Bol\u00edvia", "Bolivia", "Bolovie", "Bolivie", "Bol  via")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
@@ -610,7 +610,7 @@ std_place <- function(df = NULL,
     df$country[tf] <- "French Guiana"
   }
 
-  temp <- c("Peru", "Perou", "Pérou", "Perú")
+  temp <- c("Peru", "Perou", "P\u00e9rou", "Per\u00fa")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
@@ -625,7 +625,7 @@ std_place <- function(df = NULL,
     df$country[tf] <- "Surinam"
   }
 
-  temp <- c("Venezu", "Venezula", "Vénézuela", "Vénézuéla", "Venezula")
+  temp <- c("Venezu", "Venezula", "V\u00e9n\u00e9zuela", "V\u00e9n\u00e9zu\u00e9la", "Venezula")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
@@ -634,8 +634,8 @@ std_place <- function(df = NULL,
 
   # NORTH AMERICA ####
   temp <- c("United State", "USA$", "E[.]U[.]A[.]", "U[.]S[.]A[.]", "^US$",
-            "^États-Unis", "^Etats-Unis", "Etats Unis d",
-            "^États-unis", "^Estados Un", "Estado Unidos da América$")
+            "^\u00c9tats-Unis", "^Etats-Unis", "Etats Unis d",
+            "^\u00c9tats-unis", "^Estados Un", "Estado Unidos da Am\u00e9rica$")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {
@@ -658,7 +658,7 @@ std_place <- function(df = NULL,
   }
 
   # AFRICA ####
-  temp <- c("África do Sul", "África do sul", "South Africa", "Africa do Sul")
+  temp <- c("\u00c1frica do Sul", "\u00c1frica do sul", "South Africa", "Africa do Sul")
   pattern <- paste0(temp, collapse = "|")
   tf <- tidyr::replace_na(stringi::stri_detect_regex(df$country, pattern), FALSE)
   if (any(tf)) {

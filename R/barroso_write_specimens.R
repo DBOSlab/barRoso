@@ -35,6 +35,12 @@
 #'   `"en"` (default) or `"pt"`.
 #' @param catalog_numbers Logical. If `TRUE`, the catalog number is written after
 #'   each herbarium, e.g. `"(IAC no. 14754, NY no. 1162464)"` in Brittonia. Default `FALSE`.
+#' @param one_per_municipality Logical. If `TRUE`, just one specimen of each
+#'   municipality is written for each species, the one with the most complete
+#'   information: state, locality, coordinates, elevation, date (year, month and
+#'   day), phenology, collector and collector number, and then the most herbaria.
+#'   Specimens without municipality are not written, so species known only
+#'   from such specimens are left out. Default `FALSE`.
 #' @param dir Folder where the .docx file is saved. By default, the folder of
 #'   `path`, or `"results_specimens"` when the records are given in `df`.
 #' @param filename Name of the .docx file. By default, the name of `path` (or
@@ -181,6 +187,7 @@ barroso_write_specimens <- function(df = NULL,
                                     header = NULL,
                                     language = "en",
                                     catalog_numbers = FALSE,
+                                    one_per_municipality = FALSE,
                                     dir = NULL,
                                     filename = NULL,
                                     font_family = "Times New Roman",
@@ -233,6 +240,19 @@ barroso_write_specimens <- function(df = NULL,
 
   # One entry per specimen, with all herbaria of its duplicates ####
   specimens <- .specimen_entries(df, style, language, catalog_numbers)
+  # Just the most complete specimen of each municipality
+  if (isTRUE(one_per_municipality)) {
+    n <- nrow(specimens)
+    specimens <- .one_per_municipality(specimens)
+    if (verbose) {
+      message("Keeping one specimen per municipality: ", nrow(specimens), " of ", n,
+              " specimens (specimens without municipality excluded)")
+    }
+    if (nrow(specimens) == 0) {
+      warning("No specimens with municipality to write", call. = FALSE)
+      return(invisible(NULL))
+    }
+  }
 
   # Document ####
   # Formats like "bold", "italic", "smallcaps", "upper" (uppercase letters),
@@ -270,7 +290,7 @@ barroso_write_specimens <- function(df = NULL,
   # Journals that cite the species in the same paragraph of its specimens, e.g.
   # "Dimerostemma arnottii \u2013 Brazil, ...", under a single header
   if ((style$species_inline || style$header_once) && nzchar(header)) {
-    doc <- officer::body_add_fpar(doc, do.call(officer::fpar, header_runs))
+    doc <- officer::body_add_fpar(doc, do.call(officer::fpar, .squish_runs(header_runs)))
   }
 
   for (sp in sort(unique(specimens$species))) {
@@ -755,7 +775,10 @@ barroso_write_specimens <- function(df = NULL,
                year = first(col("year"), i), month = first(col("month"), i),
                day = first(col("day"), i), coll_name = collector$name[i[1]],
                coll_etal = collector$etal[i[1]], coll_number = number[i[1]],
-               herbaria = paste(h, collapse = ", "))
+               herbaria = paste(h, collapse = ", "),
+               # For one_per_municipality
+               has_collector = nzchar(coll[i[1]]), has_number = nzchar(num[i[1]]),
+               has_phenology = any(nzchar(phen[i])), n_herbaria = nrow(hp))
   })
   sp <- do.call(rbind, rows)
 
@@ -810,6 +833,21 @@ barroso_write_specimens <- function(df = NULL,
   o <- order(!nzchar(sp$country), sp$country, !nzchar(sp$state), sp$state, sp$muni,
              num_or(sp$year), num_or(sp$month), num_or(sp$day), sp$collector)
   sp[o, , drop = FALSE]
+}
+
+# The most complete specimen of each municipality of each species ####
+# Specimens without municipality are excluded
+.one_per_municipality <- function(sp) {
+  filled <- function(x) nzchar(trimws(x))
+  score <- filled(sp$state) + filled(sp$locality) + filled(sp$coords) + filled(sp$elev) +
+    filled(sp$year) + filled(sp$month) + filled(sp$day) + sp$has_phenology +
+    sp$has_collector + sp$has_number
+  group <- paste(sp$species, sp$country, sp$state, sp$muni, sep = "|")
+  # The best specimen first, then the most herbaria and the longest locality
+  o <- order(group, -score, -sp$n_herbaria, -nchar(sp$locality))
+  best <- o[!duplicated(group[o])]
+  keep <- filled(sp$muni) & seq_len(nrow(sp)) %in% best
+  sp[keep, , drop = FALSE]
 }
 
 # Collector names as cited in each journal, from names standardized by

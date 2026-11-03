@@ -41,7 +41,7 @@ remove_authorship <- function(scientific_names, keep_infraspecific = TRUE) {
     # Multiple authors with "&", "et", "ex"
     "\\s+[A-Z].*?(?:\\s+(?:&|et|ex)\\s+[A-Z].*?)+",
     # Authors starting with capital letter, possibly with apostrophes, hyphens
-    "\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*?(?:\\s+[A-ZÀ-ÿ][A-Za-zÀ-ÿ.'\\-]*?)*"
+    "\\s+[A-Z\u00c0-\u00ff][A-Za-z\u00c0-\u00ff.'\\-]*?(?:\\s+[A-Z\u00c0-\u00ff][A-Za-z\u00c0-\u00ff.'\\-]*?)*"
   )
 
   # Combine patterns

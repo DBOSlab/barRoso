@@ -21,6 +21,7 @@ barroso_write_specimens(
   header = NULL,
   language = "en",
   catalog_numbers = FALSE,
+  one_per_municipality = FALSE,
   dir = NULL,
   filename = NULL,
   font_family = "Times New Roman",
@@ -64,6 +65,13 @@ Systematic Botany. Use \code{""} to write no header.}
 
 \item{catalog_numbers}{Logical. If \code{TRUE}, the catalog number is written after
 each herbarium, e.g. \code{"(IAC no. 14754, NY no. 1162464)"} in Brittonia. Default \code{FALSE}.}
+
+\item{one_per_municipality}{Logical. If \code{TRUE}, just one specimen of each
+municipality is written for each species, the one with the most complete
+information: state, locality, coordinates, elevation, date (year, month and
+day), phenology, collector and collector number, and then the most herbaria.
+Specimens without municipality are not written, so species known only
+from such specimens are left out. Default \code{FALSE}.}
 
 \item{dir}{Folder where the .docx file is saved. By default, the folder of
 \code{path}, or \code{"results_specimens"} when the records are given in \code{df}.}

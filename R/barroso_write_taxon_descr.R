@@ -308,7 +308,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
   # Normalize ranges to en-dashes
   df[] <- lapply(df, function(col) {
     gsub("(\\d+(?:\\.\\d+)?)\\s*\\-\\s*(\\d+(?:\\.\\d+)?)",
-         "\\1–\\2", col, perl = TRUE)
+         "\\1\u2013\\2", col, perl = TRUE)
   })
 
   # Merge duplicate species rows
@@ -968,7 +968,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
 .has_variation <- function(value_str) {
   if (is.null(value_str) || !nzchar(value_str)) return(FALSE)
   # Check for range indicators: en-dash, hyphen, "or", "to", comma with numbers
-  grepl("–|-|\\sor\\s|\\sto\\s|\\d+\\s*,\\s*\\d+", value_str)
+  grepl("\u2013|-|\\sor\\s|\\sto\\s|\\d+\\s*,\\s*\\d+", value_str)
 }
 
 #' Collect length/width/height values, units, and averages from a list of
@@ -1040,16 +1040,16 @@ barroso_write_taxon_descr <- function(xlsx_path,
   prefix <- if (needs_approx) paste0(approx_char, " ") else ""
 
   if (nzchar(len_val) && nzchar(wid_val) && nzchar(ht_val)) {
-    return(paste0(prefix, len_val, " × ", wid_val, " × ", ht_val,
+    return(paste0(prefix, len_val, " \u00d7 ", wid_val, " \u00d7 ", ht_val,
                   if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val) && nzchar(wid_val)) {
-    return(paste0(prefix, len_val, " × ", wid_val,
+    return(paste0(prefix, len_val, " \u00d7 ", wid_val,
                   if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val) && nzchar(ht_val)) {
-    return(paste0(prefix, len_val, " × ", ht_val,
+    return(paste0(prefix, len_val, " \u00d7 ", ht_val,
                   if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(wid_val) && nzchar(ht_val)) {
-    return(paste0(prefix, wid_val, " × ", ht_val,
+    return(paste0(prefix, wid_val, " \u00d7 ", ht_val,
                   if (nzchar(unit)) paste0(" ", unit) else ""))
   } else if (nzchar(len_val)) {
     return(paste0(prefix, len_val,
@@ -1185,7 +1185,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
     if (length(nums) >= 2) {
       min_val <- min(nums); max_val <- max(nums)
       if (min_val == max_val) return(as.character(min_val))
-      return(paste0(min_val, "–", max_val))
+      return(paste0(min_val, "\u2013", max_val))
     } else if (length(nums) == 1) {
       return(as.character(nums))
     } else if (length(x_clean) == 1) {
@@ -1231,7 +1231,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
 #' merger so range separators are never mistaken for negative signs.
 #' @keywords internal
 #' @noRd
-.simplify_measurement_range <- function(x, sep = "–", na_string = NA_character_) {
+.simplify_measurement_range <- function(x, sep = "\u2013", na_string = NA_character_) {
   sapply(x, function(str) {
     if (is.na(str) || !nzchar(trimws(str))) return(na_string)
     nums <- .tokenize_numbers(str)

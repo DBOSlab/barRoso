@@ -366,3 +366,25 @@ test_that("repeated places are written as l.c. or loc. cit.", {
   expect_true(any(grepl("(HUEFS); l.c., Dunas, 5-III-2010 (fl.), D.B.O.S. Cardoso et al. 3",
                         docx_lines(dir), fixed = TRUE)))
 })
+
+test_that("one_per_municipality keeps the most complete specimen of each municipality", {
+  dir <- withr::local_tempdir()
+  df <- specimens[c(1, 1, 1, 3, 6), ]
+  df$recordNumber <- c("1", "2", "3", "88", "1")
+  df$locality[2] <- "Parque da Cidade, trilha principal"
+  df$day[1] <- NA
+  df$decimalLatitude[3] <- NA
+  df$specificEpithet[5] <- "concinna"
+  res <- barroso_write_specimens(df = df, dir = dir, filename = "out", verbose = FALSE,
+                                 one_per_municipality = TRUE)
+  lines <- strsplit(res$specimens_text, "\n")[[1]]
+  # Number 2 has all fields, Diamantina has a single specimen, and the
+  # specimen without municipality is excluded
+  expect_length(lines, 2)
+  expect_false(any(grepl("J. Silva", lines)))
+  expect_true(any(grepl("trilha principal", lines)))
+  expect_false(any(grepl("et al. 3 ", lines)))
+  expect_true(any(grepl("Diamantina", lines)))
+  all <- barroso_write_specimens(df = df, dir = dir, filename = "out", verbose = FALSE)
+  expect_length(strsplit(all$specimens_text, "\n")[[1]], 5)
+})

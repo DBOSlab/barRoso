@@ -240,8 +240,10 @@ Plant Ecology and Evolution, Plant Systematics and Evolution,
 Rodriguésia, Systematics and Biodiversity, Taxon and Willdenowia.
 Duplicates are cited once with all their herbaria, the phenology is
 written as in each journal (e.g. `"(fl, fr)"` or `"(fl./fr.)"`), the
-list can be in English, Portuguese or Spanish (`language`), and the
-header can be changed (e.g. `header = "Paratypes"`).
+list can be in English, Portuguese or Spanish (`language`), just the
+most complete specimen of each municipality can be cited
+(`one_per_municipality = TRUE`), and the header can be changed
+(e.g. `header = "Paratypes"`).
 
 ``` r
 barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",

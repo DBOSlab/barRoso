@@ -747,8 +747,8 @@ std_recordedBy <- function(df = NULL,
   df <- .deepdeletal(df, "; et al[.]; et al[.]", ";.+", n_message = "#4")
   df <- .deepdeletal(df, "[|]et al[.]|[|] et al[.]", "[|].+", n_message = "#5")
   df <- .deepdeletal(df, "(.*[|].*[|]){1,}", "\\|.+", n_message = "#6")
-  df <- .deepdeletal(df, "[|] Otros| Partícipes| Participantes",
-                     "[|] Otros.+| Partícipes.+| Participantes.+", n_message = "#7")
+  df <- .deepdeletal(df, "[|] Otros| Part\u00edcipes| Participantes",
+                     "[|] Otros.+| Part\u00edcipes.+| Participantes.+", n_message = "#7")
   df <- .deepdeletal(df, "(.*\\sy\\s.*\\sy\\s){1,}", "\\sy.+", n_message = "#8")
   df <- .deepdeletal(df, "(.*&.*\\sy\\s){1,}", "&.+|\\s&.+", n_message = "#9")
   df <- .deepdeletal(df, "(.*[|].*\\sy\\s){1,}", "[|].+", n_message = "#10")
@@ -926,7 +926,7 @@ std_recordedBy <- function(df = NULL,
                       "[(]Photo[)]" = "",
                       "[(]Pere[)]" = "",
                       "\\s[(]Karl[)]" = "",
-                      "[(]Frère[)]" = "",
+                      "[(]Fr\u00e8re[)]" = "",
                       "[(]Dr[.][)]" = "",
                       "\\s[(]Dr[)]" = "",
                       ",\\sDr\\s" = ", ",
@@ -948,7 +948,7 @@ std_recordedBy <- function(df = NULL,
                       "[(]Coll.+" = "",
                       "\\s[-]\\sPau\\sBrasil$" = "",
                       "Collector[(]s[)][:]\\s" = "",
-                      ",\\s[*]$|[*]$| [{]2[º] SERIE[}]|^[?];et al[.]," = "",
+                      ",\\s[*]$|[*]$| [{]2[\u00ba] SERIE[}]|^[?];et al[.]," = "",
                       "^[-][.]\\s|[-][-]|^[<]" = ""))
 
   # Unknown collectors
@@ -983,14 +983,14 @@ std_recordedBy <- function(df = NULL,
                       " Jr[.]" = "",
                       " Jr " = " ",
                       " Jr, " = ", ",
-                      "-Júnior" = "",
+                      "-J\u00fanior" = "",
                       " Junior" = "",
                       " d'" = "",
                       " Neto" = "-Neto",
                       " NETO" = "-NETO",
                       " Filho" = "-Filho",
                       " FILHO" = "-FILHO",
-                      "Leitão Fo[.]," = "Leitão-Filho,",
+                      "Leit\u00e3o Fo[.]," = "Leit\u00e3o-Filho,",
                       " Sobrinho" = "-Sobrinho",
                       " [(]IAN[)]" = "",
                       " and " = " & ",
@@ -1130,13 +1130,13 @@ std_recordedBy <- function(df = NULL,
   x <- .fix_regex(x, "^A.*M.* Amorim", "A. M. A. Amorim")
   x <- .fix_exact(x, "W. Anderson", "W. R. Anderson")
   x <- .fix_exact(x, c("Andrade-Lima", "A. D. Andrade-Lima"), "D. Andrade-Lima")
-  x <- .fix_exact(x, "J. B. Christophore Fusée Aublet", "J. B. C. F. Aublet")
+  x <- .fix_exact(x, "J. B. Christophore Fus\u00e9e Aublet", "J. B. C. F. Aublet")
 
   # B
   x <- .fix_exact(x, "G. Maciel Barroso", "G. M. Barroso")
   x <- .fix_exact(x, "R. Henry Beddome", "R. H. Beddome")
-  x <- .fix_exact(x, "M. M. Brandão", "M. Brandão")
-  x <- .fix_regex(x, "R. P. Bel|^Belem$", "R. P. Belém")
+  x <- .fix_exact(x, "M. M. Brand\u00e3o", "M. Brand\u00e3o")
+  x <- .fix_regex(x, "R. P. Bel|^Belem$", "R. P. Bel\u00e9m")
   x <- .fix_exact(x, "Burchell", "W. J. Burchell")
   x <- .fix_exact(x, c("B. Marx", "R. Burle Marx"), "R. Burle-Marx")
 
@@ -1147,7 +1147,7 @@ std_recordedBy <- function(df = NULL,
   x <- .fix_exact(x, c("C. A. C. Ferreira", "C. A. Cid Ferreira", "C. A. Cid",
                        "C. A .Cid", "C. A. F."), "C. A. Cid-Ferreira")
   x <- .fix_regex(x, "^C. A. Cid|^C. A. C. Ferreira", "C. A. Cid-Ferreira")
-  x <- .fix_exact(x, "A. S. Conceiçaõ", "A. S. Conceição")
+  x <- .fix_exact(x, "A. S. Concei\u00e7a\u00f5", "A. S. Concei\u00e7\u00e3o")
   x <- .fix_exact(x, "T. Alfred Coward", "T. A. Coward")
   x <- .fix_exact(x, "R. C. Monteiro Costa", "R. C. M. Costa")
 
@@ -1160,10 +1160,10 @@ std_recordedBy <- function(df = NULL,
   # F
   x <- .fix_exact(x, "M. Clara Ferreira", "M. C. Ferreira")
   x <- gsub("^Forzza|^R. Forzza|^R. C. Forzzan", "R. C. Forzza", x)
-  x <- .fix_regex(x, "F. Franca|F. FrançA", "F. França")
-  x <- .fix_exact(x, c("R. Froes", "R. Lemos Froes-Cpatu", "Froes", "Fróes", "R. L. Froes",
-                       "R. L. FrÃ³es"), "R. L. Fróes")
-  x <- .fix_regex(x, "R. L. Fr", "R. L. Fróes")
+  x <- .fix_regex(x, "F. Franca|F. Fran\u00e7A", "F. Fran\u00e7a")
+  x <- .fix_exact(x, c("R. Froes", "R. Lemos Froes-Cpatu", "Froes", "Fr\u00f3es", "R. L. Froes",
+                       "R. L. Fr\u00c3\u00b3es"), "R. L. Fr\u00f3es")
+  x <- .fix_regex(x, "R. L. Fr", "R. L. Fr\u00f3es")
   x <- .fix_exact(x, "H. Ogg Forbes", "H. O. Forbes")
 
   # G
@@ -1190,7 +1190,7 @@ std_recordedBy <- function(df = NULL,
   x <- .fix_exact(x, "E. Junqueira Leite", "E. J. Leite")
   x <- gsub("^H..C. Lima|^H.c Lima|^H. Cavalcante Lima|^H. C Lima|^H. C. D. E. Lima|^H. C. dde Lima$|^H. C. De Lima|^H. C. DeLima|^H. c. Lima",
             "H. C. Lima", x)
-  x <- gsub("^G. P. çLewis$|G. Peter Lewis|G.PLewi", "G. P. Lewis", x)
+  x <- gsub("^G. P. \u00e7Lewis$|G. Peter Lewis|G.PLewi", "G. P. Lewis", x)
   x <- .fix_exact(x, "Little", "E. L. Little")
   x <- .fix_exact(x, "Lombardi", "J. A. Lombardi")
   x <- .fix_exact(x, "Lorenzi", "H. Lorenzi")
@@ -1220,12 +1220,12 @@ std_recordedBy <- function(df = NULL,
   x <- .fix_exact(x, "G. C. Pereira Pinto", "G. C. P. Pinto")
   x <- .fix_exact(x, c("J. James Pipoly", "J. Pipoly", "I. I. I. JJ-Pipoly"), "J. J. Pipoly")
   x <- .fix_exact(x, c("J. Pirani", "Pirani", "J. Rubens Pirani"), "J. R. Pirani")
-  x <- .fix_regex(x, "^J.*M.*Pires|^J. Murça Pires$", "J. M. Pires")
+  x <- .fix_regex(x, "^J.*M.*Pires|^J. Mur\u00e7a Pires$", "J. M. Pires")
   x <- .fix_exact(x, "G. T. Prace", "G. T. Prance")
-  x <- .fix_regex(x, "^C. E. B. Proen|^C.* Proenc|^C. E. Barnes Proença$", "C. E. B. Proença")
+  x <- .fix_regex(x, "^C. E. B. Proen|^C.* Proenc|^C. E. Barnes Proen\u00e7a$", "C. E. B. Proen\u00e7a")
 
   # Q
-  x <- .fix_exact(x, "L. P. Queiróz", "L. P. Queiroz")
+  x <- .fix_exact(x, "L. P. Queir\u00f3z", "L. P. Queiroz")
   x <- gsub("^L..P. Queiroz|^L. P. Queiroz.$|^L. P. De Queiroz", "L. P. Queiroz", x)
 
   # R
@@ -1237,7 +1237,7 @@ std_recordedBy <- function(df = NULL,
   x <- .fix_exact(x, "Spruce", "R. Spruce")
   x <- gsub("^M. Fragomenir Simon$|^M. Simon|^Simon$|^M. Fragomeni Simon$", "M. F. Simon", x)
   x <- gsub("^V. C. Sousa|^V. Castro Souza$ ", "V. C. Souza", x)
-  x <- .fix_regex(x, "^R. Sch.*Rodrigues", "R. Schütz-Rodrigues")
+  x <- .fix_regex(x, "^R. Sch.*Rodrigues", "R. Sch\u00fctz-Rodrigues")
   x <- .fix_exact(x, "Schwacke", "C. A. W. Schwacke")
   x <- .fix_exact(x, c("Schultes", "R. Evans Schultes"), "R. E. Schultes")
 
@@ -1253,18 +1253,18 @@ std_recordedBy <- function(df = NULL,
 
   #_____________________________________________________________________________
   # Cleaning general collectors
-  x[grepl("Academia Brasileira de C", df$recordedByOriginal)] <- "Academia Brasileira de Ciências"
-  x[grepl("Equipe do Jardim Bot", df$recordedByOriginal)] <- "Equipe do Jardim Botânico de Brasília"
+  x[grepl("Academia Brasileira de C", df$recordedByOriginal)] <- "Academia Brasileira de Ci\u00eancias"
+  x[grepl("Equipe do Jardim Bot", df$recordedByOriginal)] <- "Equipe do Jardim Bot\u00e2nico de Bras\u00edlia"
 
   #_____________________________________________________________________________
   # Cleaning Spanish-like collectors
   x <- .fix_exact(x, "N. A. Zamora Villalobos", "N. Zamora")
   x <- .fix_exact(x, "G. Ibarra Manriquez", "G. Ibarra")
   x <- .fix_exact(x, "H. Mendoza Cifuentes", "H. Mendoza")
-  x <- .fix_exact(x, "J. Rafael Garcia", "J. R. García")
-  x <- .fix_exact(x, "M. Sousa Sánchez", "M. Sousa")
-  x <- .fix_exact(x, c("A. Reyes", "A. Reyes Garcia"), "A. Reyes-García")
-  x <- .fix_exact(x, c("R. Vasquez Martinez", "Rod. Vasquez", "Rod. Vásquez", "R. Vasquez"), "R. Vásquez")
+  x <- .fix_exact(x, "J. Rafael Garcia", "J. R. Garc\u00eda")
+  x <- .fix_exact(x, "M. Sousa S\u00e1nchez", "M. Sousa")
+  x <- .fix_exact(x, c("A. Reyes", "A. Reyes Garcia"), "A. Reyes-Garc\u00eda")
+  x <- .fix_exact(x, c("R. Vasquez Martinez", "Rod. Vasquez", "Rod. V\u00e1squez", "R. Vasquez"), "R. V\u00e1squez")
   x <- .fix_exact(x, c("J. Schunke Vigo", "J. Schunke", "J. V. Schunke", "J. M. Schunke"),
                   "J. Schunke-Vigo")
   x <- .fix_exact(x, c("M. M. arbo", "M. N. Arbo"), "M. M. Arbo")
