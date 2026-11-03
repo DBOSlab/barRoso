@@ -42,7 +42,8 @@ Suggests:
     withr
 Remotes:
     idiv-biodiversity/LCVP,
-    idiv-biodiversity/lcvplants
+    idiv-biodiversity/lcvplants,
+    ropensci/rnaturalearthhires
 Additional_repositories: https://ropensci.r-universe.dev
 URL: 
     https://dboslab.github.io/barRoso-website/,
