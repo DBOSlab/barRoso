@@ -152,10 +152,14 @@ functions, which can also be used alone:
 |----|----|----|
 | `std_recordedBy()` | collector names and numbers; additional collectors go to `addCollector` | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
 | `std_identifiedBy()` | determiner names, all kept in the same cell | `Lobato, LC; Soares, CRA` → `L. C. Lobato & C. R. A. Soares` |
-| `std_collection()` | herbarium acronyms | `Herbario INPA` → `INPA` |
-| `std_place()` | continent, country, state, county, municipality and locality | `BRASIL` → `Brazil` |
+| `std_collection()` | herbarium acronyms, checked against the API of [Index Herbariorum](https://sweetgum.nybg.org/science/ih/) (`index_herbariorum = TRUE`, the default) | `Herbario INPA` → `INPA` |
+| `std_place()` | continent, country, state, county, municipality and locality, including localities all in upper case | `BRASIL` → `Brazil` |
 | `std_taxa()` | family, genus and specific epithet | `Leguminosae` → `Fabaceae` |
 | `std_types()` | type status | `Fotografia do Tipo` → removed |
+
+The final data frame is sorted by species, `recordedBy` and
+`recordNumber`, with the records of each block of duplicates kept
+together under the most frequent name of the block.
 
 Chinese names written in Chinese characters or as unicode escapes
 (e.g. `<U+674E><U+5149><U+7167>`, 李光照) are converted as Chinese

@@ -90,6 +90,14 @@ std_recordedBy <- function(df = NULL,
   df$recordedBy <- gsub("\\s*[(]?Wikidata\\s+Q[0-9]+[)]?|\\s*\\[[A-Z]{1,4}-[0-9]+\\]", "",
                         df$recordedBy)
 
+  # Placeholders are not collectors, and become NA at the end, while titles are
+  # removed and several collectors written like "H.C. de Lima, C.A. Cid Ferreira"
+  # are split
+  no_collector <- .is_missing_collector(df$recordedBy)
+  df$recordedBy[no_collector] <- NA
+  df$recordedBy <- .rm_titles(df$recordedBy)
+  df$recordedBy <- .split_comma_collectors(df$recordedBy)
+
   # Chinese names written in Chinese characters, e.g. "\u4e01\u5e7f\u5947",
   # into unicode escapes like "<U+4E01><U+5E7F><U+5947>", converted below
   df$recordedBy <- .han_chars_to_escapes(df$recordedBy)
@@ -192,6 +200,12 @@ std_recordedBy <- function(df = NULL,
   df <- .addcollclean(df)
   if (any(han_add)) df$addCollector[han_add] <- han_addnames
 
+  # Numbers of Chinese teams go to $recordNumber, e.g. "236-6 Dui", "Yue73"
+  if (any(han)) df <- .han_team_number(df, han)
+
+  df$recordedBy[no_collector] <- NA
+  df$addCollector[no_collector] <- NA
+
   #_____________________________________________________________________________
   # Furthern cleaning numbers at $recordNumber
   df <- .std_recordNumber(df)
@@ -215,6 +229,83 @@ std_recordedBy <- function(df = NULL,
   }
 
   return(df)
+}
+
+
+#_______________________________________________________________________________
+# Placeholders instead of collectors, e.g. "-", "?", "[data not captured]",
+# "[missing; ex Herb. Acad. Petrop.]", "[see remarks]", "BLOQUEADO" ####
+.is_missing_collector <- function(x) {
+  !is.na(x) & (grepl("^\\s*[^[:alpha:][:digit:][:space:]][^[:alpha:][:digit:]]*$", x) |
+    grepl("^\\s*\\[\\s*(missing|data not|not captured|see remarks|illegible|unknown|no data)[^]]*\\]\\s*$",
+          x, ignore.case = TRUE) |
+    grepl("^\\s*BLOQUEADO\\s*$", x, ignore.case = TRUE))
+}
+
+# Titles before or after names, e.g. "Col. Richard Henry Beddome", "Hno. Daniel",
+# "Prof. Jose Elias", "Rowan, M.E. Mrs Captain", and positions like "Curator of
+# Central American Botany", but not "Dr. King's Collector" ####
+.rm_titles <- function(x) {
+  tf <- !is.na(x) & !grepl("Collector", x)
+  titles <- paste0("^\\s*((Col|Cel|Lt|Capt?|Maj|Gen|Dra?|Profa?|Rev|Mrs?|Hno|Hna|Sr|Sra)[.]|",
+                   "(Sir|Frei|Padre|Hermano|Hermana|Brother|Captain)\\s)\\s*(?=\\p{Lu})")
+  x[tf] <- sub(titles, "", x[tf], perl = TRUE)
+  x[tf] <- gsub("\\s+(Curator|Director|Keeper)\\s+of\\b[^,;|&]*", "", x[tf], perl = TRUE)
+  x[tf] <- sub("\\s+(Mrs?|Captain)(\\s+(Mrs?|Captain))*\\s*$", "", x[tf], perl = TRUE)
+  x
+}
+
+# Several collectors separated by commas, with the given names first, as in
+# "H.C. de Lima, C.A. Cid Ferreira, J. Guedes;F. Neves" and "Warren Douglas Stevens,
+# B. A. Krukoff", but not "Lima, H.C." or "Cid Ferreira, C.A." ####
+.split_comma_collectors <- function(x) {
+  initials <- "(?:\\p{Lu}[.]\\s*)+"
+  surname <- "\\p{Lu}\\p{Ll}{2,}"
+  first <- paste0("^\\s*(?:", initials, "[^,;|&]*\\p{Ll}{2,}[^,;|&]*|",
+                  "\\p{Lu}\\p{Ll}+(?:\\s+(?:\\p{Lu}[.]|\\p{Ll}{2,3}|\\p{Lu}\\p{Ll}+))*\\s+", surname, ")")
+  tf <- grepl(paste0(first, ",\\s*", initials, surname), x, perl = TRUE)
+  x[tf] <- gsub(",\\s*(?=\\p{Lu})", "; ", x[tf], perl = TRUE)
+
+  # Full names abbreviated here, as the initials of the other names would keep
+  # them unchanged below, e.g. "Warren Douglas Stevens; B. A. Krukoff"
+  full <- grepl("^\\p{Lu}\\p{Ll}+(\\s\\p{Lu}\\p{Ll}+)+;", x, perl = TRUE) & tf
+  if (any(full)) {
+    main <- sub(";.*", "", x[full])
+    given <- sub("\\s\\S+$", "", main)
+    x[full] <- paste0(.abbrev_given(given), " ", sub(".*\\s", "", main),
+                      sub("^[^;]*", "", x[full]))
+  }
+
+  # Without a comma, e.g. "M. J. E. Coode D. W. Kirkup", "N. Marquete F. Silva"
+  # but not with particles, e.g. "M. Dos S. Rodrigues"
+  no_comma <- paste0("^(\\s*", initials, "(?!(?:De|Da|Do|Dos|Das|Del|Von|Van)\\s)\\p{Lu}\\p{Ll}{2,})\\s+(?=",
+                     initials, surname, ")")
+  tf <- grepl(no_comma, x, perl = TRUE)
+  x[tf] <- sub(no_comma, "\\1; ", x[tf], perl = TRUE)
+  etal <- tf & grepl("et al", x)
+  x[etal] <- sub(";.*", "; et al.", x[etal])
+  x
+}
+
+# Initials of given names, e.g. "Warren Douglas" into "W. D."
+.abbrev_given <- function(x) {
+  vapply(strsplit(x, "\\s+"), function(w) paste0(substr(w, 1, 1), ".", collapse = " "),
+         character(1))
+}
+
+# Numbers of Chinese teams go to an empty $recordNumber, e.g. "236-6 Dui" into
+# "Dui" and "236-6", or "Yue73" into "Yue" and "73" ####
+.han_team_number <- function(df, han) {
+  empty <- is.na(df$recordNumber) | !nzchar(trimws(df$recordNumber))
+  lead <- "^([0-9][0-9-]*)\\s*(\\D.*)$"
+  trail <- "^(\\D*?)\\s*([0-9][0-9-]*)$"
+  tf <- han & empty & grepl(lead, df$recordedBy)
+  df$recordNumber[tf] <- sub(lead, "\\1", df$recordedBy[tf])
+  df$recordedBy[tf] <- sub(lead, "\\2", df$recordedBy[tf])
+  tf <- han & empty & grepl(trail, df$recordedBy)
+  df$recordNumber[tf] <- sub(trail, "\\2", df$recordedBy[tf])
+  df$recordedBy[tf] <- sub(trail, "\\1", df$recordedBy[tf])
+  df
 }
 
 

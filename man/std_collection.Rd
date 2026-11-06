@@ -7,6 +7,7 @@
 std_collection(df = NULL,
                colname_collectionCode = "collectionCode",
                colname_institutionCode = "institutionCode",
+               index_herbariorum = TRUE,
                rm_original_column = TRUE)
 }
 \arguments{
@@ -16,12 +17,19 @@ std_collection(df = NULL,
 
 \item{colname_institutionCode}{Name of the column containing institution codes (default: \code{"institutionCode"}).}
 
+\item{index_herbariorum}{Logical; if \code{TRUE}, checks the codes against the API of
+Index Herbariorum (see Details) (default: \code{TRUE}). Use \code{FALSE} to work offline
+with just the regular expressions.}
+
 \item{rm_original_column}{Logical; if \code{TRUE}, original columns are removed
-after cleaning (default: \code{TRUE}).}
+after cleaning (default: \code{TRUE}). The original \code{collectionCode} is always kept with
+\code{index_herbariorum = TRUE}, the default.}
 }
 \value{
 A data frame with standardized collection codes in the \code{collectionCode} column.
-If \code{rm_original_column = FALSE}, the original values are saved with a \verb{*Original} suffix.
+If \code{rm_original_column = FALSE}, the original values are saved with a \verb{*Original}
+suffix. With \code{index_herbariorum = TRUE}, it also has the columns
+\code{collectionCodeOriginal}, \code{institutionName} and \code{indexHerbariorum}.
 }
 \description{
 Cleans and standardizes herbarium acronyms in biodiversity datasets by harmonizing
@@ -44,8 +52,7 @@ missing, with the acronym at the beginning of \code{catalogNumber} (e.g.
 \code{"U.1317533"} into \code{"U"}) or in \code{occurrenceID} (e.g. \code{"urn:catalog:INB:..."}).
 \item Names of collections, like \code{"F-Seedplants"}, \code{"BHCB-Fanerogamas"},
 \code{"INPA-Carpoteca"}, \code{"R-Tipos"}, \code{"UIS-H"} or \code{"BSMvplantscoll"}, are reduced
-to the herbarium acronym. Codes of wood collections, like \code{"INPAw"}, are
-kept, as they are Index Herbariorum codes.
+to the herbarium acronym. Codes of wood collections, like \code{"INPAw"}, are kept.
 \item Names of herbaria and institutions, like \code{"Herbario INPA"},
 \code{"Herbario Nacional de Costa Rica (CR)"} or \code{"Instituto de Botanica de Sao Paulo"},
 are replaced with the acronym given in the name or with the known acronym.
@@ -56,6 +63,25 @@ with \code{NA}.
 }
 
 The columns \code{catalogNumber} and \code{occurrenceID} are used when present.
+
+By default (\code{index_herbariorum = TRUE}), the results of these steps are checked against
+all herbaria of the \href{https://github.com/nybgvh/IH-API/wiki}{Index Herbariorum API},
+downloaded at once and kept during the R session, which needs internet access:
+\itemize{
+\item Codes in \code{collectionCode} found in Index Herbariorum get its spelling (e.g.
+\code{"UnB"} into \code{"UNB"}). The code of Index Herbariorum identifies the herbarium, so
+it goes into \code{collectionCode}, and \code{institutionCode} is not changed by this check.
+\item Codes not found are looked for by the full name of the institution in the
+original \code{collectionCode} or \code{institutionCode}, when the name belongs to a single
+herbarium, as universities may have several (e.g. \code{"Universidade de Sao Paulo"}).
+\item The column \code{institutionName} gets the name of the institution in Index Herbariorum,
+and the new column \code{indexHerbariorum} is \code{FALSE} for codes not found, which
+are left as they were, for checking.
+\item The original \code{collectionCode} is always kept in \code{collectionCodeOriginal}, whatever
+the value of \code{rm_original_column}.
+}
+
+If the API cannot be reached, a warning is given and the codes are not checked.
 }
 \examples{
 df <- data.frame(collectionCode = c("Tropicos", "Botany", "F-Seedplants",
@@ -63,7 +89,12 @@ df <- data.frame(collectionCode = c("Tropicos", "Botany", "F-Seedplants",
                  institutionCode = c("NY", NA, "F", "INPA", "iNaturalist"),
                  catalogNumber = c("100595392", "U.1317533", "V0059731F",
                                    "123", "340214363"))
-std_collection(df)$collectionCode
+std_collection(df, index_herbariorum = FALSE)$collectionCode
+
+\dontrun{
+# Checking the codes against Index Herbariorum (the default)
+std_collection(df)
+}
 
 }
 \author{

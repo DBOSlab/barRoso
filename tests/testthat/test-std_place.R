@@ -94,3 +94,41 @@ test_that("std_place takes missing municipalities from the county", {
   expect_equal(out$municipality, c("Mucug\u00ea", "Palmeiras", NA))
   expect_equal(out$county, c("Mucug\u00ea", "Len\u00e7\u00f3is", NA))
 })
+
+test_that("localities all in upper case get just the first letter of each word in upper case", {
+  x <- c("ESTR.  UBAITUBA  /  MAR\u00c1U  AO  KM  54  .",
+         "BR 40, ENTRE PARACATU E JO\u00c3O PINHEIRO.",
+         "BR-316",
+         "A 10 KM AL E DE CRUCERO COROZAL",
+         "ALONG RIO CANUM\u00c3, W BANK ABOUT 8 KM S OF VILA DE CANUM\u00c3.",
+         "2 KM DE LA VIA DEL TREN, HACIA EL CERRO",
+         "ESTACION DE BIOLOGIA TROPICAL LOS TUXTLAS",
+         "CA. 86KM N. OF XAVANTINA",
+         "TVR UTM (395428N/9622570E).",
+         "ESALQ",
+         "PARATY, RJ.",
+         "RJ",
+         "JABOT_RJ",
+         "15KM E OF ROCKSTONE",
+         "\u00c1GUA FRIA",
+         "Parque da Cidade, BR 101",
+         NA)
+  expect_equal(.fix_upper_locality(x),
+               c("Estr. Ubaituba/Mar\u00e1u ao Km 54.",
+                 "BR 40, entre Paracatu e Jo\u00e3o Pinheiro.",
+                 "BR-316",
+                 "A 10 Km al E de Crucero Corozal",
+                 "Along Rio Canum\u00e3, W Bank about 8 Km S of Vila de Canum\u00e3.",
+                 "2 Km de la Via del Tren, hacia el Cerro",
+                 "Estacion de Biologia Tropical Los Tuxtlas",
+                 "Ca. 86km N. of Xavantina",
+                 "Tvr UTM (395428N/9622570E).",
+                 "ESALQ",
+                 "Paraty, RJ.",
+                 "RJ",
+                 "JABOT_RJ",
+                 "15km E of Rockstone",
+                 "\u00c1gua Fria",
+                 "Parque da Cidade, BR 101",
+                 NA))
+})

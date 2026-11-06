@@ -10,6 +10,7 @@ barroso_std(...,
             flag_missid = TRUE,
             flag_duplicates = TRUE,
             rm_duplicates = FALSE,
+            index_herbariorum = TRUE,
             colname_recordedBy = "recordedBy",
             colname_recordNumber = "recordNumber",
             colname_identifiedBy = "identifiedBy",
@@ -35,13 +36,17 @@ pollen and spirit collections (e.g. \code{"INPAw"}, \code{"INPA-Carpoteca"}), an
 observations without a specimen (\code{basisOfRecord} like \code{"HUMAN_OBSERVATION"})
 (default: \code{TRUE}).}
 
-\item{delunkcoll}{Logical; if \code{TRUE}, removes records with unknown collectors (default: \code{FALSE}).}
+\item{delunkcoll}{Logical; if \code{TRUE}, removes records with unknown or missing collectors (default: \code{FALSE}).}
 
 \item{flag_missid}{Reserved for future use. Currently not implemented.}
 
 \item{flag_duplicates}{Logical; if \code{TRUE}, flags duplicates with a logical column (default: \code{TRUE}).}
 
 \item{rm_duplicates}{Logical; if \code{TRUE}, removes duplicate specimens (default: \code{FALSE}).}
+
+\item{index_herbariorum}{Logical; if \code{TRUE}, checks collection codes against the API
+of Index Herbariorum, always keeping the original codes. See
+\code{\link[=std_collection]{std_collection()}}. Use \code{FALSE} to work offline (default: \code{TRUE}).}
 
 \item{colname_recordedBy}{Column name for collector names.}
 
@@ -74,7 +79,8 @@ standardized with \code{\link[=std_identifiedBy]{std_identifiedBy()}} only when 
 
 \item{colname_specificEpithet}{Column name for specific epithet.}
 
-\item{rm_original_column}{Logical; if \code{TRUE}, remove original columns after standardization.}
+\item{rm_original_column}{Logical; if \code{TRUE}, remove original columns after standardization,
+except that of collection codes when \code{index_herbariorum = TRUE}.}
 }
 \value{
 A fully cleaned and standardized data frame ready for downstream reconciliation,
@@ -93,6 +99,12 @@ package to clean records from virtual herbaria and biodiversity portals. It
 handles multilingual field names, missing data, inconsistent formatting,
 and dataset chunking for large inputs. The function also detects and optionally
 removes duplicate records and specimens lacking voucher information.
+
+The final data frame is sorted by species, \code{recordedBy} and \code{recordNumber}. All
+records of a block of duplicates stay together under the name of the block, which
+is the most frequent name among its duplicates. For example, a duplicate identified
+as \code{"Ormosia ruddiana"} goes together with its three duplicates identified as
+\code{"Ormosia amazonica"}, in the place of the latter species.
 }
 \examples{
 \dontrun{

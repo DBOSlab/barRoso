@@ -16,6 +16,12 @@
 #' and dataset chunking for large inputs. The function also detects and optionally
 #' removes duplicate records and specimens lacking voucher information.
 #'
+#' The final data frame is sorted by species, `recordedBy` and `recordNumber`. All
+#' records of a block of duplicates stay together under the name of the block, which
+#' is the most frequent name among its duplicates. For example, a duplicate identified
+#' as `"Ormosia ruddiana"` goes together with its three duplicates identified as
+#' `"Ormosia amazonica"`, in the place of the latter species.
+#'
 #' @usage
 #' barroso_std(...,
 #'             unvouchered = TRUE,
@@ -23,6 +29,7 @@
 #'             flag_missid = TRUE,
 #'             flag_duplicates = TRUE,
 #'             rm_duplicates = FALSE,
+#'             index_herbariorum = TRUE,
 #'             colname_recordedBy = "recordedBy",
 #'             colname_recordNumber = "recordNumber",
 #'             colname_identifiedBy = "identifiedBy",
@@ -45,10 +52,13 @@
 #'   pollen and spirit collections (e.g. `"INPAw"`, `"INPA-Carpoteca"`), and
 #'   observations without a specimen (`basisOfRecord` like `"HUMAN_OBSERVATION"`)
 #'   (default: `TRUE`).
-#' @param delunkcoll Logical; if `TRUE`, removes records with unknown collectors (default: `FALSE`).
+#' @param delunkcoll Logical; if `TRUE`, removes records with unknown or missing collectors (default: `FALSE`).
 #' @param flag_missid Reserved for future use. Currently not implemented.
 #' @param flag_duplicates Logical; if `TRUE`, flags duplicates with a logical column (default: `TRUE`).
 #' @param rm_duplicates Logical; if `TRUE`, removes duplicate specimens (default: `FALSE`).
+#' @param index_herbariorum Logical; if `TRUE`, checks collection codes against the API
+#' of Index Herbariorum, always keeping the original codes. See
+#' [std_collection()]. Use `FALSE` to work offline (default: `TRUE`).
 #' @param colname_recordedBy Column name for collector names.
 #' @param colname_recordNumber Column name for collector number.
 #' @param colname_identifiedBy Column name for determiner names. The column is
@@ -65,7 +75,8 @@
 #' @param colname_family Column name for family.
 #' @param colname_genus Column name for genus.
 #' @param colname_specificEpithet Column name for specific epithet.
-#' @param rm_original_column Logical; if `TRUE`, remove original columns after standardization.
+#' @param rm_original_column Logical; if `TRUE`, remove original columns after standardization,
+#' except that of collection codes when `index_herbariorum = TRUE`.
 #'
 #' @return A fully cleaned and standardized data frame ready for downstream reconciliation,
 #' duplicate handling, and label generation.
@@ -91,6 +102,7 @@ barroso_std <- function(...,
                         flag_missid = TRUE,
                         flag_duplicates = TRUE,
                         rm_duplicates = FALSE,
+                        index_herbariorum = TRUE,
                         colname_recordedBy = "recordedBy",
                         colname_recordNumber = "recordNumber",
                         colname_identifiedBy = "identifiedBy",
@@ -171,6 +183,7 @@ barroso_std <- function(...,
     cleaned_df[[i]] <- std_collection(df = cleaned_df[[i]],
                                       colname_collectionCode = colname_collectionCode,
                                       colname_institutionCode = colname_institutionCode,
+                                      index_herbariorum = index_herbariorum,
                                       rm_original_column = rm_original_column)
 
     # Standardizing place-related columns ####
@@ -206,9 +219,9 @@ barroso_std <- function(...,
   #_____________________________________________________________________________
   # Remove herbarium records with unknown collector ####
   if (delunkcoll) {
-    if (any(df[[colname_recordedBy]] %in% c("Unknown"))) {
+    if (any(df[[colname_recordedBy]] %in% c("Unknown", NA))) {
 
-      unkcoll <- which(df[[colname_recordedBy]] %in% c("Unknown"))
+      unkcoll <- which(df[[colname_recordedBy]] %in% c("Unknown", NA))
       df <- df[-unkcoll, ]
     }
   }
@@ -236,5 +249,59 @@ barroso_std <- function(...,
                                   colname_collectionCode = colname_collectionCode)
   }
 
+  #_____________________________________________________________________________
+  # Sort by species, collector and collector number ####
+  df <- .sort_records(df,
+                      colname_recordedBy = colname_recordedBy,
+                      colname_recordNumber = colname_recordNumber,
+                      colname_genus = colname_genus,
+                      colname_specificEpithet = colname_specificEpithet)
+
   return(df)
+}
+
+
+#_______________________________________________________________________________
+# Sort by species, collector and collector number (as a number when possible).
+# All records of a block of duplicates go together under the name of the block,
+# chosen as in barroso_flag_duplicates(): a name with specific epithet, then the
+# most frequent one, then the first one in alphabetical order ####
+.sort_records <- function(df,
+                          colname_recordedBy = "recordedBy",
+                          colname_recordNumber = "recordNumber",
+                          colname_genus = "genus",
+                          colname_specificEpithet = "specificEpithet") {
+
+  genus <- .col_or_na(df, colname_genus)
+  epithet <- .epithet(df, genus, colname_specificEpithet)
+  species <- ifelse(is.na(genus), .col_or_na(df, "species"),
+                    ifelse(is.na(epithet), genus, paste(genus, epithet)))
+
+  block_species <- species
+  if ("duplicateGroup" %in% names(df)) {
+    group <- df$duplicateGroup
+    for (i in split(seq_len(nrow(df)), group)) {
+      names_i <- species[i][!is.na(species[i])]
+      complete <- species[i][!is.na(species[i]) & !is.na(epithet[i])]
+      if (length(complete) > 0) names_i <- complete
+      if (length(names_i) > 0) {
+        freq <- table(names_i)
+        block_species[i] <- names(freq)[which.max(freq)]
+      }
+    }
+  } else {
+    group <- rep(NA_integer_, nrow(df))
+  }
+
+  number <- .col_or_na(df, colname_recordNumber)
+  number_value <- suppressWarnings(as.numeric(gsub("\\D.*$", "", number)))
+
+  df <- df[order(block_species,
+                 .col_or_na(df, colname_recordedBy),
+                 number_value,
+                 number,
+                 group,
+                 species != block_species), , drop = FALSE]
+  rownames(df) <- NULL
+  df
 }

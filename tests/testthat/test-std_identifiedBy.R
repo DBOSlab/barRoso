@@ -20,3 +20,10 @@ test_that("std_identifiedBy works when there are no determiners", {
   expect_equal(r$identifiedBy, c(NA_character_, NA_character_))
   expect_error(std_identifiedBy(data.frame(x = 1)), "not found")
 })
+
+test_that("placeholders of determiners become NA", {
+  x <- c("-", " - ", "?", "--", "[data not captured]", "D. Cardoso & -", "Lima, H.C.")
+  r <- suppressMessages(std_identifiedBy(data.frame(identifiedBy = x)))
+  expect_equal(r$identifiedBy, c(NA, NA, NA, NA, NA, "D. Cardoso", "H. C. Lima"))
+  expect_equal(r$identifiedByOriginal, x)
+})

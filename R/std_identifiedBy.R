@@ -74,6 +74,8 @@ std_identifiedBy <- function(df = NULL,
 
   # Chinese characters into unicode escapes, as in std_recordedBy
   x <- .han_chars_to_escapes(x)
+  # Placeholders like "-", "?" or "[data not captured]"
+  x[.is_missing_collector(x)] <- NA
   x <- .predetclean(x)
 
   # Split each element into single names
@@ -101,7 +103,7 @@ std_identifiedBy <- function(df = NULL,
     etal <- any(n %in% "et al.")
     n <- n[!is.na(n) & !n %in% "et al."]
     n <- unique(unlist(strsplit(std_names[n], "; ")))
-    n <- n[!n %in% "Unknown"]
+    n <- n[!is.na(n) & !n %in% "Unknown"]
     if (length(n) == 0) return(NA_character_)
     if (length(n) > 1) {
       n <- paste(paste(n[-length(n)], collapse = ", "), n[length(n)], sep = " & ")

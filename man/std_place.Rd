@@ -56,6 +56,9 @@ state abbreviations are expanded to full names. Missing municipalities are
 taken from the county. Words for municipality in \code{county} and \code{municipality},
 e.g. \code{"Manaus Mun."}, \code{"Mun. de Castelo"}, \code{"Município de Mucugê"} or
 \code{"Arriaga Municipio"}, are removed, leaving just the name.
+Localities all in upper case get just the first letter of each word in upper
+case, e.g. \code{"ESTR. UBAITUBA / MARÁU AO KM 54 ."} into \code{"Estr. Ubaituba/Maráu ao Km 54."}, keeping prepositions in lowercase and road codes (\code{"BR-316"}), acronyms
+(\code{"ESALQ"}) and compass points (\code{"10 Km NE de"}) in upper case.
 }
 \examples{
 \dontrun{

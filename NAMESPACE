@@ -49,6 +49,7 @@ importFrom(ggplot2,
 )
 importFrom(ggspatial,layer_spatial)
 importFrom(ggthemes,theme_map)
+importFrom(jsonlite,fromJSON)
 importFrom(lcvplants,lcvp_search)
 importFrom(magrittr,"%>%")
 importFrom(maps,map)

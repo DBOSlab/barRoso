@@ -48,7 +48,7 @@ test_that("Chinese names in unicode escapes are converted into Latin names", {
                   "T.C.Huang <U+9EC3><U+589E><U+6CC9>",
                   "780<U+690D><U+88AB><U+7EC4>"))
   expect_equal(r$recordedBy, c("G. Z. Li", "G. Z. Li", "H. D. Zeng", "J. L. Zuo",
-                               "T. C. Huang", "780 Zhi Bei Zu"))
+                               "T. C. Huang", "Zhi Bei Zu"))
   expect_equal(r$addCollector, c(NA, "S. C. Tang", NA, "et al.", NA, NA))
   # As Chinese authors cite themselves, e.g. Ting-Shuang Yi and Rong Zhang
   expect_equal(std_coll(c("<U+6613><U+5A77><U+53CC>", "<U+5F20><U+8363>",
@@ -90,11 +90,11 @@ test_that("more collector formats and separators are standardized", {
                   "Queiroz, L.P.; Santos, A.; et al.", "Flora of Bahia Project",
                   "T.N.Liou<U+3001>P.C.Tsoong", "<U+738B><U+542F><U+65E0> <U+5218><U+745B>",
                   "<U+674E>"))
-  expect_equal(r$recordedBy, c("N. M. F. Silva", "C.-M. Tan", "D. Rodríguez", "J. A. Lombardi",
+  expect_equal(r$recordedBy, c("N. Marquete", "C.-M. Tan", "D. Rodríguez", "J. A. Lombardi",
                                "A. C. Cervi", "J. Silva", "J. Smith", "R. M. Harley",
                                "L. P. Queiroz", "Flora of Bahia Project", "T. N. Liou",
                                "Q. W. Wang", "Li"))
-  expect_equal(r$addCollector, c(NA, NA, "et al.", "et al.", "et al.", "M. Santos", "K. Jones",
+  expect_equal(r$addCollector, c("F. Silva", NA, "et al.", "et al.", "et al.", "M. Santos", "K. Jones",
                                  "A. O. Ribeiro", "et al.", NA, "P. C. Tsoong", "Y. Liu", NA))
 })
 
@@ -123,7 +123,7 @@ test_that("std_recordedBy converts names written in Chinese characters", {
                   "K.C.Yang 楊國禎", "Peng, Ching-I (彭鏡毅)",
                   "780植被组", "丘，李，农"))
   expect_equal(r$recordedBy, c("G. Q. Ding", "G. S. Zhou", "K. C. Yang", "C.-I. Peng",
-                               "780 Zhi Bei Zu", "Qiu"))
+                               "Zhi Bei Zu", "Qiu"))
   expect_equal(r$addCollector, c("L. Yu", "et al.", NA, NA, NA, "et al."))
 
   expect_equal(suppressMessages(barRoso:::.std_determiners(
@@ -136,4 +136,45 @@ test_that("std_recordedBy cleans identifiers, lowercase and team names", {
                   "Belem Herbarium", "Equipe do Jardim Botanico de Brasilia"))
   expect_equal(r$recordedBy, c("E. Marcano", "K. Bravo", "W. Jacobs", "Belem Herbarium",
                                "Equipe do Jardim Bot\u00e2nico de Bras\u00edlia"))
+})
+
+test_that("placeholders, titles, positions and team numbers are cleaned", {
+  x <- c("[missing; ex Herb. Acad. Petrop.]", "236-6\u961f", "[data not captured]",
+         "Col. Richard Henry Beddome",
+         "H.C. de Lima, C.A. Cid Ferreira, J. Guedes;F. Neves",
+         "Warren Douglas Stevens, B. A. Krukoff Curator of Central American Botany",
+         "-", "?", "[A. Beccari]", "Lima, H.C.", "Cid Ferreira, C.A.",
+         "\u7ca473", "Hno. Daniel", "Dr. King's Collector [Malaysia]")
+  r <- suppressMessages(std_recordedBy(data.frame(recordedBy = x, recordNumber = NA_character_)))
+  expect_equal(r$recordedBy[c(1, 3, 7, 8)], rep(NA_character_, 4))
+  expect_true(is.na(r$addCollector[1]))
+  expect_equal(r$recordedBy[2], "Dui")
+  expect_equal(r$recordNumber[2], "236-6")
+  expect_equal(r$recordedBy[4], "R. H. Beddome")
+  expect_equal(r$recordedBy[5], "H. C. Lima")
+  expect_equal(r$addCollector[5], "et al.")
+  expect_equal(r$recordedBy[6], "W. D. Stevens")
+  expect_equal(r$addCollector[6], "B. A. Krukoff")
+  expect_equal(r$recordedBy[9], "A. Beccari")
+  expect_equal(r$recordedBy[10], "H. C. Lima")
+  expect_true(is.na(r$addCollector[10]))
+  expect_equal(r$recordedBy[11], "C. A. Cid-Ferreira")
+  expect_equal(c(r$recordedBy[12], r$recordNumber[12]), c("Yue", "73"))
+  expect_equal(r$recordedBy[13], "Daniel")
+  expect_equal(r$recordedByOriginal, x)
+
+  # Several collectors without commas
+  r <- suppressMessages(std_recordedBy(data.frame(
+    recordedBy = c("M. J. E. Coode D. W. Kirkup et al.", "V. Ariati D.A. Roher J.E. Bianchin;M.M. Dutra"),
+    recordNumber = NA_character_)))
+  expect_equal(r$recordedBy, c("M. J. E. Coode", "V. Ariati"))
+  expect_equal(r$addCollector, c("et al.", "et al."))
+
+  # A particle is not a surname
+  r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "M. Dos S. Rodrigues", recordNumber = "1")))
+  expect_equal(c(r$recordedBy, r$addCollector), c("M. D. S. Rodrigues", NA))
+
+  # A team number does not replace the number of the collection
+  r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "236-6\u961f", recordNumber = "5")))
+  expect_equal(c(r$recordedBy, r$recordNumber), c("236-6 Dui", "5"))
 })

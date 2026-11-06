@@ -22,6 +22,10 @@
 #' taken from the county. Words for municipality in `county` and `municipality`,
 #' e.g. `"Manaus Mun."`, `"Mun. de Castelo"`, `"Município de Mucugê"` or
 #' `"Arriaga Municipio"`, are removed, leaving just the name.
+#' Localities all in upper case get just the first letter of each word in upper
+#' case, e.g. `"ESTR. UBAITUBA / MARÁU AO KM 54 ."` into `"Estr. Ubaituba/Maráu ao
+#' Km 54."`, keeping prepositions in lowercase and road codes (`"BR-316"`), acronyms
+#' (`"ESALQ"`) and compass points (`"10 Km NE de"`) in upper case.
 #'
 #' @usage
 #' std_place(df = NULL,
@@ -454,6 +458,9 @@ std_place <- function(df = NULL,
       message(paste0("Original uncleaned '", colname_municipality, "' and ", colname_locality, "' columns removed"))
     }
 
+    # Localities all in upper case, e.g. "ESTR. UBAITUBA / MAR\u00c1U AO KM 54 ."
+    df$locality <- .fix_upper_locality(df$locality)
+
     df$municipality <- .rm_municipality_word(df$municipality)
     tf <- grepl("[[:upper:]]{4,}", df$municipality)
     if (any(tf)) {
@@ -769,6 +776,75 @@ std_place <- function(df = NULL,
     df$country[tf] <- unlist(single)[key[tf]]
   }
   df
+}
+
+# Localities all in upper case to just the first letter of each word in upper
+# case, e.g. "ESTR. UBAITUBA / MARÁU AO KM 54 ." to "Estr. Ubaituba/Maráu ao
+# Km 54.". Prepositions and conjunctions go to lower case, while road codes
+# ("BR-316", "PA 150"), roman numerals, acronyms of institutions, compass points
+# ("10 Km NE de") and a final state code ("Manaus, AM") are kept in upper case ####
+.fix_upper_locality <- function(x) {
+  # Not codes of datasets, e.g. "JABOT_RJ"
+  tf <- !is.na(x) & stringi::stri_detect_regex(x, "\\p{Lu}{2}") &
+    !stringi::stri_detect_regex(x, "\\p{Ll}|_")
+  if (!any(tf)) return(x)
+
+  y <- stringi::stri_trans_tolower(x[tf])
+
+  # Spaces, e.g. "RIO  ORINOCO  ." and "UBAITUBA  /  MARÁU"
+  y <- gsub("\\s+", " ", trimws(y))
+  y <- gsub("\\s+([,.;:)])", "\\1", y)
+  y <- gsub("\\(\\s+", "(", y)
+  y <- gsub("\\s*/\\s*", "/", y)
+
+  # First letter of each word
+  y <- gsub("(?<![\\p{L}\\p{M}\\p{N}'\u2019])(\\p{L})", "\\U\\1", y, perl = TRUE)
+
+  # Letters after a number, as in coordinates, but not in "86km"
+  y <- gsub("(?<=\\d)(?!km\\b|m\\b)(\\p{L})", "\\U\\1", y, perl = TRUE)
+
+  # Prepositions and conjunctions, except at the beginning or in abbreviations
+  particles <- c("a", "ao", "aos", "as", "\u00e0", "\u00e0s", "o", "os", "com", "da",
+                 "das", "de", "do", "dos", "e", "em", "entre", "na", "nas", "no",
+                 "nos", "para", "pela", "pelo", "por", "que",
+                 "al", "con", "del", "en", "hacia", "y",
+                 "about", "and", "at", "by", "from", "in", "near", "of", "on",
+                 "the", "to", "with")
+  words <- paste0("(?i)(?<=\\s)(", paste(particles, collapse = "|"), ")(?=\\s)")
+  y <- gsub(words, "\\L\\1", y, perl = TRUE)
+
+  # Spanish articles after a preposition, but not in names like "Los Tuxtlas"
+  y <- gsub("\\b(de|al?|en|hacia|por|para|con|entre)\\s(El|La|Las|Los)\\b", "\\1 \\L\\2",
+            y, perl = TRUE)
+
+  # Compass points after a distance, e.g. "10 Km E de", "al NO de"
+  y <- gsub("(?i)(km[.]?\\s|\\bal\\s)(n|s|e|w|o|l|ne|no|nw|se|so|sw)\\b",
+            "\\1\\U\\2\\E", y, perl = TRUE)
+
+  # Road codes, e.g. "BR 060", "BR-316", "PA 150"
+  y <- gsub("\\b(?!(?:Km|Ca|Rio|Rua|Rod|Est|Av|Mil|Ano)\\b)(\\p{Lu}\\p{Ll}{1,2})(?=[ -]?\\d)",
+            "\\U\\1", y, perl = TRUE)
+
+  # Roman numerals
+  y <- gsub("\\b(Ii|Iii|Iv|Vi|Vii|Viii|Ix|Xi|Xii|Xiii|Xiv|Xv|Xvi|Xx)\\b", "\\U\\1", y, perl = TRUE)
+
+  # Acronyms of institutions and places
+  acronyms <- c("CEPEC", "CEPLAC", "CVRD", "EMBRAPA", "ESALQ", "ESAV", "FLONA", "FUNAI",
+                "IBAMA", "IBGE", "ICMBIO", "INCRA", "INPA", "JABOT", "PARNA", "REBIO",
+                "RPPN", "SUDAM", "UFAM", "UFBA", "UFMG", "UFPA", "UFRJ", "UHE", "USP",
+                "UTM")
+  y <- gsub(paste0("(?i)\\b(", paste(acronyms, collapse = "|"), ")\\b"), "\\U\\1",
+            y, perl = TRUE)
+
+  # A state code of Brazil alone or at the end, e.g. "Manaus, AM", "Paraty - RJ."
+  states <- c("AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS",
+              "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC",
+              "SE", "SP", "TO")
+  y <- gsub(paste0("(?i)(^|[,/-]\\s*)(", paste(states, collapse = "|"), ")([.]?)$"),
+            "\\1\\U\\2\\E\\3", y, perl = TRUE)
+
+  x[tf] <- y
+  x
 }
 
 # Side function make first letter to upper case ####

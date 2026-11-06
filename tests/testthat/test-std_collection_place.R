@@ -2,7 +2,7 @@ test_that("std_collection works with custom column names", {
   df <- data.frame(herbario = c("MOBOT_BR", "Herbarium", "NHM-LONDON-BOT"),
                    instituicao = c("MO", "RB", "NHMUK"),
                    genus = c("Ormosia", "Ormosia", "Swartzia"))
-  r <- suppressMessages(std_collection(df, colname_collectionCode = "herbario",
+  r <- suppressMessages(std_collection(df, index_herbariorum = FALSE, colname_collectionCode = "herbario",
                                        colname_institutionCode = "instituicao",
                                        rm_original_column = FALSE))
   expect_equal(names(r), c("herbarioOriginal", "herbario", "instituicaoOriginal",
@@ -44,7 +44,7 @@ test_that("std_collection extracts herbarium acronyms from dirty codes", {
     catalogNumber = c(NA, NA, NA, "U.1317533", NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
                       NA, NA, NA, "340214363", NA, NA, NA, NA, "D. Cardoso 2118 (HUEFS)",
                       NA, NA, NA, NA, NA))
-  r <- suppressMessages(std_collection(df))
+  r <- suppressMessages(std_collection(df, index_herbariorum = FALSE))
   expect_equal(r$collectionCode,
                c("NY", "MO", "LPB", "U", "F", "F", "BHCB", "INPA", "R", "UIS", "M", "L",
                  "G-DC", "INPAw", "INPA", "CR", "HBG", NA, NA, "NEFI", "SPSF", NA, "HUEFS",
@@ -55,4 +55,72 @@ test_that("unvouchered collections and observations are removed", {
   df <- data.frame(collectionCode = c("RB", "BCTw", "INPA-Carpoteca", "BHZBcarpo", "K", "Seeds"),
                    basisOfRecord = c("PRESERVED_SPECIMEN", NA, NA, NA, "HUMAN_OBSERVATION", NA))
   expect_equal(barRoso:::.delunvouchered(df, "collectionCode")$collectionCode, "RB")
+})
+
+ih_fixture <- data.frame(
+  code = c("INPA", "UNB", "P", "MNHN", "UPH", "UPH", "SPF", "ESA", "HUEFS"),
+  organization = c("Instituto Nacional de Pesquisas da Amaz\u00f4nia", "Universidade de Bras\u00edlia",
+                   "Mus\u00e9um National d'Histoire Naturelle", "Museo Nacional de Historia Natural",
+                   "University of Prishtina", "University of Port Harcourt",
+                   "Universidade de S\u00e3o Paulo", "Universidade de S\u00e3o Paulo",
+                   "Universidade Estadual de Feira de Santana"),
+  otherInstitutionNames = c("", "", "", "", "", "", "", "", "UEFS\nFeira de Santana State University"))
+
+test_that("index_herbariorum checks the codes and always keeps the originals", {
+  local_mocked_bindings(.ih_institutions = function() ih_fixture)
+  df <- data.frame(
+    collectionCode = c("Herbario INPA", "UnB", "P", "XYZ", "UPH", "Botany",
+                       "Universidade Estadual de Feira de Santana", "Universidade de Sao Paulo"),
+    institutionCode = c("Instituto Nacional de Pesquisas da Amazonia (INPA)", "UnB", "MNHN", "XYZ",
+                        "UPH", "Feira de Santana State University", NA, NA))
+  r <- suppressMessages(std_collection(df, index_herbariorum = TRUE))
+  expect_equal(r$collectionCode[1:5], c("INPA", "UNB", "P", "XYZ", "UPH"))
+  # The institution code is not changed
+  expect_equal(r$institutionCode, df$institutionCode)
+  expect_equal(r$indexHerbariorum, c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE, FALSE))
+  expect_equal(r$institutionName[c(1, 4, 5)],
+               c("Instituto Nacional de Pesquisas da Amaz\u00f4nia", NA,
+                 "University of Prishtina | University of Port Harcourt"))
+  # From the names of institutions, when they have a single herbarium
+  expect_equal(r$collectionCode[6:7], c("HUEFS", "HUEFS"))
+  expect_false(r$collectionCode[8] %in% c("SPF", "ESA"))
+  # The original collection code is kept even with rm_original_column = TRUE
+  expect_equal(r$collectionCodeOriginal, df$collectionCode)
+  expect_false("institutionCodeOriginal" %in% names(r))
+
+  # And rerunning keeps them
+  r2 <- suppressMessages(std_collection(r, index_herbariorum = TRUE))
+  expect_equal(r2$collectionCodeOriginal, df$collectionCode)
+  expect_equal(sum(names(r2) == "institutionName"), 1)
+
+  # Checked by default, in std_collection and barroso_std
+  r <- suppressMessages(std_collection(df))
+  expect_true(all(c("indexHerbariorum", "collectionCodeOriginal") %in% names(r)))
+  x <- cbind(df, recordedBy = "D. Cardoso", recordNumber = "1")
+  expect_true("indexHerbariorum" %in% names(suppressMessages(barroso_std(x))))
+
+  # FALSE does not need the API
+  local_mocked_bindings(.ih_institutions = function() stop("API used"))
+  r <- suppressMessages(std_collection(df, index_herbariorum = FALSE))
+  expect_false(any(c("indexHerbariorum", "collectionCodeOriginal") %in% names(r)))
+})
+
+test_that("index_herbariorum warns and leaves the codes when the API is unavailable", {
+  local_mocked_bindings(.ih_institutions = function() {
+    warning("Index Herbariorum could not be reached, so the codes were not checked", call. = FALSE)
+    NULL
+  })
+  df <- data.frame(collectionCode = "UnB", institutionCode = "UnB")
+  expect_warning(r <- suppressMessages(std_collection(df, index_herbariorum = TRUE)), "could not be reached")
+  expect_equal(r$collectionCode, "UnB")
+  expect_false("indexHerbariorum" %in% names(r))
+  expect_equal(r$collectionCodeOriginal, "UnB")
+})
+
+test_that("the Index Herbariorum API answers", {
+  skip_on_cran()
+  skip_if_offline("sweetgum.nybg.org")
+  ih <- .ih_institutions()
+  skip_if(is.null(ih))
+  expect_true(all(c("INPA", "RB", "MO") %in% ih$code))
 })

@@ -23,6 +23,7 @@ Imports:
     stringi,
     stringr,
     countrycode,
+    jsonlite,
     tools,
     officer,
     openxlsx,
