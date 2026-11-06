@@ -31,7 +31,7 @@ test_that("accents, particles and encodings are handled", {
   expect_equal(std_coll(x)$recordedBy,
                c("Dusén", "R. L. Fróes", "C. F. P. von Martius", "M. G. M. van Roosmalen",
                  "L. F. Coêlho", "M. de la Estrella", "R. D. Worthington",
-                 "D. Inácio Junqueira", "Unknown", "Unknown", "L. Yung"))
+                 "D. Inácio Junqueira", NA, NA, "L. Yung"))
 })
 
 test_that("abbreviations do not depend on the other names in the data", {
@@ -154,7 +154,8 @@ test_that("placeholders, titles, positions and team numbers are cleaned", {
   expect_equal(r$recordedBy[5], "H. C. Lima")
   expect_equal(r$addCollector[5], "et al.")
   expect_equal(r$recordedBy[6], "W. D. Stevens")
-  expect_equal(r$addCollector[6], "B. A. Krukoff")
+  # "B. A. Krukoff Curator" is the position of W. D. Stevens, not a collector
+  expect_true(is.na(r$addCollector[6]))
   expect_equal(r$recordedBy[9], "A. Beccari")
   expect_equal(r$recordedBy[10], "H. C. Lima")
   expect_true(is.na(r$addCollector[10]))
@@ -174,7 +175,7 @@ test_that("placeholders, titles, positions and team numbers are cleaned", {
   r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "M. Dos S. Rodrigues", recordNumber = "1")))
   expect_equal(c(r$recordedBy, r$addCollector), c("M. D. S. Rodrigues", NA))
 
-  # A team number does not replace the number of the collection
+  # A team number does not replace the number of the collection, and is removed
   r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "236-6\u961f", recordNumber = "5")))
-  expect_equal(c(r$recordedBy, r$recordNumber), c("236-6 Dui", "5"))
+  expect_equal(c(r$recordedBy, r$recordNumber), c("Dui", "5"))
 })

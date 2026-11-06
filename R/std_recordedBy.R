@@ -203,7 +203,8 @@ std_recordedBy <- function(df = NULL,
   # Numbers of Chinese teams go to $recordNumber, e.g. "236-6 Dui", "Yue73"
   if (any(han)) df <- .han_team_number(df, han)
 
-  df$recordedBy[no_collector] <- NA
+  # Placeholders and empty cells are all missing collectors
+  df$recordedBy[no_collector | df$recordedBy %in% "Unknown"] <- NA
   df$addCollector[no_collector] <- NA
 
   #_____________________________________________________________________________
@@ -243,13 +244,17 @@ std_recordedBy <- function(df = NULL,
 }
 
 # Titles before or after names, e.g. "Col. Richard Henry Beddome", "Hno. Daniel",
-# "Prof. Jose Elias", "Rowan, M.E. Mrs Captain", and positions like "Curator of
-# Central American Botany", but not "Dr. King's Collector" ####
+# "Prof. Jose Elias", "Rowan, M.E. Mrs Captain", and positions after a comma, which
+# may have the name of another person, like "Warren Douglas Stevens, B. A. Krukoff
+# Curator of Central American Botany", but not "Dr. King's Collector" ####
 .rm_titles <- function(x) {
   tf <- !is.na(x) & !grepl("Collector", x)
   titles <- paste0("^\\s*((Col|Cel|Lt|Capt?|Maj|Gen|Dra?|Profa?|Rev|Mrs?|Hno|Hna|Sr|Sra)[.]|",
                    "(Sir|Frei|Padre|Hermano|Hermana|Brother|Captain)\\s)\\s*(?=\\p{Lu})")
   x[tf] <- sub(titles, "", x[tf], perl = TRUE)
+  position <- tf & grepl(",[^,;|&]*\\b(Curator|Director|Keeper)\\s+of\\b", x)
+  x[position] <- .abbrev_full_name(sub(",[^,;|&]*\\b(Curator|Director|Keeper)\\s+of\\b[^,;|&]*", "",
+                                       x[position], perl = TRUE))
   x[tf] <- gsub("\\s+(Curator|Director|Keeper)\\s+of\\b[^,;|&]*", "", x[tf], perl = TRUE)
   x[tf] <- sub("\\s+(Mrs?|Captain)(\\s+(Mrs?|Captain))*\\s*$", "", x[tf], perl = TRUE)
   x
@@ -268,13 +273,7 @@ std_recordedBy <- function(df = NULL,
 
   # Full names abbreviated here, as the initials of the other names would keep
   # them unchanged below, e.g. "Warren Douglas Stevens; B. A. Krukoff"
-  full <- grepl("^\\p{Lu}\\p{Ll}+(\\s\\p{Lu}\\p{Ll}+)+;", x, perl = TRUE) & tf
-  if (any(full)) {
-    main <- sub(";.*", "", x[full])
-    given <- sub("\\s\\S+$", "", main)
-    x[full] <- paste0(.abbrev_given(given), " ", sub(".*\\s", "", main),
-                      sub("^[^;]*", "", x[full]))
-  }
+  x[tf] <- .abbrev_full_name(x[tf])
 
   # Without a comma, e.g. "M. J. E. Coode D. W. Kirkup", "N. Marquete F. Silva"
   # but not with particles, e.g. "M. Dos S. Rodrigues"
@@ -287,23 +286,30 @@ std_recordedBy <- function(df = NULL,
   x
 }
 
-# Initials of given names, e.g. "Warren Douglas" into "W. D."
-.abbrev_given <- function(x) {
-  vapply(strsplit(x, "\\s+"), function(w) paste0(substr(w, 1, 1), ".", collapse = " "),
-         character(1))
+# Initials of the first full name, e.g. "Warren Douglas Stevens; B. A. Krukoff" into
+# "W. D. Stevens; B. A. Krukoff"
+.abbrev_full_name <- function(x) {
+  full <- grepl("^\\p{Lu}\\p{Ll}+(\\s\\p{Lu}\\p{Ll}+)+(;|$)", x, perl = TRUE)
+  if (any(full)) {
+    main <- sub(";.*", "", x[full])
+    given <- vapply(strsplit(sub("\\s\\S+$", "", main), "\\s+"),
+                    function(w) paste0(substr(w, 1, 1), ".", collapse = " "), character(1))
+    x[full] <- paste0(given, " ", sub(".*\\s", "", main), sub("^[^;]*", "", x[full]))
+  }
+  x
 }
 
 # Numbers of Chinese teams go to an empty $recordNumber, e.g. "236-6 Dui" into
-# "Dui" and "236-6", or "Yue73" into "Yue" and "73" ####
+# "Dui" and "236-6", or "Yue73" into "Yue" and "73", and are removed otherwise ####
 .han_team_number <- function(df, han) {
   empty <- is.na(df$recordNumber) | !nzchar(trimws(df$recordNumber))
   lead <- "^([0-9][0-9-]*)\\s*(\\D.*)$"
   trail <- "^(\\D*?)\\s*([0-9][0-9-]*)$"
-  tf <- han & empty & grepl(lead, df$recordedBy)
-  df$recordNumber[tf] <- sub(lead, "\\1", df$recordedBy[tf])
+  tf <- han & grepl(lead, df$recordedBy)
+  df$recordNumber[tf & empty] <- sub(lead, "\\1", df$recordedBy[tf & empty])
   df$recordedBy[tf] <- sub(lead, "\\2", df$recordedBy[tf])
-  tf <- han & empty & grepl(trail, df$recordedBy)
-  df$recordNumber[tf] <- sub(trail, "\\2", df$recordedBy[tf])
+  tf <- han & grepl(trail, df$recordedBy)
+  df$recordNumber[tf & empty] <- sub(trail, "\\2", df$recordedBy[tf & empty])
   df$recordedBy[tf] <- sub(trail, "\\1", df$recordedBy[tf])
   df
 }

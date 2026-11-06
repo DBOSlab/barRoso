@@ -21,7 +21,7 @@ test_that("barroso_std runs all standardizations and flags duplicates", {
   # The wood collection (BCTW) is removed by default
   expect_equal(nrow(r), 4)
   expect_false("BCTW" %in% r$collectionCode)
-  expect_setequal(r$recordedBy, c("D. Cardoso", "L. P. Queiroz", "Unknown"))
+  expect_setequal(r$recordedBy, c("D. Cardoso", "L. P. Queiroz", NA))
   expect_setequal(stats::na.omit(r$identifiedBy), c("D. Cardoso", "L. P. Queiroz"))
   expect_true(all(r$stateProvince == "Bahia"))
   expect_true(all(r$family == "Fabaceae"))
@@ -37,7 +37,7 @@ test_that("barroso_std options keep, remove and flag records", {
                                     rm_duplicates = TRUE, rm_original_column = FALSE))
   expect_equal(nrow(r), 3)
   expect_true("BCTW" %in% r$collectionCode)
-  expect_false("Unknown" %in% r$recordedBy)
+  expect_false(anyNA(r$recordedBy))
   expect_true(all(c("countryOriginal", "identifiedByOriginal", "typeStatusOriginal") %in% names(r)))
 
   r <- suppressMessages(barroso_std(herb, index_herbariorum = FALSE, flag_duplicates = FALSE))
