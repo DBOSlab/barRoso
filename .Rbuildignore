@@ -5,3 +5,4 @@
 ^\.github$
 ^README\.Rmd$
 ^data-raw$
+^tests/testthat/_problems$
