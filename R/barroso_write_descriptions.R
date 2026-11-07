@@ -42,6 +42,15 @@
 #' their own columns, and any text in another column, e.g. "curved distally
 #' towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
 #'
+#' \strong{Punctuation}
+#'
+#' Each organ (e.g. \code{STIPULE}) is a sentence. Its single traits are separated
+#' by commas, while parts with their own traits in lowercase (e.g.
+#' \code{HABIT STEM color}, \code{LEAF PETIOLE shape}) start after a semicolon, e.g.
+#' "Shrub 1.8 m tall, erect, branched; stem striated, gray, glabrous. Stipule 1 pair,
+#' lateral to petiole, 11–16 × 2–3 mm, lanceolate, base truncate, apex acute.". A part
+#' without traits in lowercase, like \code{STIPULE BASE}, is a single trait.
+#'
 #' \strong{Column naming conventions}
 #'
 #' The function relies on a structured column naming system to parse and organize
@@ -717,21 +726,10 @@ barroso_write_descriptions <- function(xlsx_path,
                                 row_averages = row_averages,
                                 approx_char = approx_char)
     if (length(items) == 0L) next
-    formatted_items <- .format_group_items(items)
+    # In the first group (Habit), the habit itself (e.g. "Tree", "Shrub") is
+    # followed by a space, e.g. "Shrub 0.3–1 m tall, erect"
+    formatted_items <- .format_group_items(items, first_space = l == 1)
     if (l == 1) {
-      # First group (Habit) is special: the very first trait is the habit
-      # value itself (e.g. "Tree", "Shrub") and the separator BETWEEN that
-      # trait and the next one is a single space — NOT a semicolon.
-      items_list <- strsplit(formatted_items, "; ")[[1]]
-      if (length(items_list) >= 2) {
-        rebuilt <- paste0(items_list[1], " ", items_list[2])
-        if (length(items_list) > 2) {
-          rebuilt <- paste0(rebuilt, "; ",
-                            paste(items_list[3:length(items_list)],
-                                  collapse = "; "))
-        }
-        formatted_items <- rebuilt
-      }
       sentences <- c(sentences,
                      paste0(toupper(substr(formatted_items, 1, 1)),
                             substr(formatted_items, 2, nchar(formatted_items)),
@@ -747,8 +745,16 @@ barroso_write_descriptions <- function(xlsx_path,
 
 #' @keywords internal
 #' @noRd
-.format_group_items <- function(items) {
-  if (length(items) == 0) "" else paste(items, collapse = "; ")
+.format_group_items <- function(items, first_space = FALSE) {
+  if (length(items) == 0) return("")
+  comma <- attr(items, "comma")
+  if (is.null(comma)) comma <- rep(FALSE, length(items))
+  out <- items[1]
+  for (k in seq_along(items)[-1]) {
+    sep <- if (first_space && k == 2) " " else if (comma[k - 1] && comma[k]) ", " else "; "
+    out <- paste0(out, sep, items[k])
+  }
+  out
 }
 
 #' @keywords internal
@@ -803,23 +809,15 @@ barroso_write_descriptions <- function(xlsx_path,
     formatted_items <- .format_group_items(items)
 
     if (group_idx == 1) {
-      items_list <- strsplit(formatted_items, "; ")[[1]]
-      if (length(items_list) > 0) {
-        first_item <- items_list[1]
-        first_item <- paste0(toupper(substr(first_item, 1, 1)),
-                             substr(first_item, 2, nchar(first_item)))
+      # The habit in bold (e.g. "Shrub"), followed by a space and the other traits
+      first_item <- items[1]
+      first_item <- paste0(toupper(substr(first_item, 1, 1)),
+                           substr(first_item, 2, nchar(first_item)))
+      desc_runs <- c(desc_runs, list(officer::ftext(first_item, prop = group_prop)))
+      if (length(items) >= 2) {
+        remainder <- .format_group_items(structure(items[-1], comma = attr(items, "comma")[-1]))
         desc_runs <- c(desc_runs,
-                       list(officer::ftext(first_item, prop = group_prop)))
-        if (length(items_list) >= 2) {
-          remainder <- paste0(" ", items_list[2])
-          if (length(items_list) > 2) {
-            remainder <- paste0(remainder, "; ",
-                                paste(items_list[3:length(items_list)],
-                                      collapse = "; "))
-          }
-          desc_runs <- c(desc_runs,
-                         list(officer::ftext(remainder, prop = description_prop)))
-        }
+                       list(officer::ftext(paste0(" ", remainder), prop = description_prop)))
       }
     } else {
       if (length(desc_runs) > 0) {
@@ -846,6 +844,10 @@ barroso_write_descriptions <- function(xlsx_path,
                                row_averages = list(),
                                approx_char = NULL) {
   items <- character(0)
+  # TRUE for traits joined by commas: simple traits of the group and terms without
+  # descriptors, e.g. "base truncate" from "STIPULE BASE"; FALSE for terms with
+  # descriptors, e.g. "stem striated, gray" from "HABIT STEM Bark" and "HABIT STEM color"
+  comma <- logical(0)
   n <- length(cols)
   processed <- logical(n)
 
@@ -879,6 +881,7 @@ barroso_write_descriptions <- function(xlsx_path,
       main_values <- character(0)
       subgroup_values <- list()
       group_measurements <- list()
+      descriptors <- FALSE
 
       for (idx in group_indices) {
         if (processed[idx]) next
@@ -890,6 +893,7 @@ barroso_write_descriptions <- function(xlsx_path,
 
         col_info <- parsed_cols[[idx]]
         col_hi <- col_info$hierarchy
+        descriptors <- descriptors || .has_descriptor(col_cn)
 
         if (col_info$is_length || col_info$is_width || col_info$is_height) {
           group_measurements <- c(group_measurements, list(list(
@@ -965,6 +969,7 @@ barroso_write_descriptions <- function(xlsx_path,
       if (length(group_parts) > 0) {
         items <- c(items, paste(tolower(first_level),
                                 paste(group_parts, collapse = ", ")))
+        comma <- c(comma, !descriptors)
       }
       i <- i + 1
 
@@ -1024,16 +1029,30 @@ barroso_write_descriptions <- function(xlsx_path,
           len_avg = len_avg, wid_avg = wid_avg, ht_avg = ht_avg,
           approx_char = approx_char
         )
-        if (nzchar(measurement)) items <- c(items, measurement)
+        if (nzchar(measurement)) {
+          items <- c(items, measurement)
+          comma <- c(comma, TRUE)
+        }
 
       } else {
         items <- c(items, val)
+        comma <- c(comma, TRUE)
         processed[i] <- TRUE
       }
       i <- i + 1
     }
   }
-  items[nzchar(items)]
+  keep <- nzchar(items)
+  structure(items[keep], comma = comma[keep])
+}
+
+#' Column names with descriptors in lowercase after the terms in upper case, e.g.
+#' "HABIT STEM color" or "HABIT STEM Bark", but not "STIPULE BASE"
+#' @keywords internal
+#' @noRd
+.has_descriptor <- function(col_name) {
+  words <- strsplit(stringr::str_squish(sub("\\s*\\(.*\\)", "", col_name)), "\\s+")[[1]][-1]
+  any(grepl("[[:lower:]]", words))
 }
 
 #' Null-coalescing helper used above

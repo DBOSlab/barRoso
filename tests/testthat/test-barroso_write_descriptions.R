@@ -191,3 +191,22 @@ test_that("counts become ranges followed by the last word of the column name", {
   expect_match(r$description_plain[1], "10\u201325 flowers", fixed = TRUE)
   expect_match(r$description_plain[2], "(3\u2013)4 pairs", fixed = TRUE)
 })
+
+test_that("single traits are separated by commas, and parts with their own traits by semicolons", {
+  dir <- withr::local_tempdir()
+  df <- data.frame(Genus = "Ouratea", Species = "hostilis",
+                   HABIT = "Shrub", `HABIT height (m)` = "1.8", `HABIT branching pattern` = "branched",
+                   `HABIT STEM Bark` = "striated", `HABIT STEM color` = "gray",
+                   `STIPULE number` = "1 pair", `STIPULE shape` = "lanceolate",
+                   `STIPULE BASE` = "truncate", `STIPULE APEX` = "acute",
+                   `LEAF phyllotaxis` = "dispersed", `LEAF PETIOLE shape` = "grooved",
+                   `LEAF PETIOLE indument` = "glabrous", check.names = FALSE)
+  path <- file.path(dir, "traits.xlsx")
+  openxlsx::write.xlsx(df, path)
+  r <- suppressMessages(barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3:ncol(df),
+                                                   dir = dir, verbose = FALSE))
+  expect_match(r$description_plain,
+               paste("Shrub ca. 1.8 m tall, branched; stem striated, gray.",
+                     "Stipule 1 pair, lanceolate, base truncate, apex acute.",
+                     "Leaf dispersed; petiole grooved, glabrous."), fixed = TRUE)
+})

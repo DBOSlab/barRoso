@@ -156,6 +156,15 @@ e.g. "6–12 pairs", except "number" and "count", e.g. "stamen 8–10". Write co
 their own columns, and any text in another column, e.g. "curved distally
 towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
 
+\strong{Punctuation}
+
+Each organ (e.g. \code{STIPULE}) is a sentence. Its single traits are separated
+by commas, while parts with their own traits in lowercase (e.g.
+\code{HABIT STEM color}, \code{LEAF PETIOLE shape}) start after a semicolon, e.g.
+"Shrub 1.8 m tall, erect, branched; stem striated, gray, glabrous. Stipule 1 pair,
+lateral to petiole, 11–16 × 2–3 mm, lanceolate, base truncate, apex acute.". A part
+without traits in lowercase, like \code{STIPULE BASE}, is a single trait.
+
 \strong{Column naming conventions}
 
 The function relies on a structured column naming system to parse and organize
