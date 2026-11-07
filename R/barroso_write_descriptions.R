@@ -282,7 +282,7 @@ barroso_write_descriptions <- function(xlsx_path,
   .check_number(extremes_min_n, 2)
   .check_number(font_size, 1)
   .check_string(font_family)
-  .check_string(approx_char)
+  .check_string(approx_char, null_ok = TRUE)
   .check_string(filename, null_ok = TRUE)
 
   # Creating the directory to save the file based on the current date
@@ -633,26 +633,6 @@ barroso_write_descriptions <- function(xlsx_path,
 
 #' @keywords internal
 #' @noRd
-.extract_main_term <- function(col_name) {
-  pre_dot <- stringr::str_split_fixed(col_name, "\\.", 2)[, 1]
-  tokens <- stringr::str_split(stringr::str_trim(pre_dot), "\\s+")[[1]]
-  tokens <- tokens[tokens != ""]
-  if (length(tokens) == 0) col_name else tokens[[1]]
-}
-
-#' @keywords internal
-#' @noRd
-.extract_subterm <- function(col_name) {
-  stripped <- stringr::str_replace_all(col_name, "[()]", " ")
-  tokens <- stringr::str_split(stringr::str_squish(stripped), "\\s+")[[1]]
-  if (length(tokens) <= 1L) return("")
-  rest <- tokens[-1]
-  hit <- rest[stringr::str_detect(rest, "^[\\p{Lu}]")]
-  if (length(hit) > 0L) hit[[1]] else ""
-}
-
-#' @keywords internal
-#' @noRd
 .is_height_col <- function(col_name) {
   stripped <- stringr::str_replace_all(col_name, "[()]", " ")
   tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)),
@@ -676,6 +656,15 @@ barroso_write_descriptions <- function(xlsx_path,
   tokens <- stringr::str_split(stringr::str_to_lower(stringr::str_squish(stripped)),
                                "\\s+")[[1]]
   any(tokens == "width")
+}
+
+#' @keywords internal
+#' @noRd
+.extract_main_term <- function(col_name) {
+  pre_dot <- stringr::str_split_fixed(col_name, "\\.", 2)[, 1]
+  tokens <- stringr::str_split(stringr::str_trim(pre_dot), "\\s+")[[1]]
+  tokens <- tokens[tokens != ""]
+  if (length(tokens) == 0) col_name else tokens[[1]]
 }
 
 #' @keywords internal

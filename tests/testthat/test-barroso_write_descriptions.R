@@ -210,3 +210,71 @@ test_that("single traits are separated by commas, and parts with their own trait
                      "Stipule 1 pair, lanceolate, base truncate, apex acute.",
                      "Leaf dispersed; petiole grooved, glabrous."), fixed = TRUE)
 })
+
+test_that("barroso_write_descriptions stops with clear errors", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "few.xlsx")
+  openxlsx::write.xlsx(data.frame(Genus = "Ouratea", Species = "hostilis",
+                                  `LEAF length (cm)` = "5", check.names = FALSE), path)
+  expect_error(barroso_write_descriptions(path, species_cols = c("Genus", "Species"),
+                                          character_cols = c("LEAF length (cm)", "LEAF colour"),
+                                          dir = dir, verbose = FALSE), "not found|LEAF colour")
+  expect_error(barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3,
+                                          avg_cols = "Genus", dir = dir, verbose = FALSE),
+               "avg_cols must be a subset of character_cols")
+})
+
+test_that("length, width and height are combined in all ways", {
+  f <- barRoso:::.format_dim_text
+  expect_equal(f("2\u20133", "1", "0.5", "cm", "cm", "cm"), "2\u20133 \u00d7 1 \u00d7 0.5 cm")
+  expect_equal(f("2\u20133", "", "0.5", "cm", "", "cm"), "2\u20133 \u00d7 0.5 cm")
+  expect_equal(f("", "1\u20132", "0.5", "", "mm", "mm"), "1\u20132 \u00d7 0.5 mm")
+  expect_equal(f("", "1\u20132", "", "", "mm", ""), "1\u20132 mm wide")
+  expect_equal(f("", "", "2\u20135", "", "", "m"), "2\u20135 m tall")
+  expect_equal(f("", "", "", "", "", ""), "")
+  expect_equal(f("4", "", "", "cm", "", "", approx_char = "ca."), "ca. 4 cm long")
+  expect_equal(barRoso:::.format_measurement_with_unit("", "", "", "", "", ""), "")
+  expect_equal(barRoso:::.format_measurement_with_unit("2\u20133", "", "", "cm", "", "",
+                                                       len_avg = NA_real_), "2\u20133 cm long")
+
+  # Heights pooled from the spreadsheet, with averages, and widths before lengths
+  dir <- withr::local_tempdir()
+  df <- data.frame(Genus = "Ouratea", Species = c("hostilis", "hostilis"),
+                   `FRUIT width (cm)` = c("1", "2"), `FRUIT length (cm)` = c("3", "5"),
+                   `FRUIT height (cm)` = c("0.5", "1.5"),
+                   `SEED SURFACE height (mm)` = c("1", "3"), `SEED SURFACE shape` = "flat",
+                   check.names = FALSE)
+  path <- file.path(dir, "fruits.xlsx")
+  openxlsx::write.xlsx(df, path)
+  r <- suppressMessages(barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3:7,
+                                                   avg_cols = c("FRUIT height (cm)", "SEED SURFACE height (mm)"),
+                                                   avg_min_n = 1, dir = dir, verbose = FALSE))
+  # FRUIT is the first group here, so it is written as the habit, without its name
+  expect_match(r$description_plain, "3\u20135 \u00d7 1\u20132 \u00d7 0.5\u20131.5 cm, average 1 cm tall",
+               fixed = TRUE)
+  expect_match(r$description_plain, "surface flat, 1\u20133 mm tall, average 2 mm tall", fixed = TRUE)
+})
+
+test_that("internal helpers handle empty and unusual cells", {
+  cell <- barRoso:::.cell_as_text
+  expect_equal(cell(NULL), "")
+  expect_equal(cell(c(NA, NA)), "")
+  expect_equal(cell(c(NA, "a")), "a")
+  expect_equal(cell(TRUE), "")
+  expect_equal(cell(as.POSIXct("2024-05-03", tz = "UTC")), "2024-05-03")
+  expect_equal(cell(7), "7")
+  expect_equal(cell(2.5), "2.5")
+  expect_equal(cell("   "), "")
+  expect_equal(barRoso:::.tokenize_numbers(NULL), numeric(0))
+  expect_equal(barRoso:::.tokenize_numbers(NA), numeric(0))
+  expect_equal(barRoso:::.extract_all_numerics(list(NULL, NA, character(0), 3, "4 | 5")), c(3, 4, 5))
+  expect_equal(barRoso:::.format_avg(NA), "")
+  expect_equal(barRoso:::.format_avg(Inf), "")
+  expect_false(barRoso:::.has_variation(""))
+  expect_equal(barRoso:::.format_group_items(character(0)), "")
+  expect_equal(barRoso:::.format_group_items(c("a", "b")), "a; b")
+  expect_equal(barRoso:::.build_species_name_parts(data.frame(Genus = NA), "Genus")$full_name,
+               "Unknown species")
+  expect_equal(barRoso:::.simplify_measurement_range(c("1, 3 or 2", "4", NA, "abc")),
+               c("1\u20133", "4", NA, NA))
+})

@@ -185,13 +185,20 @@ barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",
 
 ### 8. `barroso_write_descriptions()`: Generate Taxonomic Descriptions
 
-Builds standardized species descriptions from a spreadsheet of morphological characters, and exports them to a Word (.docx) file. The function `barroso_chars_template()` creates a blank template of morphological characters for a plant group, to be filled in.
+Builds standardized species descriptions from a spreadsheet of morphological characters, with one specimen per row, and exports them to a Word (.docx) file. The measurements and counts of all specimens of a species are pooled into ranges, with rare values between parentheses (e.g. `(4.3–)4.7–13(–14.5) cm`), and several measurements of the same specimen are written in the same cell, separated by `|` (e.g. `4.3 | 5 | 6.5 | 10.5`). The function `barroso_chars_template()` creates a blank template of morphological characters for a plant group, to be filled in.
 
 ``` r
-barroso_write_descriptions(xlsx_path = "morphological_data.xlsx",
-                          species_cols = c("Genus", "Species", "Author"),
-                          character_cols = 4:20)
+data(chars_dataset)
+openxlsx::write.xlsx(chars_dataset, "chars_dataset.xlsx")
+
+barroso_write_descriptions(xlsx_path = "chars_dataset.xlsx",
+                           species_cols = c("Genus", "Species", "Author"),
+                           character_cols = which(names(chars_dataset) == "HABIT"):ncol(chars_dataset),
+                           species_filter = "Ouratea hostilis")
 ```
+
+> _**Ouratea hostilis**_ A.Queiroz-Lima & D.B.O.S.Cardoso  
+> **Shrub or tree** ca. 1.8 m tall, erect, branched; stem striated, scaly, gray, glabrous. **Stipule** 1 pair, lateral to petiole, usually persistent along the branches, 11–16 × 2–3 mm, lanceolate, base truncate, margin entire, apex acute or aristate, glabrous. **Leaf** dispersed, well distributed along the branches; petiole grooved, transverse, glabrous, 0.3–0.5 × 0.1–0.2 cm; blade flat, shiny, membranous, elliptic, lanceolate, (4.3–)4.7–13(–14.5) × 1–4.1 cm, apex acute, acuminate, base rounded; …
 
 ## Documentation
 
