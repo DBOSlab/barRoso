@@ -32,6 +32,16 @@
 #'     With fewer values, the range goes from the smallest to the largest value.}
 #' }
 #'
+#' \strong{Counts}
+#'
+#' Columns with just numbers, e.g. \code{LEAF SECONDARY-VENATION pairs} with
+#' \code{"6 | 8 | 12"}, or \code{FLOWER STAMEN number} with \code{"10"}, are counts:
+#' their values are pooled into ranges, with rare values between parentheses, as
+#' the measurements. The last word of the column name is written after the range,
+#' e.g. "6–12 pairs", except "number" and "count", e.g. "stamen 8–10". Write counts in
+#' their own columns, and any text in another column, e.g. "curved distally
+#' towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
+#'
 #' \strong{Column naming conventions}
 #'
 #' The function relies on a structured column naming system to parse and organize
@@ -353,7 +363,8 @@ barroso_write_descriptions <- function(xlsx_path,
   # Normalize ranges to en-dashes, except in the measurements, which are read
   # by .format_measurements()
   measurement_cols <- character_cols[vapply(character_cols, .is_measurement_col, logical(1))]
-  other_cols <- setdiff(names(df), measurement_cols)
+  count_cols <- .count_cols(df, setdiff(character_cols, measurement_cols))
+  other_cols <- setdiff(names(df), c(measurement_cols, count_cols))
   df[other_cols] <- lapply(df[other_cols], function(col) {
     gsub("(\\d+(?:\\.\\d+)?)\\s*\\-\\s*(\\d+(?:\\.\\d+)?)",
          "\\1\u2013\\2", col, perl = TRUE)
@@ -362,12 +373,13 @@ barroso_write_descriptions <- function(xlsx_path,
   # Merge duplicate species rows
   n_specimens <- nrow(df)
   df <- .merge_duplicate_species(df, species_cols, character_cols,
-                                 extremes = extremes, extremes_min_n = extremes_min_n)
+                                 extremes = extremes, extremes_min_n = extremes_min_n,
+                                 count_cols = count_cols)
   if (verbose) {
     message("barroso_write_descriptions: ", n_specimens, " specimens of ", nrow(df),
             " species, with ", length(character_cols), " characters (",
-            length(measurement_cols), " measurements)")
-    with_extremes <- sum(vapply(measurement_cols, function(col) {
+            length(measurement_cols), " measurements and ", length(count_cols), " counts)")
+    with_extremes <- sum(vapply(c(measurement_cols, count_cols), function(col) {
       sum(grepl("[(][0-9.]+\u2013[)]|[(]\u2013[0-9.]+[)]", df[[col]]))
     }, numeric(1)))
     message("barroso_write_descriptions: ", with_extremes,
@@ -1192,7 +1204,8 @@ barroso_write_descriptions <- function(xlsx_path,
 #' @keywords internal
 #' @noRd
 .merge_duplicate_species <- function(df, species_cols, character_cols,
-                                     extremes = NULL, extremes_min_n = 10) {
+                                     extremes = NULL, extremes_min_n = 10,
+                                     count_cols = character(0)) {
   original_cols <- names(df)
   df_temp <- df %>%
     tidyr::unite("_species_id", dplyr::all_of(species_cols),
@@ -1204,6 +1217,9 @@ barroso_write_descriptions <- function(xlsx_path,
     dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), as.character))
 
   measurement_cols <- char_cols[vapply(char_cols, .is_measurement_col, logical(1))]
+  # Counts, e.g. "LEAF SECONDARY-VENATION pairs" with "6 | 8 | 12", are merged
+  # as the measurements
+  measurement_cols <- c(measurement_cols, intersect(count_cols, char_cols))
   non_measurement_cols <- setdiff(char_cols, measurement_cols)
 
   merge_non_measurement <- function(x) {
@@ -1277,6 +1293,16 @@ barroso_write_descriptions <- function(xlsx_path,
     }
   }
 
+  # The last word of counts, e.g. "6–12 pairs" for "LEAF SECONDARY-VENATION pairs",
+  # but not "number" or "count", e.g. "10" for "FLOWER STAMEN number"
+  for (col in intersect(count_cols, char_cols)) {
+    word <- sub(".*\\s", "", col)
+    if (grepl("^[[:lower:]]+$", word) && !word %in% c("number", "numbers", "count")) {
+      tf <- !is.na(df_merged[[col]])
+      df_merged[[col]][tf] <- paste(df_merged[[col]][tf], word)
+    }
+  }
+
   df_merged <- df_merged[, original_cols]
   return(df_merged)
 }
@@ -1287,6 +1313,19 @@ barroso_write_descriptions <- function(xlsx_path,
 .is_measurement_col <- function(col_name) {
   any(stringr::str_detect(tolower(col_name),
                           c("length", "width", "height", "\\(cm\\)", "\\(mm\\)", "\\(m\\)")))
+}
+
+#' Columns of counts: all filled cells have just numbers, written alone, separated
+#' by "|" or as ranges, e.g. "5", "6 | 8 | 12", "(4–)5–7"
+#' @keywords internal
+#' @noRd
+.count_cols <- function(df, cols) {
+  cols[vapply(cols, function(col) {
+    v <- as.character(df[[col]])
+    v <- v[!is.na(v) & nzchar(trimws(v))]
+    length(v) > 0 && all(grepl("[0-9]", v)) &&
+      all(!nzchar(gsub("[0-9.|()[:space:]\u2013\u2014-]", "", v)))
+  }, logical(1))]
 }
 
 #' Range of the measurements of a species, with rare values between parentheses,

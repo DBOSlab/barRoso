@@ -171,3 +171,23 @@ test_that("barroso_write_descriptions writes rare values and checks extremes", {
   expect_error(barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3:4,
                                           extremes_min_n = 1, dir = dir), "at least 2")
 })
+
+test_that("counts become ranges followed by the last word of the column name", {
+  df <- data.frame(a = c("6 | 12", "(4-)7", "8"), b = c("10", "8", NA), c = c("1 pair", "2", NA),
+                   d = c("5", "abc", NA))
+  expect_equal(barRoso:::.count_cols(df, c("a", "b", "c", "d")), c("a", "b"))
+  dir <- withr::local_tempdir()
+  df <- data.frame(Genus = "Ouratea", Species = c("hostilis", "hostilis", "nitida"),
+                   `LEAF SECONDARY-VENATION pairs` = c("6 | 12", "7 | 9", "(3-)4"),
+                   `LEAF SECONDARY-VENATION` = "curved distally towards the marginal vein",
+                   `FLOWER STAMEN number` = c("10", "8", "10"),
+                   `INFLORESCENCE flowers` = c("10 | 25", "15", NA), check.names = FALSE)
+  path <- file.path(dir, "counts.xlsx")
+  openxlsx::write.xlsx(df, path)
+  r <- suppressMessages(barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3:6,
+                                                   dir = dir, verbose = FALSE))
+  expect_match(r$description_plain[1], "6\u201312 pairs, curved distally towards the marginal vein", fixed = TRUE)
+  expect_match(r$description_plain[1], "stamen 8\u201310", fixed = TRUE)
+  expect_match(r$description_plain[1], "10\u201325 flowers", fixed = TRUE)
+  expect_match(r$description_plain[2], "(3\u2013)4 pairs", fixed = TRUE)
+})

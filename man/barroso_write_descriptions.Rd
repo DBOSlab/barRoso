@@ -146,6 +146,16 @@ are written between parentheses. The range limits are always measured values.
 With fewer values, the range goes from the smallest to the largest value.}
 }
 
+\strong{Counts}
+
+Columns with just numbers, e.g. \code{LEAF SECONDARY-VENATION pairs} with
+\code{"6 | 8 | 12"}, or \code{FLOWER STAMEN number} with \code{"10"}, are counts:
+their values are pooled into ranges, with rare values between parentheses, as
+the measurements. The last word of the column name is written after the range,
+e.g. "6–12 pairs", except "number" and "count", e.g. "stamen 8–10". Write counts in
+their own columns, and any text in another column, e.g. "curved distally
+towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
+
 \strong{Column naming conventions}
 
 The function relies on a structured column naming system to parse and organize

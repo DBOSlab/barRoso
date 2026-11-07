@@ -5,7 +5,7 @@
 \alias{chars_dataset}
 \title{Morphological Data for \emph{Ouratea} Species (Ochnaceae)}
 \format{
-A data frame with 122 observations (specimens) and 131 variables:
+A data frame with 33 observations (specimens) and 133 variables:
 \describe{
 \item{\code{Genus}}{Character. Genus name (all "Ouratea").}
 \item{\code{Species}}{Character. Species epithet.}
@@ -61,6 +61,7 @@ A data frame with 122 observations (specimens) and 131 variables:
 \item{\code{LEAF MARGINS percentual serrate}}{Character. Serration extent.}
 \item{\code{LEAF MARGINS edges}}{Character. Margin edge characteristics.}
 \item{\code{LEAF venation}}{Character. Leaf venation type.}
+\item{\code{LEAF SECONDARY-VENATION pairs}}{Character. Number of pairs of secondary veins, e.g. \"6 | 12\".}
 \item{\code{LEAF SECONDARY-VENATION}}{Character. Secondary venation pattern.}
 \item{\code{LEAF SECONDARY-VENATION visibility}}{Character. Venation visibility.}
 \item{\code{LEAF TERTIARY-VENATION}}{Character. Tertiary venation pattern.}
@@ -73,7 +74,7 @@ A data frame with 122 observations (specimens) and 131 variables:
 \item{\code{INFLORESCENCE further notes}}{Character. Additional inflorescence notes.}
 \item{\code{INFLORESCENCE length (cm)}}{Character. Inflorescence length in cm.}
 \item{\code{INFLORESCENCE width (cm)}}{Character. Inflorescence width in cm.}
-\item{\code{INFLORESCENCE flower number}}{Character. Number of flowers per inflorescence.}
+\item{\code{INFLORESCENCE flowers}}{Character. Number of flowers, e.g. \"70\".}
 \item{\code{INFLORESCENCE AXES indument}}{Character. Inflorescence axis pubescence.}
 \item{\code{INFLORESCENCE PEDUNCLE}}{Character. Peduncle description.}
 \item{\code{INFLORESCENCE PEDUNCLE length (cm)}}{Character. Peduncle length in cm.}
@@ -150,11 +151,19 @@ data(chars_dataset)
 }
 \description{
 A comprehensive morphological dataset containing detailed taxonomic,
-geographical, and morphological information for 15 species of the
-genus \emph{Ouratea} (family Ochnaceae). This dataset was compiled
+geographical, and morphological information for 33 specimens of 15 species of
+the genus \emph{Ouratea} (family Ochnaceae). This dataset was compiled
 for taxonomic revision and description generation purposes.
 
-The dataset includes 131 variables covering taxonomic identification,
+Each row is one specimen. Several measurements of the same specimen are
+written in the same cell, separated by a vertical bar, e.g. \code{"4.3 | 5 | 6.5 | 10.5"}
+for the leaf blade lengths of a specimen of \emph{Ouratea hostilis}, whose 12
+leaf blade lengths give "(4.3–)4.7–13(–14.5) cm" with
+\code{\link{barroso_write_descriptions}}. Counts are in their own columns, with
+just numbers, e.g. \code{LEAF SECONDARY-VENATION pairs} with \code{"6 | 12"}, so
+they also become ranges, e.g. "secondary-venation 6–12 pairs".
+
+The dataset includes 133 variables covering taxonomic identification,
 collection details, geographical information, and morphological
 characters across different plant organs (habit, leaves, stipules,
 inflorescences, flowers, fruits, and seeds).
