@@ -91,7 +91,7 @@ The functions below follow the order of the [workflow](#workflow).
 
 ### 1. `barroso_cat()`: Combine Herbarium Sources
 
-Merges records from two or more sources into a single data frame. Each source is first formatted into Darwin Core with `barroso_dwc()`, which can also be used alone: e.g. speciesLink columns like `collector` or `recordedby` become `recordedBy`, and the dates and type status of REFLORA and JABOT records are standardized. A column `datasource` stores the source of each record. With `keep_source`, the records of herbaria also present in the preferred source are removed from the other sources.
+Merges records from two or more sources into a single data frame. Each source is first formatted into Darwin Core with `barroso_dwc()`, which can also be used alone: e.g. speciesLink columns like `collector` or `recordedby` become `recordedBy`, and the dates and type status of REFLORA and JABOT records are standardized. A column `datasource` stores the source of each record. With `keep_source`, the records of herbaria also present in the preferred source are removed from the other sources, after standardizing the herbarium acronyms of each source with `std_collection()`, checked against Index Herbariorum, so that e.g. `MO-Duplicates` in speciesLink matches `MO` in GBIF.
 
 ``` r
 splink <- barroso_dwc(splink)   # optional, barroso_cat() also runs it
@@ -101,7 +101,15 @@ combined <- barroso_cat(list_sources = list(GBIF = gbif,
                         keep_source = "GBIF")
 ```
 
-### 2. `barroso_std()`: Standardize Herbarium Records
+### 2. `barroso_fix_names()`: Fix Species Names
+
+Fixes misspelled names and synonyms into accepted names, with the World Checklist of Vascular Plants (through [expowo](https://dboslab.github.io/expowo/)) as a global backbone and, by default, the Flora e Funga do Brasil (through [floraR](https://dboslab.github.io/floraR-website/)), so that duplicates identified with different names are recognized by `barroso_std()`. The columns `taxonOriginal`, `taxonStatus` and `taxonSource` show what was changed.
+
+``` r
+combined <- barroso_fix_names(combined, flora_brasil = TRUE)
+```
+
+### 3. `barroso_std()`: Standardize Herbarium Records
 
 The core standardization pipeline. In one call, it runs the following functions, which can also be used alone:
 
@@ -125,7 +133,7 @@ cleaned <- barroso_std(combined,
                        rm_original_column = FALSE)
 ```
 
-### 3. `barroso_flag_duplicates()`: Detect Duplicate Specimens
+### 4. `barroso_flag_duplicates()`: Detect Duplicate Specimens
 
 Groups duplicates into blocks by collector and collector number (or by species, collector and date when the number is missing), and adds the columns:
 
@@ -142,7 +150,7 @@ flagged <- barroso_flag_duplicates(cleaned)
 subset(flagged, identificationConflict %in% TRUE)
 ```
 
-### 4. `std_coordinates()`: Fix and Flag Geographic Coordinates
+### 5. `std_coordinates()`: Fix and Flag Geographic Coordinates
 
 Following the workflow of the [bdc](https://brunobrr.github.io/bdc/) package, fixes coordinates with latitude and longitude transposed or with inverted signs, and flags empty, out of range, low precision and country-inconsistent coordinates, as well as coordinates at country capitals, centroids and biodiversity institutions. The original coordinates are kept, and the column `coordinateIssues` describes what was fixed or flagged in each record.
 
@@ -151,7 +159,7 @@ checked <- std_coordinates(flagged)
 table(checked$coordinateIssues)
 ```
 
-### 5. `barroso_labels()`: Generate Herbarium Labels
+### 6. `barroso_labels()`: Generate Herbarium Labels
 
 Makes herbarium labels from a field book in CSV format, with a map of the collection site and taxon authorities and nomenclatural updates from [lcvplants](https://idiv-biodiversity.github.io/lcvplants/). For specimens collected in the USA, the map is displayed at county level.
 
@@ -163,7 +171,7 @@ barroso_labels(fieldbook = df,
                file_label = "herbarium_labels.pdf")
 ```
 
-### 6. `barroso_write_specimens()`: Write Lists of Examined Specimens
+### 7. `barroso_write_specimens()`: Write Lists of Examined Specimens
 
 Writes the lists of examined specimens of one, several or all species of a database into a Word (.docx) file, in the format of a botanical journal, with its bold, italics and small capitals: Systematic Botany, Acta Amazonica, Acta Botanica Brasilica, Acta Botanica Mexicana, Annals of the Missouri Botanical Garden, Botanical Journal of the Linnean Society, Botany Letters, Brazilian Journal of Botany, Brittonia, Candollea, Darwiniana, Edinburgh Journal of Botany, Feddes Repertorium, Hoehnea, Kew Bulletin, Nordic Journal of Botany, Phytotaxa, PhytoKeys, Plant Ecology and Evolution, Plant Systematics and Evolution, Rodriguésia, Systematics and Biodiversity, Taxon and Willdenowia. Duplicates are cited once with all their herbaria, the phenology is written as in each journal (e.g. `"(fl, fr)"` or `"(fl./fr.)"`), the list can be in English, Portuguese or Spanish (`language`), just the most complete specimen of each municipality can be cited (`one_per_municipality = TRUE`), and the header can be changed (e.g. `header = "Paratypes"`).
 
@@ -175,12 +183,12 @@ barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",
 
 > ***Representative Specimens Examined***—**Brazil.** —<span style="font-variant: small-caps;">Bahia</span>: Barreiras, Prainha, margem do Rio das Ondas, 12°08′48″S, 45°00′55″W, 1 May 2009, *D. Cardoso 2628* (HUEFS). —<span style="font-variant: small-caps;">Ceará</span>: Caucaia, Lagoa dos Caetanos, 3°S, 38°W, 21 Jan 2009, *D. Cardoso et al. 2379* (ASE, BOTU, CNMT, HDJF, HEPH, HUCS, HUEFS, HUESB, SORO, UB, UESC, VIC); Crateús, RPPN Serra das Almas, 5°09′44″S, 40°53′18″W, 15 Jun 2014, *F.H.F. Nascimento 1402* (HUEFS).
 
-### 7. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
+### 8. `barroso_write_descriptions()`: Generate Taxonomic Descriptions
 
-Builds standardized species descriptions from a spreadsheet of morphological characters, and exports them to a Word (.docx) file. The function `barroso_add_char_template()` creates a blank template of morphological characters for a plant group, to be filled in.
+Builds standardized species descriptions from a spreadsheet of morphological characters, and exports them to a Word (.docx) file. The function `barroso_chars_template()` creates a blank template of morphological characters for a plant group, to be filled in.
 
 ``` r
-barroso_write_taxon_descr(xlsx_path = "morphological_data.xlsx",
+barroso_write_descriptions(xlsx_path = "morphological_data.xlsx",
                           species_cols = c("Genus", "Species", "Author"),
                           character_cols = 4:20)
 ```

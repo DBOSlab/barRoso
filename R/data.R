@@ -1,4 +1,4 @@
-#' @name morphological_dataset
+#' @name chars_dataset
 #'
 #' @docType data
 #'
@@ -155,7 +155,7 @@
 #'
 #' @details
 #' This dataset was specifically designed to demonstrate the capabilities
-#' of the \code{barroso_write_taxon_descr()} function in the barRoso package.
+#' of the \code{barroso_write_descriptions()} function in the barRoso package.
 #' The morphological character columns follow specific naming conventions:
 #'
 #' \itemize{
@@ -193,26 +193,26 @@
 #' Primary data collection from herbarium specimens and field observations
 #' compiled for taxonomic revision of the genus \emph{Ouratea} (Ochnaceae).
 #'
-#' @usage data(morphological_dataset)
+#' @usage data(chars_dataset)
 #'
 #' @examples
 #' \dontrun{
 #' # Load the dataset
-#' data(morphological_dataset)
+#' data(chars_dataset)
 #'
 #' # View the structure
-#' str(morphological_dataset)
+#' str(chars_dataset)
 #'
 #' # List the species included
-#' unique(paste(morphological_dataset$Genus, morphological_dataset$Species))
+#' unique(paste(chars_dataset$Genus, chars_dataset$Species))
 #'
 #' # Count specimens per species
-#' table(paste(morphological_dataset$Genus, morphological_dataset$Species))
+#' table(paste(chars_dataset$Genus, chars_dataset$Species))
 #'
 #' # Example: Generate descriptions for all species
 #' library(barRoso)
-#' barroso_write_taxon_descr(
-#'   xlsx_path = system.file("extdata", "morphological_dataset.xlsx",
+#' barroso_write_descriptions(
+#'   xlsx_path = system.file("extdata", "chars_dataset.xlsx",
 #'                          package = "barRoso"),
 #'   species_cols = c("Genus", "Species", "Author"),
 #'   character_cols = 19:131  # Morphological character columns

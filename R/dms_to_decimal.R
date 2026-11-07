@@ -59,6 +59,7 @@ dms_to_decimal <- function(x,
                            digits = 6) {
 
   type <- match.arg(type)
+  .check_number(digits, 0)
   if (!is.null(hemisphere) &&
       (length(hemisphere) != 1 || !toupper(hemisphere) %in% c("N", "S", "E", "W"))) {
     stop("hemisphere must be one of 'N', 'S', 'E' or 'W'.", call. = FALSE)

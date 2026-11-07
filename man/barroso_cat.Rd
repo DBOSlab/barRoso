@@ -5,7 +5,8 @@
 \title{Combine and Harmonize Multiple Herbarium Data Sources}
 \usage{
 barroso_cat(list_sources = list(),
-            keep_source = NULL)
+            keep_source = NULL,
+            index_herbariorum = TRUE)
 }
 \arguments{
 \item{list_sources}{A named list of data frames. Each element represents a
@@ -15,6 +16,10 @@ for internal filtering.}
 \item{keep_source}{Optional character string specifying the preferred data
 source (e.g., "GBIF") for resolving duplicate \code{collectionCode} conflicts. If
 NULL, all records are retained.}
+
+\item{index_herbariorum}{Logical; if \code{TRUE}, the herbarium acronyms of each source
+are checked against the API of Index Herbariorum after the regular expressions of
+\code{\link[=std_collection]{std_collection()}} (default: \code{TRUE}). Use \code{FALSE} to work offline.}
 }
 \value{
 A harmonized data frame combining all provided herbarium sources, with
@@ -40,6 +45,14 @@ Each source is first formatted into Darwin Core column names and values with
 \code{recordNumber}, and the dates and type status of REFLORA and JABOT records are
 standardized. The sources are recognized by their content, so their names in
 \code{list_sources} can be any name.
+
+Before comparing the sources, the herbarium acronyms in \code{collectionCode} of each
+source are standardized with \code{\link[=std_collection]{std_collection()}}, by default checking them against
+Index Herbariorum (\code{index_herbariorum = TRUE}), so the same herbarium is
+recognized in all sources, e.g. \code{"MOBOT_BR"} in speciesLink and \code{"MO"} in GBIF, or
+\code{"Herbario INPA"} and \code{"INPA"}. The original codes are kept in
+\code{collectionCodeOriginal}, so unvouchered collections like \code{"INPA-Carpoteca"} can
+still be removed by \code{\link[=barroso_std]{barroso_std()}}.
 
 Columns with different types across sources (e.g. numeric \code{year} in one source
 and character in another) are combined as character. A column \code{datasource}

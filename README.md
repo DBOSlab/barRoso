@@ -133,7 +133,10 @@ can also be used alone: e.g. speciesLink columns like `collector` or
 `recordedby` become `recordedBy`, and the dates and type status of
 REFLORA and JABOT records are standardized. A column `datasource` stores
 the source of each record. With `keep_source`, the records of herbaria
-also present in the preferred source are removed from the other sources.
+also present in the preferred source are removed from the other sources,
+after standardizing the herbarium acronyms of each source with
+`std_collection()`, checked against Index Herbariorum, so that
+e.g. `MO-Duplicates` in speciesLink matches `MO` in GBIF.
 
 ``` r
 splink <- barroso_dwc(splink)   # optional, barroso_cat() also runs it
@@ -143,7 +146,22 @@ combined <- barroso_cat(list_sources = list(GBIF = gbif,
                         keep_source = "GBIF")
 ```
 
-### 2. `barroso_std()`: Standardize Herbarium Records
+### 2. `barroso_fix_names()`: Fix Species Names
+
+Fixes misspelled names and synonyms into accepted names, with the World
+Checklist of Vascular Plants (through
+[expowo](https://dboslab.github.io/expowo/)) as a global backbone and,
+by default, the Flora e Funga do Brasil (through
+[floraR](https://dboslab.github.io/floraR-website/)), so that duplicates
+identified with different names are recognized by `barroso_std()`. The
+columns `taxonOriginal`, `taxonStatus` and `taxonSource` show what was
+changed.
+
+``` r
+combined <- barroso_fix_names(combined, flora_brasil = TRUE)
+```
+
+### 3. `barroso_std()`: Standardize Herbarium Records
 
 The core standardization pipeline. In one call, it runs the following
 functions, which can also be used alone:
@@ -174,7 +192,7 @@ cleaned <- barroso_std(combined,
                        rm_original_column = FALSE)
 ```
 
-### 3. `barroso_flag_duplicates()`: Detect Duplicate Specimens
+### 4. `barroso_flag_duplicates()`: Detect Duplicate Specimens
 
 Groups duplicates into blocks by collector and collector number (or by
 species, collector and date when the number is missing), and adds the
@@ -200,7 +218,7 @@ flagged <- barroso_flag_duplicates(cleaned)
 subset(flagged, identificationConflict %in% TRUE)
 ```
 
-### 4. `std_coordinates()`: Fix and Flag Geographic Coordinates
+### 5. `std_coordinates()`: Fix and Flag Geographic Coordinates
 
 Following the workflow of the [bdc](https://brunobrr.github.io/bdc/)
 package, fixes coordinates with latitude and longitude transposed or
@@ -215,7 +233,7 @@ checked <- std_coordinates(flagged)
 table(checked$coordinateIssues)
 ```
 
-### 5. `barroso_labels()`: Generate Herbarium Labels
+### 6. `barroso_labels()`: Generate Herbarium Labels
 
 Makes herbarium labels from a field book in CSV format, with a map of
 the collection site and taxon authorities and nomenclatural updates from
@@ -230,7 +248,7 @@ barroso_labels(fieldbook = df,
                file_label = "herbarium_labels.pdf")
 ```
 
-### 6. `barroso_write_specimens()`: Write Lists of Examined Specimens
+### 7. `barroso_write_specimens()`: Write Lists of Examined Specimens
 
 Writes the lists of examined specimens of one, several or all species of
 a database into a Word (.docx) file, in the format of a botanical
@@ -264,15 +282,15 @@ barroso_write_specimens(path = "Luetzelburgia_herbarium_records.xlsx",
 > RPPN Serra das Almas, 5°09′44″S, 40°53′18″W, 15 Jun 2014, *F.H.F.
 > Nascimento 1402* (HUEFS).
 
-### 7. `barroso_write_taxon_descr()`: Generate Taxonomic Descriptions
+### 8. `barroso_write_descriptions()`: Generate Taxonomic Descriptions
 
 Builds standardized species descriptions from a spreadsheet of
 morphological characters, and exports them to a Word (.docx) file. The
-function `barroso_add_char_template()` creates a blank template of
+function `barroso_chars_template()` creates a blank template of
 morphological characters for a plant group, to be filled in.
 
 ``` r
-barroso_write_taxon_descr(xlsx_path = "morphological_data.xlsx",
+barroso_write_descriptions(xlsx_path = "morphological_data.xlsx",
                           species_cols = c("Genus", "Species", "Author"),
                           character_cols = 4:20)
 ```

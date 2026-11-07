@@ -124,6 +124,28 @@ barroso_std <- function(...,
   namedsource <- .namedherbsource(...)
   df <- namedsource[[1]]
   n_df = names(namedsource[1])
+
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(unvouchered, delunkcoll, flag_missid, flag_duplicates, rm_duplicates,
+              index_herbariorum, rm_original_column)
+  .check_colnames(colname_recordedBy = colname_recordedBy,
+                  colname_recordNumber = colname_recordNumber,
+                  colname_identifiedBy = colname_identifiedBy,
+                  colname_continent = colname_continent,
+                  colname_country = colname_country,
+                  colname_stateProvince = colname_stateProvince,
+                  colname_county = colname_county,
+                  colname_municipality = colname_municipality,
+                  colname_locality = colname_locality,
+                  colname_collectionCode = colname_collectionCode,
+                  colname_institutionCode = colname_institutionCode,
+                  colname_typeStatus = colname_typeStatus,
+                  colname_family = colname_family,
+                  colname_genus = colname_genus,
+                  colname_specificEpithet = colname_specificEpithet)
+  .check_cols(df, colname_recordedBy = colname_recordedBy,
+              colname_recordNumber = colname_recordNumber)
   l_df = nrow(df)
 
   #_____________________________________________________________________________

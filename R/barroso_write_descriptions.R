@@ -10,8 +10,29 @@
 #'   en dashes (e.g., "4.3–14.5 cm"). Optionally, it can compute and print averages
 #'   for user-selected measurement columns when a species has more than a threshold
 #'   number of values (see \code{avg_cols} and \code{avg_min_n}).
+#'   Rare small and large values are written between parentheses, as usual in
+#'   taxonomic descriptions, e.g. "(2–)6–40(–55) m" (see \code{extremes}).
 #'
-#' @details \strong{Column naming conventions}
+#' @details \strong{Measurements}
+#'
+#' Each cell of a measurement column has the measurements of one specimen. When a
+#' specimen was measured more than once (e.g. several leaves), the values are
+#' separated by a vertical bar, e.g. \code{"4.5 | 7 | 11 | 14"}. The values of all
+#' specimens of a species are pooled to build its range.
+#'
+#' Rare values are written between parentheses in two ways:
+#' \describe{
+#'   \item{\strong{Marked in the spreadsheet}}{Values written as in a description,
+#'     e.g. \code{"(5–)7–38(–45)"} or \code{"(2–)6 | 9 | 12"}, are always kept as
+#'     extremes when they are beyond the range of the other values.}
+#'   \item{\strong{Automatic}}{With \code{extremes = c(0.1, 0.9)}, when a species has
+#'     at least \code{extremes_min_n} values, the range covers the values from the
+#'     10th to the 90th percentile, and the smallest and largest values outside it
+#'     are written between parentheses. The range limits are always measured values.
+#'     With fewer values, the range goes from the smallest to the largest value.}
+#' }
+#'
+#' \strong{Column naming conventions}
 #'
 #' The function relies on a structured column naming system to parse and organize
 #' morphological traits. Columns must follow these conventions:
@@ -48,27 +69,27 @@
 #'
 #' \strong{Example dataset}
 #'
-#' The package includes an example dataset \code{morphological_dataset} containing
+#' The package includes an example dataset \code{chars_dataset} containing
 #' morphological data for 15 species of \emph{Ouratea} (Ochnaceae) compiled from
 #' herbarium specimens and field observations for a taxonomic revision. This dataset
 #' demonstrates proper column naming conventions and can be used to test the function:
 #'
 #' \preformatted{
-#' data(morphological_dataset)
-#' head(names(morphological_dataset))
+#' data(chars_dataset)
+#' head(names(chars_dataset))
 #' }
 #'
 #' \strong{Creating a template}
 #'
 #' To create a properly formatted Excel template with all required columns for your
-#' plant group, use the companion function \code{\link{barroso_add_char_template}}.
+#' plant group, use the companion function \code{\link{barroso_chars_template}}.
 #' This function generates a ready-to-use template based on your species list and
 #' selected plant group (e.g., "Ochnaceae", "Asteraceae", "Orchidaceae",
 #' "Leguminosae-Papilionoideae"), saving hours of manual column creation.
 #'
 #' \preformatted{
 #' # Create a template for Ochnaceae
-#' barroso_add_char_template(
+#' barroso_chars_template(
 #'   species_df = my_species_list,
 #'   plant_group = "Ochnaceae",
 #'   filename = "Ochnaceae_template"
@@ -99,6 +120,13 @@
 #'   required for an average to be reported. Averages are emitted only when the
 #'   number of observed values is strictly greater than \code{avg_min_n}.
 #'   Default \code{3} (i.e., need at least 4 values for averaging).
+#' @param extremes Numeric vector of two percentiles (between 0 and 1), or
+#'   \code{NULL}. Values below the first or above the second percentile of a species
+#'   are written between parentheses, e.g. "(2–)6–40(–55) m", when the species has
+#'   at least \code{extremes_min_n} values. Use \code{NULL} to keep just the
+#'   extremes marked in the spreadsheet. Default \code{c(0.1, 0.9)}.
+#' @param extremes_min_n Integer. Minimum number of values of a species before
+#'   automatic extremes are used. Default \code{10}.
 #' @param approx_char Character string to use for approximate measurements when
 #'   no variation is present (e.g., "ca." or "c."). Default is "ca.".
 #'   Set to \code{NULL} to disable adding approximation. Examples:
@@ -135,22 +163,22 @@
 #' @examples
 #' \dontrun{
 #' # Basic usage with example dataset
-#' data(morphological_dataset)
+#' data(chars_dataset)
 #'
 #' # First, save the example dataset to Excel
 #' library(openxlsx)
-#' write.xlsx(morphological_dataset, "morphological_dataset.xlsx")
+#' write.xlsx(chars_dataset, "chars_dataset.xlsx")
 #'
 #' # Generate descriptions using proper column selection
-#' barroso_write_taxon_descr(
-#'   xlsx_path = "morphological_dataset.xlsx",
+#' barroso_write_descriptions(
+#'   xlsx_path = "chars_dataset.xlsx",
 #'   species_cols = c("Genus", "Species", "Author"),  # Taxonomic identification
 #'   character_cols = 19:131,  # Morphological character columns
 #'   approx_char = "ca."  # Add "ca." to measurements without variation
 #' )
 #'
 #' # Generate descriptions with average calculation
-#' barroso_write_taxon_descr(
+#' barroso_write_descriptions(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = c("Genus", "Species", "Author"),
 #'   character_cols = 4:20,
@@ -160,7 +188,7 @@
 #' )
 #'
 #' # Filter to specific species only
-#' barroso_write_taxon_descr(
+#' barroso_write_descriptions(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = c("Genus", "Species"),
 #'   character_cols = 3:15,
@@ -168,7 +196,7 @@
 #' )
 #'
 #' # Customize text formatting in Word output
-#' barroso_write_taxon_descr(
+#' barroso_write_descriptions(
 #'   xlsx_path = "morphological_data.xlsx",
 #'   species_cols = 1:3,
 #'   character_cols = 4:25,
@@ -186,8 +214,8 @@
 #' }
 #'
 #' @seealso
-#' \code{\link{barroso_add_char_template}} for creating properly formatted Excel templates,
-#' \code{\link{morphological_dataset}} for an example dataset showing correct column naming
+#' \code{\link{barroso_chars_template}} for creating properly formatted Excel templates,
+#' \code{\link{chars_dataset}} for an example dataset showing correct column naming
 #'
 #' @importFrom readxl read_excel
 #' @importFrom stringr str_split_fixed str_split str_replace_all str_trim str_squish str_detect str_to_lower str_match
@@ -199,13 +227,15 @@
 #'
 #' @export
 
-barroso_write_taxon_descr <- function(xlsx_path,
+barroso_write_descriptions <- function(xlsx_path,
                                       species_cols,
                                       character_cols,
                                       sheet = 1,
                                       species_filter = NULL,
                                       avg_cols = NULL,
                                       avg_min_n = 3,
+                                      extremes = c(0.1, 0.9),
+                                      extremes_min_n = 10,
                                       approx_char = "ca.",
                                       font_family = "Times New Roman",
                                       font_size = 12,
@@ -219,9 +249,26 @@ barroso_write_taxon_descr <- function(xlsx_path,
                                       filename = NULL,
                                       dir = NULL) {
 
+  # Check the arguments ####
+  .check_file(xlsx_path, c("xlsx", "xls"))
+  .check_flag(species_bold, species_italic, group_bold, group_italic, description_bold,
+              description_italic, verbose)
+  .check_number(avg_min_n, 1)
+  if (!is.null(extremes) && (!is.numeric(extremes) || length(extremes) != 2 ||
+                             anyNA(extremes) || extremes[1] < 0 || extremes[2] > 1 ||
+                             extremes[1] >= extremes[2])) {
+    stop("`extremes` must be two percentiles between 0 and 1, e.g. c(0.1, 0.9), or NULL.",
+         call. = FALSE)
+  }
+  .check_number(extremes_min_n, 2)
+  .check_number(font_size, 1)
+  .check_string(font_family)
+  .check_string(approx_char)
+  .check_string(filename, null_ok = TRUE)
+
   # Creating the directory to save the file based on the current date
   if (!is.null(dir)) {
-    dir <- .arg_check_dir(dir)
+    dir <- .check_dir(dir)
     foldername <- paste0(dir, "/", format(Sys.time(), "%d%b%Y"))
     if (!dir.exists(dir)) dir.create(dir)
     if (!dir.exists(foldername)) dir.create(foldername)
@@ -231,9 +278,6 @@ barroso_write_taxon_descr <- function(xlsx_path,
     if (!dir.exists(dir)) dir.create(dir)
     if (!dir.exists(foldername)) dir.create(foldername)
   }
-
-  # xlsx_path check
-  .arg_check_xlsx_path(xlsx_path)
 
   # Read Excel structured spreadsheet
   df <- readxl::read_excel(path = xlsx_path, sheet = sheet)
@@ -285,15 +329,16 @@ barroso_write_taxon_descr <- function(xlsx_path,
       tidyr::unite("species_name", dplyr::all_of(species_cols),
                    sep = " ", remove = FALSE, na.rm = TRUE) %>%
       .$species_name
-    matches <- barRoso::remove_authorship(species_names_vector) %in% species_filter
+    matches <- barRoso::rm_authors(species_names_vector) %in% species_filter
     if (sum(matches) == 0) {
       warning("No species in the data match the species_filter: ",
               paste(species_filter, collapse = ", "))
     }
     df <- df[matches, , drop = FALSE]
     if (verbose) {
-      message("Filtering to ", nrow(df), " species: ",
-              paste(species_names_vector[matches], collapse = ", "))
+      kept <- unique(barRoso::rm_authors(species_names_vector[matches]))
+      message("barroso_write_descriptions: keeping ", nrow(df), " specimens of ",
+              length(kept), " species: ", paste(kept, collapse = ", "))
     }
   }
 
@@ -305,14 +350,32 @@ barroso_write_taxon_descr <- function(xlsx_path,
     avg_min_n = avg_min_n
   )
 
-  # Normalize ranges to en-dashes
-  df[] <- lapply(df, function(col) {
+  # Normalize ranges to en-dashes, except in the measurements, which are read
+  # by .format_measurements()
+  measurement_cols <- character_cols[vapply(character_cols, .is_measurement_col, logical(1))]
+  other_cols <- setdiff(names(df), measurement_cols)
+  df[other_cols] <- lapply(df[other_cols], function(col) {
     gsub("(\\d+(?:\\.\\d+)?)\\s*\\-\\s*(\\d+(?:\\.\\d+)?)",
          "\\1\u2013\\2", col, perl = TRUE)
   })
 
   # Merge duplicate species rows
-  df <- .merge_duplicate_species(df, species_cols, character_cols)
+  n_specimens <- nrow(df)
+  df <- .merge_duplicate_species(df, species_cols, character_cols,
+                                 extremes = extremes, extremes_min_n = extremes_min_n)
+  if (verbose) {
+    message("barroso_write_descriptions: ", n_specimens, " specimens of ", nrow(df),
+            " species, with ", length(character_cols), " characters (",
+            length(measurement_cols), " measurements)")
+    with_extremes <- sum(vapply(measurement_cols, function(col) {
+      sum(grepl("[(][0-9.]+\u2013[)]|[(]\u2013[0-9.]+[)]", df[[col]]))
+    }, numeric(1)))
+    message("barroso_write_descriptions: ", with_extremes,
+            " measurements with rare values between parentheses",
+            if (!is.null(extremes)) paste0(" (automatic from ", extremes_min_n,
+                                           " values, percentiles ", extremes[1], " and ",
+                                           extremes[2], ")"))
+  }
 
   # Parse character columns
   char_meta <- .parse_character_columns(character_cols)
@@ -380,6 +443,10 @@ barroso_write_taxon_descr <- function(xlsx_path,
   }
 
   print(doc, target = filename)
+  if (verbose) {
+    message("barroso_write_descriptions: descriptions of ", nrow(out_tbl),
+            " species written to ", filename)
+  }
   invisible(out_tbl)
 }
 
@@ -439,7 +506,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
     tidyr::unite("species_id", dplyr::all_of(species_cols),
                  sep = " ", remove = FALSE, na.rm = TRUE) %>%
     .$species_id
-  species_id <- barRoso::remove_authorship(species_id)
+  species_id <- barRoso::rm_authors(species_id)
 
   result <- list()
   for (sp in unique(species_id)) {
@@ -468,7 +535,7 @@ barroso_write_taxon_descr <- function(xlsx_path,
   parts <- parts[nzchar(parts)]
   if (length(parts) == 0L) return(list())
   sp_id <- paste(parts, collapse = " ")
-  sp_id <- barRoso::remove_authorship(sp_id)
+  sp_id <- barRoso::rm_authors(sp_id)
   if (sp_id %in% names(species_averages)) return(species_averages[[sp_id]])
   list()
 }
@@ -1124,24 +1191,19 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
 #' @keywords internal
 #' @noRd
-.merge_duplicate_species <- function(df, species_cols, character_cols) {
+.merge_duplicate_species <- function(df, species_cols, character_cols,
+                                     extremes = NULL, extremes_min_n = 10) {
   original_cols <- names(df)
   df_temp <- df %>%
     tidyr::unite("_species_id", dplyr::all_of(species_cols),
                  sep = " ", remove = FALSE, na.rm = TRUE)
-  df_temp[[1]] <- barRoso::remove_authorship(df_temp[[1]])
+  df_temp[[1]] <- barRoso::rm_authors(df_temp[[1]])
   char_cols <- intersect(character_cols, names(df))
 
   df_temp <- df_temp %>%
     dplyr::mutate(dplyr::across(dplyr::all_of(char_cols), as.character))
 
-  is_measurement_col <- function(col_name) {
-    col_lower <- tolower(col_name)
-    any(stringr::str_detect(col_lower,
-                            c("length", "width", "height",
-                              "\\(cm\\)", "\\(mm\\)", "\\(m\\)")))
-  }
-  measurement_cols <- char_cols[sapply(char_cols, is_measurement_col)]
+  measurement_cols <- char_cols[vapply(char_cols, .is_measurement_col, logical(1))]
   non_measurement_cols <- setdiff(char_cols, measurement_cols)
 
   merge_non_measurement <- function(x) {
@@ -1177,17 +1239,9 @@ barroso_write_taxon_descr <- function(xlsx_path,
     if (length(x_clean) == 0) return(as.character(NA))
     x_clean <- as.character(x_clean)
 
-    nums <- numeric(0)
-    for (val in x_clean) {
-      nums <- c(nums, .tokenize_numbers(val))
-    }
-
-    if (length(nums) >= 2) {
-      min_val <- min(nums); max_val <- max(nums)
-      if (min_val == max_val) return(as.character(min_val))
-      return(paste0(min_val, "\u2013", max_val))
-    } else if (length(nums) == 1) {
-      return(as.character(nums))
+    range <- .format_measurements(x_clean, extremes, extremes_min_n)
+    if (!is.na(range)) {
+      return(range)
     } else if (length(x_clean) == 1) {
       return(x_clean[1])
     } else {
@@ -1215,7 +1269,8 @@ barroso_write_taxon_descr <- function(xlsx_path,
     dplyr::select(-`_species_id`)
 
   for (i in seq_along(measurement_cols)) {
-    tf <- grepl(",|or", df_merged[[measurement_cols[i]]])
+    tf <- grepl(",|or", df_merged[[measurement_cols[i]]]) &
+      !grepl("[()]", df_merged[[measurement_cols[i]]])
     if (any(tf)) {
       df_merged[[measurement_cols[i]]] <-
         .simplify_measurement_range(df_merged[[measurement_cols[i]]])
@@ -1224,6 +1279,61 @@ barroso_write_taxon_descr <- function(xlsx_path,
 
   df_merged <- df_merged[, original_cols]
   return(df_merged)
+}
+
+#' Measurement columns, e.g. "LEAF BLADE length (cm)", "HABIT height (m)"
+#' @keywords internal
+#' @noRd
+.is_measurement_col <- function(col_name) {
+  any(stringr::str_detect(tolower(col_name),
+                          c("length", "width", "height", "\\(cm\\)", "\\(mm\\)", "\\(m\\)")))
+}
+
+#' Range of the measurements of a species, with rare values between parentheses,
+#' e.g. "(2–)6–40(–55)". Each cell has the values of one specimen, separated by
+#' "|" (or written as a range, e.g. "4.5–11"). Values marked between parentheses
+#' in the cells, e.g. "(5–)7–38(–45)", are kept as extremes, and with `extremes`
+#' (two percentiles) the values outside them become extremes when there are at
+#' least `extremes_min_n` values. NA when there are no numbers.
+#' @keywords internal
+#' @noRd
+.format_measurements <- function(cells, extremes = NULL, extremes_min_n = 10) {
+  dash <- "[-\u2013\u2014]"
+  num <- "([0-9]+(?:[.][0-9]+)?)"
+  low_mark <- paste0("[(]\\s*", num, "\\s*", dash, "\\s*[)]")
+  high_mark <- paste0("[(]\\s*", dash, "\\s*", num, "\\s*[)]")
+  cells <- as.character(cells)
+
+  marked <- function(pattern) {
+    m <- regmatches(cells, gregexpr(pattern, cells, perl = TRUE))
+    as.numeric(sub(paste0(".*?", num, ".*"), "\\1", unlist(m), perl = TRUE))
+  }
+  low <- marked(low_mark)
+  high <- marked(high_mark)
+  rest <- gsub(paste0(low_mark, "|", high_mark), " ", cells, perl = TRUE)
+  values <- unlist(lapply(rest, .tokenize_numbers))
+  if (length(values) == 0) values <- c(low, high)
+  if (length(values) == 0) return(NA_character_)
+
+  values <- sort(values)
+  n <- length(values)
+  from <- values[1]
+  to <- values[n]
+  if (!is.null(extremes) && n >= extremes_min_n) {
+    # The range limits are measured values, e.g. the 2nd and 9th of 10 values
+    from <- values[floor(n * extremes[1] + 1e-9) + 1]
+    to <- values[n - floor(n * (1 - extremes[2]) + 1e-9)]
+    low <- c(low, values[values < from])
+    high <- c(high, values[values > to])
+  }
+  low <- low[low < from]
+  high <- high[high > to]
+
+  fmt <- function(x) format(x, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+  paste0(if (length(low) > 0) paste0("(", fmt(min(low)), "\u2013)"),
+         fmt(from),
+         if (to > from) paste0("\u2013", fmt(to)),
+         if (length(high) > 0) paste0("(\u2013", fmt(max(high)), ")"))
 }
 
 #' Reduce a string containing several numeric tokens (separated by commas,

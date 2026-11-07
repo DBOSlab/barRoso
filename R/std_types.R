@@ -50,6 +50,11 @@ std_types <- function(df = NULL,
                       colname_typeStatus = "typeStatus",
                       rm_original_column = TRUE) {
 
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_original_column)
+  .check_colnames(colname_typeStatus = colname_typeStatus)
+
   # Adjust colnames in the input dataset ####
   colnames_df <- names(df)
   if (colname_typeStatus != "typeStatus") {

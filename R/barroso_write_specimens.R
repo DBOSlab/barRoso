@@ -201,10 +201,17 @@ barroso_write_specimens <- function(df = NULL,
     }
     df <- .read_records(path, sheet)
   }
-  if (!is.data.frame(df)) stop("`df` must be a data frame.", call. = FALSE)
-  if (!is.character(language) || length(language) != 1 || !language %in% c("en", "pt", "es")) {
-    stop("`language` must be \"en\", \"pt\" or \"es\".", call. = FALSE)
+
+  # Check the arguments ####
+  .check_df(df)
+  .check_choice(language, c("en", "pt", "es"))
+  .check_flag(catalog_numbers, one_per_municipality, verbose)
+  if (!is.null(header) && (!is.character(header) || length(header) != 1 || is.na(header))) {
+    stop("`header` must be a single text, \"\" (no header) or NULL.", call. = FALSE)
   }
+  .check_string(filename, null_ok = TRUE)
+  .check_string(font_family)
+  .check_number(font_size, 1)
 
   # The first journal by default, as in match.arg()
   if (length(journal) > 1) journal <- journal[1]
@@ -216,7 +223,7 @@ barroso_write_specimens <- function(df = NULL,
     stop("The records need a column `species` or the columns `genus` and `specificEpithet`.",
          call. = FALSE)
   }
-  df$species <- trimws(remove_authorship(df$species))
+  df$species <- trimws(rm_authors(df$species))
 
   # Species to write ####
   no_sp <- is.na(df$species) | !nzchar(df$species)
@@ -225,7 +232,7 @@ barroso_write_specimens <- function(df = NULL,
   }
   df <- df[!no_sp, , drop = FALSE]
   if (!is.null(species)) {
-    species <- trimws(remove_authorship(species))
+    species <- trimws(rm_authors(species))
     missing_sp <- setdiff(species, df$species)
     if (length(missing_sp) > 0) {
       warning("No records of ", paste(missing_sp, collapse = ", "), call. = FALSE)
@@ -367,7 +374,7 @@ barroso_write_specimens <- function(df = NULL,
   if (is.null(dir)) {
     dir <- if (!is.null(path)) dirname(path) else "results_specimens"
   }
-  dir <- .arg_check_dir(dir)
+  dir <- .check_dir(dir)
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   if (is.null(filename)) {
     base <- if (!is.null(path)) tools::file_path_sans_ext(basename(path)) else "specimens"
@@ -423,8 +430,7 @@ barroso_write_specimens <- function(df = NULL,
 
 # Read records from an .xlsx, .xls or .csv file, as character
 .read_records <- function(path, sheet = 1) {
-  .arg_check_xlsx_path(path)
-  if (!file.exists(path)) stop("File not found: ", path, call. = FALSE)
+  .check_file(path, c("xlsx", "xls", "csv"))
   if (tolower(tools::file_ext(path)) == "csv") {
     utils::read.csv(path, colClasses = "character", check.names = FALSE, encoding = "UTF-8",
                     na.strings = c("", "NA"))

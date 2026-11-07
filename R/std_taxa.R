@@ -55,6 +55,12 @@ std_taxa <- function(df = NULL,
                      colname_specificEpithet = "specificEpithet",
                      rm_original_column = TRUE) {
 
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_original_column)
+  .check_colnames(colname_family = colname_family, colname_genus = colname_genus,
+                  colname_specificEpithet = colname_specificEpithet)
+
   # Adjust colnames in the input dataset ####
   colnames_df <- names(df)
   if (colname_family != "family") {
@@ -159,9 +165,4 @@ std_taxa <- function(df = NULL,
   return(df)
 }
 
-# Side function make first letter to upper case ####
-.firstUp <- function(x) {
-  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
-  x
-}
 

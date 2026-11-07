@@ -45,17 +45,17 @@ test_that("std_types unifies type status in English, Latin and Portuguese", {
     "isotype of Ormosia amazonica Ducke", "type of Ormosia excelsa Benth."))
 })
 
-test_that("remove_authorship removes authors, also around infraspecific ranks", {
+test_that("rm_authors removes authors, also around infraspecific ranks", {
   x <- c("Ormosia arborea (Vell.) Harms", "Ouratea castaneifolia (DC.) Engl.",
          "Dalea purpurea Vent. var. purpurea",
          "Swartzia apetala Raddi var. glabra (Vogel) R.S.Cowan",
          "Ouratea concinna A.Queiroz-Lima & D.B.O.S.Cardoso", "Swartzia", "Quercus alba L.", NA)
-  expect_equal(remove_authorship(x),
+  expect_equal(rm_authors(x),
                c("Ormosia arborea", "Ouratea castaneifolia", "Dalea purpurea var. purpurea",
                  "Swartzia apetala var. glabra", "Ouratea concinna", "Swartzia", "Quercus alba", NA))
-  expect_equal(remove_authorship(x[3:4], keep_infraspecific = FALSE),
+  expect_equal(rm_authors(x[3:4], keep_infraspecific = FALSE),
                c("Dalea purpurea", "Swartzia apetala"))
-  expect_error(remove_authorship(1), "must be a character vector")
+  expect_error(rm_authors(1), "must be a character vector")
 })
 
 test_that("auxiliary and defensive helpers work", {
@@ -76,7 +76,6 @@ test_that("auxiliary and defensive helpers work", {
   expect_error(barRoso:::.resolve_cols(df, 3, "x"), "out of range")
   expect_error(barRoso:::.resolve_cols(df, TRUE, "x"), "character vector of names")
 
-  expect_equal(barRoso:::.arg_check_dir("results/"), "results")
-  expect_error(barRoso:::.arg_check_dir(1), "should be a character")
-  expect_error(barRoso:::.arg_check_xlsx_path(""), "non-empty character scalar")
+  expect_equal(barRoso:::.check_dir("results/"), "results")
+  expect_error(barRoso:::.check_dir(1), "single text")
 })

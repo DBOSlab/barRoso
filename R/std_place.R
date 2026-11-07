@@ -78,6 +78,13 @@ std_place <- function(df = NULL,
                       colname_locality = "locality",
                       rm_original_column = TRUE) {
 
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_original_column)
+  .check_colnames(colname_continent = colname_continent, colname_country = colname_country,
+                  colname_stateProvince = colname_stateProvince, colname_county = colname_county,
+                  colname_municipality = colname_municipality, colname_locality = colname_locality)
+
   # Adjust colnames in the input dataset ####
   colnames_df <- names(df)
   if (colname_continent != "continent") {
@@ -847,11 +854,6 @@ std_place <- function(df = NULL,
   x
 }
 
-# Side function make first letter to upper case ####
-.firstUp <- function(x) {
-  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
-  x
-}
 
 
 # Remove words for municipality from county and municipality names, e.g.

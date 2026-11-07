@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 960" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 1034" font-family="Helvetica, Arial, sans-serif">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#0B6FA8"/>
     </marker>
   </defs>
 
-  <rect x="0" y="0" width="1180" height="960" fill="#F3F8FC"/>
+  <rect x="0" y="0" width="1180" height="1034" fill="#F3F8FC"/>
 
   <!-- Title -->
   <text x="40" y="42" font-size="24" font-weight="700" fill="#0B3D5C">barRoso workflow</text>
@@ -45,7 +45,16 @@
   <text x="590" y="205" text-anchor="middle" font-size="13.5" fill="#0B3D5C" font-weight="600">barroso_cat()</text>
   <text x="590" y="224" text-anchor="middle" font-size="11" fill="#4F6F86">Darwin Core columns · datasource · keep_source</text>
 
-  <line x1="590" y1="238" x2="590" y2="266" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="590" y1="238" x2="590" y2="258" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Species names fixed before standardizing -->
+  <rect x="430" y="262" width="320" height="50" rx="10" fill="#E6F1F9" stroke="#5DA3D1" stroke-width="1.5"/>
+  <text x="590" y="283" text-anchor="middle" font-size="13.5" fill="#0B3D5C" font-weight="600">barroso_fix_names()</text>
+  <text x="590" y="300" text-anchor="middle" font-size="11" fill="#4F6F86">Misspellings and synonyms · WCVP and FFB</text>
+
+  <line x1="590" y1="312" x2="590" y2="340" stroke="#0B6FA8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g transform="translate(0,74)">
 
   <!-- ============ STAGE 2: Standardize (highlighted, full width) ============ -->
   <rect x="40" y="270" width="1100" height="222" rx="16" fill="#D5E8F5" stroke="#0082C8" stroke-width="2.5"/>
@@ -142,12 +151,12 @@
     <text x="425" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">with maps and taxon authorities</text>
 
     <rect x="625" y="790" width="240" height="66" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
-    <text x="745" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_add_char_template()</text>
+    <text x="745" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_chars_template()</text>
     <text x="745" y="832" text-anchor="middle" fill="#4F6F86" font-size="11">Template of morphological</text>
     <text x="745" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">characters to fill in</text>
 
     <rect x="895" y="790" width="245" height="66" rx="10" fill="#FFFFFF" stroke="#5DA3D1" stroke-width="1.5"/>
-    <text x="1017" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_write_taxon_descr()</text>
+    <text x="1017" y="814" text-anchor="middle" fill="#0B3D5C" font-weight="600">barroso_write_descriptions()</text>
     <text x="1017" y="832" text-anchor="middle" fill="#4F6F86" font-size="11">Taxonomic descriptions from</text>
     <text x="1017" y="847" text-anchor="middle" fill="#4F6F86" font-size="11">morphological data (.docx)</text>
   </g>
@@ -163,4 +172,5 @@
   </g>
 
   <text x="40" y="926" font-size="12" fill="#6A8599">Step 4 works from other inputs: field books for labels, and morphological character spreadsheets for descriptions.</text>
+  </g>
 </svg>

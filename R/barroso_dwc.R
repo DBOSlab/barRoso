@@ -74,9 +74,9 @@ barroso_dwc <- function(df,
                         as_character = TRUE,
                         verbose = TRUE) {
 
-  if (!is.data.frame(df)) {
-    stop("df must be a data frame.", call. = FALSE)
-  }
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(as_character, verbose)
   source <- match.arg(source)
   if (source == "auto") source <- .detect_source(df)
 
@@ -128,12 +128,13 @@ barroso_dwc <- function(df,
 # Recognize the source of a dataset from its columns and values ####
 .detect_source <- function(df) {
   nms <- names(df)
+  # First GBIF, as some GBIF records cite the REFLORA Virtual Herbarium
+  if (any(c("gbifID", "datasetKey") %in% nms)) return("GBIF")
   if (.is_reflora(df)) return("REFLORA")
   if (.is_jabot(df)) return("JABOT")
   splink_cols <- c("collector", "collectornumber", "yearcollected", "spp",
                    "scientificnameauthor", "yearidentified", "collectioncode")
   if (any(splink_cols %in% nms)) return("speciesLink")
-  if (any(c("gbifID", "datasetKey") %in% nms)) return("GBIF")
   "unknown"
 }
 

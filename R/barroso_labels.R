@@ -58,6 +58,11 @@ barroso_labels <- function(fieldbook = NULL,
                            dir_create = "results_herbarium_labels",
                            file_label = "herbarium_labels.pdf") {
 
+  # Check the arguments ####
+  .check_df(fieldbook, "fieldbook")
+  dir_create <- .check_dir(dir_create)
+  .check_string(file_label)
+
   #_______________________________________________________________________________
   # Making corrections in the database
   for (i in seq_along(names(fieldbook))) {

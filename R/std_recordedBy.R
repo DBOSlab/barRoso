@@ -60,6 +60,14 @@ std_recordedBy <- function(df = NULL,
                            colname_recordNumber = "recordNumber",
                            rm_original_column = FALSE) {
 
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_original_column)
+  .check_colnames(colname_recordedBy = colname_recordedBy,
+                  colname_recordNumber = colname_recordNumber)
+  .check_cols(df, colname_recordedBy = colname_recordedBy,
+              colname_recordNumber = colname_recordNumber)
+
   # Adjust colnames in the input dataset ####
   colnames_df <- names(df)
   if (colname_recordedBy != "recordedBy") {

@@ -100,6 +100,12 @@ std_collection <- function(df = NULL,
                            index_herbariorum = TRUE,
                            rm_original_column = TRUE) {
 
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(index_herbariorum, rm_original_column)
+  .check_colnames(colname_collectionCode = colname_collectionCode,
+                  colname_institutionCode = colname_institutionCode)
+
   # The original collectionCode is always kept when checking Index Herbariorum
   keep_collection <- rm_original_column == FALSE || index_herbariorum
 
@@ -166,20 +172,6 @@ std_collection <- function(df = NULL,
 
 #_______________________________________________________________________________
 # Auxiliary functions of std_collection ####
-
-# Column as character, or NA when missing
-.col_or_na <- function(df, col) {
-  if (col %in% names(df)) as.character(df[[col]]) else rep(NA_character_, nrow(df))
-}
-
-# Without accents, extra spaces, empty cells and the text "NA" of spreadsheets
-# exported from R (the code "NA" is not an herbarium)
-.ascii_squish <- function(x) {
-  x <- stringi::stri_trans_general(as.character(x), "Latin-ASCII")
-  x <- trimws(gsub("\\s+", " ", x))
-  x[x %in% c("", "NA", "na")] <- NA
-  x
-}
 
 # Codes that look like Index Herbariorum acronyms, e.g. "RB", "HUEFS", "IAvH",
 # "G-DC", "ECO-TA-H" or wood collections like "INPAw", but not words like

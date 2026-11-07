@@ -48,10 +48,11 @@ std_identifiedBy <- function(df = NULL,
                              colname_identifiedBy = "identifiedBy",
                              rm_original_column = FALSE) {
 
-  if (!colname_identifiedBy %in% names(df)) {
-    stop(paste0("Column '", colname_identifiedBy, "' not found in the data frame."),
-         call. = FALSE)
-  }
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_original_column)
+  .check_colnames(colname_identifiedBy = colname_identifiedBy)
+  .check_cols(df, colname_identifiedBy = colname_identifiedBy)
 
   message("std_identifiedBy $", colname_identifiedBy)
 

@@ -96,16 +96,21 @@ std_coordinates <- function(df = NULL,
                             min_decimals = 2,
                             rm_original_column = FALSE) {
 
-  .check_suggests(c("bdc", "CoordinateCleaner", "rnaturalearth",
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(fix_transposed, check_country, check_space, rm_original_column)
+  .check_number(min_decimals, 0)
+  .check_colnames(colname_decimalLatitude = colname_decimalLatitude,
+                  colname_decimalLongitude = colname_decimalLongitude,
+                  colname_country = colname_country,
+                  colname_scientificName = colname_scientificName)
+
+  .check_package(c("bdc", "CoordinateCleaner", "rnaturalearth",
                     "rnaturalearthdata", "rnaturalearthhires", "sf"))
 
   lat_col <- colname_decimalLatitude
   lon_col <- colname_decimalLongitude
-  missing <- setdiff(c(lat_col, lon_col), names(df))
-  if (length(missing) > 0) {
-    stop(paste0("Column(s) not found in the data frame: ", paste(missing, collapse = ", ")),
-         call. = FALSE)
-  }
+  .check_cols(df, colname_decimalLatitude = lat_col, colname_decimalLongitude = lon_col)
   has_country <- colname_country %in% names(df)
   if (!has_country && (fix_transposed || check_country)) {
     warning(paste0("Column '", colname_country, "' not found. ",
@@ -313,12 +318,3 @@ std_coordinates <- function(df = NULL,
   out
 }
 
-# Check that suggested packages are installed ####
-.check_suggests <- function(pkgs) {
-  missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
-  if (length(missing) > 0) {
-    stop(paste0("Please install the package(s): ", paste(missing, collapse = ", "),
-                ", e.g. install.packages(c(\"", paste(missing, collapse = "\", \""), "\"))"),
-         call. = FALSE)
-  }
-}

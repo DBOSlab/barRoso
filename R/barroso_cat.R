@@ -22,13 +22,22 @@
 #' standardized. The sources are recognized by their content, so their names in
 #' `list_sources` can be any name.
 #'
+#' Before comparing the sources, the herbarium acronyms in `collectionCode` of each
+#' source are standardized with [std_collection()], by default checking them against
+#' Index Herbariorum (`index_herbariorum = TRUE`), so the same herbarium is
+#' recognized in all sources, e.g. `"MOBOT_BR"` in speciesLink and `"MO"` in GBIF, or
+#' `"Herbario INPA"` and `"INPA"`. The original codes are kept in
+#' `collectionCodeOriginal`, so unvouchered collections like `"INPA-Carpoteca"` can
+#' still be removed by [barroso_std()].
+#'
 #' Columns with different types across sources (e.g. numeric `year` in one source
 #' and character in another) are combined as character. A column `datasource`
 #' records the source of each record.
 #'
 #' @usage
 #' barroso_cat(list_sources = list(),
-#'             keep_source = NULL)
+#'             keep_source = NULL,
+#'             index_herbariorum = TRUE)
 #'
 #' @param list_sources A named list of data frames. Each element represents a
 #' herbarium data source. The names of the list are used to track the source origin
@@ -36,6 +45,9 @@
 #' @param keep_source Optional character string specifying the preferred data
 #' source (e.g., "GBIF") for resolving duplicate `collectionCode` conflicts. If
 #' NULL, all records are retained.
+#' @param index_herbariorum Logical; if `TRUE`, the herbarium acronyms of each source
+#' are checked against the API of Index Herbariorum after the regular expressions of
+#' [std_collection()] (default: `TRUE`). Use `FALSE` to work offline.
 #'
 #' @return A harmonized data frame combining all provided herbarium sources, with
 #' columns aligned, a `datasource` column, and optionally filtered to resolve
@@ -54,9 +66,15 @@
 #' }
 #'
 #' @importFrom dplyr bind_rows
+#' @importFrom tibble add_column
 #' @export
 
-barroso_cat <- function(list_sources = list(), keep_source = NULL) {
+barroso_cat <- function(list_sources = list(), keep_source = NULL,
+                        index_herbariorum = TRUE) {
+
+  # Check the arguments ####
+  .check_flag(index_herbariorum)
+  .check_string(keep_source, null_ok = TRUE)
 
   if (!is.list(list_sources) || is.data.frame(list_sources) || length(list_sources) < 2) {
     stop("Please provide a named list of at least two data sources.", call. = FALSE)
@@ -80,6 +98,26 @@ barroso_cat <- function(list_sources = list(), keep_source = NULL) {
     warning(paste0("No 'collectionCode' column in: ", paste(src_names[missing_code], collapse = ", "),
                    ". Overlapping herbaria cannot be detected for these sources."),
             call. = FALSE)
+  }
+
+  # Standardize the herbarium acronyms of each source, so they can be compared ####
+  # Index Herbariorum is downloaded once here, not for each source
+  if (index_herbariorum && is.null(.ih_institutions())) index_herbariorum <- FALSE
+  for (s in src_names[!missing_code]) {
+    df <- list_sources[[s]]
+    if (nrow(df) == 0) next
+    no_inst <- !"institutionCode" %in% names(df)
+    if (no_inst) df$institutionCode <- NA_character_
+    # The original codes are always kept
+    if (!"collectionCodeOriginal" %in% names(df)) {
+      df <- tibble::add_column(df, collectionCodeOriginal = df$collectionCode,
+                               .before = "collectionCode")
+    }
+    message(paste0("barroso_cat: standardizing herbarium acronyms of ", s))
+    df <- suppressMessages(std_collection(df, index_herbariorum = index_herbariorum,
+                                          rm_original_column = TRUE))
+    if (no_inst) df$institutionCode <- NULL
+    list_sources[[s]] <- df
   }
 
   # Remove from the other sources the herbaria also present in keep_source

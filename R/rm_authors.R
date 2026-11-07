@@ -9,21 +9,23 @@
 #' @return Character vector of scientific names without authors.
 #'
 #' @examples
-#' remove_authorship("Quercus alba L.")
+#' rm_authors("Quercus alba L.")
 #' # Returns: "Quercus alba"
 #'
-#' remove_authorship("Quercus rubra var. borealis (F.Michx.) Farw.")
+#' rm_authors("Quercus rubra var. borealis (F.Michx.) Farw.")
 #' # Returns: "Quercus rubra var. borealis" (if keep_infraspecific = TRUE)
 #'
-#' remove_authorship(c("Acer saccharum Marshall", "Pinus strobus L."))
+#' rm_authors(c("Acer saccharum Marshall", "Pinus strobus L."))
 #' # Returns: c("Acer saccharum", "Pinus strobus")
 #'
 #' @export
 
-remove_authorship <- function(scientific_names, keep_infraspecific = TRUE) {
-  if (!is.character(scientific_names)) {
-    stop("scientific_names must be a character vector")
+rm_authors <- function(scientific_names, keep_infraspecific = TRUE) {
+  # Check the arguments ####
+  if (!is.character(scientific_names) && !all(is.na(scientific_names))) {
+    stop("`scientific_names` must be a character vector.", call. = FALSE)
   }
+  .check_flag(keep_infraspecific)
 
   # Pattern to match author citations
   # This matches authors that typically start with:

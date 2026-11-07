@@ -102,11 +102,19 @@ barroso_flag_duplicates <- function(df,
                                     colname_decimalLatitude = "decimalLatitude",
                                     colname_decimalLongitude = "decimalLongitude") {
 
-  missing <- setdiff(c(colname_recordedBy, colname_recordNumber), names(df))
-  if (length(missing) > 0) {
-    stop(paste0("Column(s) not found in the data frame: ", paste(missing, collapse = ", ")),
-         call. = FALSE)
-  }
+  # Check the arguments ####
+  .check_df(df)
+  .check_flag(rm_duplicates)
+  .check_colnames(colname_recordedBy = colname_recordedBy,
+                  colname_recordNumber = colname_recordNumber,
+                  colname_genus = colname_genus,
+                  colname_specificEpithet = colname_specificEpithet,
+                  colname_collectionCode = colname_collectionCode,
+                  colname_catalogNumber = colname_catalogNumber,
+                  colname_decimalLatitude = colname_decimalLatitude,
+                  colname_decimalLongitude = colname_decimalLongitude)
+  .check_cols(df, colname_recordedBy = colname_recordedBy,
+              colname_recordNumber = colname_recordNumber)
 
   # Remove the columns of a previous run
   new_cols <- c("duplicate", "duplicateGroup", "identificationConflict",
@@ -209,29 +217,4 @@ barroso_flag_duplicates <- function(df,
   df <- df[order(df[[colname_recordedBy]], df[[colname_recordNumber]]), , drop = FALSE]
 
   return(df)
-}
-
-
-#_______________________________________________________________________________
-# A column as character with "" as NA, or all NA when the column is missing ####
-.col_or_na <- function(df, col) {
-  if (!col %in% names(df)) return(rep(NA_character_, nrow(df)))
-  x <- trimws(as.character(df[[col]]))
-  x[x %in% c("", "NA")] <- NA
-  x
-}
-
-# Specific epithet from specificEpithet or, when missing, from a binomial in
-# the column species, as in GBIF downloads ####
-.epithet <- function(df, genus, colname_specificEpithet) {
-  epithet <- .col_or_na(df, colname_specificEpithet)
-  species <- .col_or_na(df, "species")
-  tf <- is.na(epithet) & !is.na(genus) & !is.na(species) &
-    startsWith(species, paste0(genus, " "))
-  from_species <- sub("^\\S+\\s+(\\S+).*", "\\1", species[tf])
-  # Not placeholders like "sp.", "cf.", "aff."
-  from_species[!grepl("^[[:lower:]-]+$", from_species) |
-                 from_species %in% c("sp", "spp", "cf", "aff", "indet")] <- NA
-  epithet[tf] <- from_species
-  epithet
 }

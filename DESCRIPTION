@@ -34,6 +34,8 @@ Imports:
 Suggests:
     bdc,
     CoordinateCleaner,
+    expowo (>= 3.2),
+    floraR,
     rnaturalearth,
     rnaturalearthdata,
     rnaturalearthhires,
@@ -42,6 +44,8 @@ Suggests:
     testthat (>= 3.0.0),
     withr
 Remotes:
+    DBOSlab/expowo,
+    DBOSlab/floraR,
     idiv-biodiversity/LCVP,
     idiv-biodiversity/lcvplants,
     ropensci/rnaturalearthhires

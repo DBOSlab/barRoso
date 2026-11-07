@@ -28,7 +28,7 @@
 #'   }
 #'
 #'   The resulting file is the input format expected by
-#'   \code{barroso_write_taxon_descr()}: column-name conventions match
+#'   \code{barroso_write_descriptions()}: column-name conventions match
 #'   (capitalised group prefixes, lowercase subterms, "(cm)" / "(mm)" /
 #'   "(m)" units, "length" / "width" / "height" keywords).
 #'
@@ -73,13 +73,13 @@
 #'   Author  = c("R.G.Chacon & K.Yamam.", "(DC.) Engl.", "(DC.) Engl.")
 #' )
 #'
-#' barroso_add_char_template(
+#' barroso_chars_template(
 #'   species_df = species_df,
 #'   filename   = "Ouratea_template"
 #' )
 #'
 #' # Using an Excel file path
-#' barroso_add_char_template(
+#' barroso_chars_template(
 #'   species_df = "my_species_list.xlsx",
 #'   sheet = 1,
 #'   plant_group = "Ochnaceae",
@@ -92,7 +92,7 @@
 #' @importFrom tools file_path_sans_ext file_ext
 #'
 #' @export
-barroso_add_char_template <- function(species_df,
+barroso_chars_template <- function(species_df,
                                       sheet = 1,
                                       plant_group = NULL,
                                       species_cols = NULL,
@@ -104,6 +104,14 @@ barroso_add_char_template <- function(species_df,
                                       verbose = TRUE,
                                       filename = NULL,
                                       dir = NULL) {
+
+  # Check the arguments ####
+  .check_flag(overwrite, format_excel, verbose)
+  .check_number(base_font_size, 1)
+  .check_string(sheet_name)
+  .check_string(base_font_name)
+  .check_string(filename, null_ok = TRUE)
+  dir <- .check_dir(dir, null_ok = TRUE)
 
   # ---- Input validation ------------------------------------------------------
   # Check if species_df is a data frame or a file path
@@ -248,7 +256,7 @@ barroso_add_char_template <- function(species_df,
 # Profiles are built by composing reusable "blocks". Naming conventions
 # (UPPERCASE group prefixes, lowercase trait words, "length" / "width" /
 # "height" + "(unit)" for measurements) match exactly what
-# barroso_write_taxon_descr() expects.
+# barroso_write_descriptions() expects.
 # ==============================================================================
 
 #' Creates taxon-specific template
