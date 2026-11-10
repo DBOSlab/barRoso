@@ -1817,8 +1817,15 @@ std_recordedBy <- function(df = NULL,
 
   message(".std_recordNumber $recordNumber")
 
-  x <- as.character(df$recordNumber)
-  x_original <- df$recordNumberOriginal
+  # Commas and dots between digits are never part of the number, e.g. "12,979b"
+  # into "12979b" and "1.350" into "1350", after removing the decimals of
+  # numbers saved by spreadsheets, e.g. "159.0" into "159"
+  no_marks <- function(v) {
+    v <- sub("(?<=[0-9])[.]0+$", "", v, perl = TRUE)
+    gsub("(?<=[0-9])[,.](?=[0-9])", "", v, perl = TRUE)
+  }
+  x <- no_marks(as.character(df$recordNumber))
+  x_original <- no_marks(df$recordNumberOriginal)
 
   # Adding NAs in unumbered collections
   x[x %in% c("s/n", "s.n.", "s. n.", "PCDs/n", "S.n.", "S.N.", "S. N.", "s.n",
@@ -1885,6 +1892,13 @@ std_recordedBy <- function(df = NULL,
 
   x[x %in% "s"] <- NA
   x <- gsub("[.]", "", x)
+
+  # Numbers followed by a single letter, also Greek or "\u00df" (used for beta), e.g.
+  # "Koorders, SH 9588 B" into "9588B", "Koorders, SH 9588 \u00df" into "9588\u00df",
+  # "R. Wasum 1335 a" into "1335a", "123 \u03b1" into "123\u03b1"
+  greek <- "(?:^|(?<=\\s))([0-9]+)\\s*([A-Za-z\u00df\u0391-\u03a9\u03b1-\u03c9])\\s*$"
+  tf <- !is.na(x_original) & grepl(greek, x_original, perl = TRUE)
+  x[tf] <- sub(paste0(".*?", greek), "\\1\\2", x_original[tf], perl = TRUE)
 
   df$recordNumber <- x
 

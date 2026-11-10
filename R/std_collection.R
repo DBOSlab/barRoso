@@ -34,6 +34,15 @@
 #'
 #' The columns `catalogNumber` and `occurrenceID` are used when present.
 #'
+#' Catalog numbers in `catalogNumber` are then written without spaces and
+#' punctuation, with the standardized acronym of the herbarium when they are just
+#' numbers, e.g. `"181351"` into `"HUA181351"`, `"HATM 003653"` into `"HATM003653"`,
+#' `"ANDES-H:6594"` into `"ANDESH6594"`, `"L.2049875"` into `"L2049875"`,
+#' `"CANB 490096.1"` into `"CANB4900961"` and `"barcode-00064442"` into `"A00064442"`.
+#' Collector names with numbers, e.g. `"M. A. Chocce 536"`, are not catalog numbers
+#' and become `NA`. The original catalog numbers are kept in `catalogNumberOriginal`
+#' along with `collectionCodeOriginal`.
+#'
 #' By default (`index_herbariorum = TRUE`), the results of these steps are checked against
 #' all herbaria of the [Index Herbariorum API](https://github.com/nybgvh/IH-API/wiki),
 #' downloaded at once and kept during the R session, which needs internet access:
@@ -148,6 +157,15 @@ std_collection <- function(df = NULL,
 
     if (index_herbariorum) {
       df <- .check_index_herbariorum(df, code_raw, inst_raw)
+    }
+
+    # Catalog numbers with the standardized acronym, e.g. "181351" into "HUA181351" ####
+    if ("catalogNumber" %in% names(df)) {
+      if (keep_collection && !"catalogNumberOriginal" %in% names(df)) {
+        df <- tibble::add_column(df, catalogNumberOriginal = df$catalogNumber,
+                                 .before = "catalogNumber")
+      }
+      df$catalogNumber <- .std_catalog_number(df$catalogNumber, df$collectionCode)
     }
   }
 
@@ -351,6 +369,33 @@ std_collection <- function(df = NULL,
                  if (length(missing) > 0) paste0("; codes not found: ",
                                                  paste(names(missing)[seq_len(min(20, length(missing)))], collapse = ", "))))
   df
+}
+
+# Catalog numbers without spaces and punctuation, with the acronym when they are
+# just numbers, e.g. "181351" into "HUA181351", "ANDES-H:6594" into "ANDESH6594",
+# "barcode-00064442" into "A00064442", "CANB 490096.1" into "CANB4900961" ####
+.std_catalog_number <- function(catalog, code) {
+  x <- trimws(as.character(catalog))
+  x[x %in% c("", "NA")] <- NA
+  code <- gsub("[^[:alnum:]]", "", as.character(code))
+
+  # Collector names and numbers instead of catalog numbers, e.g. "M. A. Chocce 536",
+  # "Chocce, M.A. 536" or vouchers of GenBank like "D. Cardoso 2118 (HUEFS)"
+  person <- grepl("^(\\p{Lu}[.]\\s*)+\\p{Lu}\\p{Ll}+.*\\d", x, perl = TRUE) |
+    grepl("^\\p{Lu}\\p{Ll}+,\\s*(\\p{Lu}[.]?\\s*)+.*\\d", x, perl = TRUE)
+  x[person] <- NA
+
+  # Identifiers like "ec29d5d8-b6bf-11e1-8c2f-acd112e444a7" are kept as they are
+  uuid <- grepl("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", x,
+                ignore.case = TRUE)
+  x[!uuid] <- sub("^barcode[-_:.\\s]*", "", x[!uuid], ignore.case = TRUE, perl = TRUE)
+  x[!uuid] <- gsub("[^[:alnum:]]", "", x[!uuid])
+  x[!is.na(x) & !nzchar(x)] <- NA
+
+  # Just numbers, with the acronym of the herbarium
+  tf <- !is.na(x) & grepl("^[0-9]+$", x) & !is.na(code) & nzchar(code)
+  x[tf] <- paste0(code[tf], x[tf])
+  x
 }
 
 # Standardize herbarium acronyms ####

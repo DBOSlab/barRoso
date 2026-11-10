@@ -179,3 +179,23 @@ test_that("placeholders, titles, positions and team numbers are cleaned", {
   r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "236-6\u961f", recordNumber = "5")))
   expect_equal(c(r$recordedBy, r$recordNumber), c("Dui", "5"))
 })
+
+test_that("numbers followed by Greek letters or \u00df keep the letter", {
+  r <- suppressMessages(std_recordedBy(data.frame(
+    recordedBy = c("Koorders SH", "A. Silva", "B. Lima", "C. Souza", "D. Cardoso"),
+    recordNumber = c("Koorders, SH 9588 \u00df", "123 \u03b1", "45\u03b2", "7 \u0393", "1350"))))
+  expect_equal(r$recordNumber, c("9588\u00df", "123\u03b1", "45\u03b2", "7\u0393", "1350"))
+  expect_equal(r$recordedBy[1], "S. H. Koorders")
+
+  # Also a single Latin letter, but not after other characters, e.g. "12380/139a"
+  r <- suppressMessages(std_recordedBy(data.frame(
+    recordedBy = "Koorders SH",
+    recordNumber = c("Koorders, SH 5661 B", "Koorders, SH 5661 a", "Kerr, AFG 19008 A",
+                     "Tang 61 A", "4021A", "12380/139a"))))
+  expect_equal(r$recordNumber, c("5661B", "5661a", "19008A", "61A", "4021A", "12380/139a"))
+
+  # Commas and dots between digits are removed, after the decimals of spreadsheets
+  r <- suppressMessages(std_recordedBy(data.frame(
+    recordedBy = "A. Silva", recordNumber = c("12,979b", "1.350", "159.0", "2773.00"))))
+  expect_equal(r$recordNumber, c("12979b", "1350", "159", "2773"))
+})

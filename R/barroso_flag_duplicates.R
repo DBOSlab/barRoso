@@ -159,7 +159,8 @@ barroso_flag_duplicates <- function(df,
   code <- .col_or_na(df, colname_collectionCode)
   catalog <- .col_or_na(df, colname_catalogNumber)
   code_catalog <- ifelse(is.na(catalog), code,
-                         ifelse(is.na(code) | startsWith(catalog, code), catalog,
+                         ifelse(is.na(code) | startsWith(catalog, code) |
+                                  startsWith(catalog, gsub("[^[:alnum:]]", "", code)), catalog,
                                 paste(code, catalog)))
 
   collapse <- function(x) {

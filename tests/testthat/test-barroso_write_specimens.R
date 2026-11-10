@@ -81,7 +81,7 @@ test_that("each journal has its own format", {
   expect_match(first("Rodriguesia"), "12º58’17”S, 38º30’05”W, 5.III.2010, fl.,",
                fixed = TRUE)
   expect_match(first("Brittonia", catalog_numbers = TRUE),
-               "(HUEFS no. HUEFS000123, RB no. 456)", fixed = TRUE)
+               "(HUEFS no. 000123, RB no. 456)", fixed = TRUE)
 
   # Rodriguesia cites the catalog number of collections without number
   res <- write_specimens(dir, "Rodriguésia")

@@ -120,7 +120,29 @@ test_that("index_herbariorum warns and leaves the codes when the API is unavaila
 test_that("the Index Herbariorum API answers", {
   skip_on_cran()
   skip_if_offline("sweetgum.nybg.org")
-  ih <- .ih_institutions()
+  ih <- suppressWarnings(.ih_institutions())
   skip_if(is.null(ih))
   expect_true(all(c("INPA", "RB", "MO") %in% ih$code))
+})
+
+test_that("catalog numbers are written without spaces and punctuation, with the acronym", {
+  x <- c("181351 ", "HATM 003653", "ANDES-H:6594", "FMB-71755", "M. A. Chocce 536",
+         "barcode-00064442", "L.2049875", "MA-01-00738322", "CANB 490096.1", "JCT-S 1798.1",
+         "Chocce, M.A. 536", "D. Cardoso 2118 (HUEFS)", NA, "", "ec29d5d8-b6bf-11e1-8c2f-acd112e444a7",
+         "5718")
+  code <- c("HUA", "HATM", "ANDES-H", "FMB", "USM", "A", "L", "MA", "CANB", "JCT", "USM", "HUEFS",
+            "RB", "RB", "NY", NA)
+  expect_equal(.std_catalog_number(x, code),
+               c("HUA181351", "HATM003653", "ANDESH6594", "FMB71755", NA, "A00064442", "L2049875",
+                 "MA0100738322", "CANB4900961", "JCTS17981", NA, NA, NA, NA,
+                 "ec29d5d8-b6bf-11e1-8c2f-acd112e444a7", "5718"))
+
+  df <- data.frame(collectionCode = c("Botany", "HUA"), institutionCode = NA,
+                   catalogNumber = c("L.2049875", "181351 "))
+  r <- suppressMessages(std_collection(df, index_herbariorum = FALSE, rm_original_column = FALSE))
+  expect_equal(r$collectionCode, c("L", "HUA"))
+  expect_equal(r$catalogNumber, c("L2049875", "HUA181351"))
+  expect_equal(r$catalogNumberOriginal, df$catalogNumber)
+  r <- suppressMessages(std_collection(df, index_herbariorum = FALSE))
+  expect_false("catalogNumberOriginal" %in% names(r))
 })

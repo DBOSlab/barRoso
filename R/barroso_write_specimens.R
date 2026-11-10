@@ -767,9 +767,15 @@ barroso_write_specimens <- function(df = NULL,
       !nzchar(num[i[1]]) & seq_len(nrow(hp)) == which(nzchar(hp$nr))[1]
     }
     with_cat[is.na(with_cat)] <- FALSE
+    # Catalog numbers that start with the acronym, e.g. "MO2839102", are written
+    # as they are, or without the acronym in styles like "MO barcode 2839102"
+    code_alnum <- gsub("[^[:alnum:]]", "", hp$code)
+    with_code <- nzchar(code_alnum) & startsWith(hp$nr, code_alnum)
+    nr_only <- ifelse(with_code, substring(hp$nr, nchar(code_alnum) + 1), hp$nr)
     h <- ifelse(with_cat & nzchar(hp$nr),
-                ifelse(startsWith(hp$nr, hp$code) & style$catalog %in% c("%s %s", "%s%s"),
-                       hp$nr, sprintf(style$catalog, hp$code, hp$nr)),
+                ifelse((startsWith(hp$nr, hp$code) | with_code) &
+                         style$catalog %in% c("%s %s", "%s%s"),
+                       hp$nr, sprintf(style$catalog, hp$code, nr_only)),
                 hp$code)
     h <- paste0(h, if (nrow(hp)) style$herbarium_mark)
     data.frame(species = df$species[i[1]],

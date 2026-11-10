@@ -64,6 +64,15 @@ with \code{NA}.
 
 The columns \code{catalogNumber} and \code{occurrenceID} are used when present.
 
+Catalog numbers in \code{catalogNumber} are then written without spaces and
+punctuation, with the standardized acronym of the herbarium when they are just
+numbers, e.g. \code{"181351"} into \code{"HUA181351"}, \code{"HATM 003653"} into \code{"HATM003653"},
+\code{"ANDES-H:6594"} into \code{"ANDESH6594"}, \code{"L.2049875"} into \code{"L2049875"},
+\code{"CANB 490096.1"} into \code{"CANB4900961"} and \code{"barcode-00064442"} into \code{"A00064442"}.
+Collector names with numbers, e.g. \code{"M. A. Chocce 536"}, are not catalog numbers
+and become \code{NA}. The original catalog numbers are kept in \code{catalogNumberOriginal}
+along with \code{collectionCodeOriginal}.
+
 By default (\code{index_herbariorum = TRUE}), the results of these steps are checked against
 all herbaria of the \href{https://github.com/nybgvh/IH-API/wiki}{Index Herbariorum API},
 downloaded at once and kept during the R session, which needs internet access:
