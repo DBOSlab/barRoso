@@ -29,6 +29,8 @@
 #'             flag_missid = TRUE,
 #'             flag_duplicates = TRUE,
 #'             rm_duplicates = FALSE,
+#'             specialists = NULL,
+#'             rm_tied_conflicts = FALSE,
 #'             index_herbariorum = TRUE,
 #'             colname_recordedBy = "recordedBy",
 #'             colname_recordNumber = "recordNumber",
@@ -56,6 +58,13 @@
 #' @param flag_missid Reserved for future use. Currently not implemented.
 #' @param flag_duplicates Logical; if `TRUE`, flags duplicates with a logical column (default: `TRUE`).
 #' @param rm_duplicates Logical; if `TRUE`, removes duplicate specimens (default: `FALSE`).
+#' @param specialists Optional character vector of names of specialists, whose
+#' identifications are preferred when removing duplicates with conflicting
+#' identifications. See [barroso_flag_duplicates()] (default: `NULL`).
+#' @param rm_tied_conflicts Logical; with `rm_duplicates = TRUE`, if `TRUE`, blocks of
+#' duplicates whose conflicting names are equally frequent are removed entirely;
+#' if `FALSE`, all their records are kept. See [barroso_flag_duplicates()]
+#' (default: `FALSE`).
 #' @param index_herbariorum Logical; if `TRUE`, checks collection codes against the API
 #' of Index Herbariorum, always keeping the original codes. See
 #' [std_collection()]. Use `FALSE` to work offline (default: `TRUE`).
@@ -102,6 +111,8 @@ barroso_std <- function(...,
                         flag_missid = TRUE,
                         flag_duplicates = TRUE,
                         rm_duplicates = FALSE,
+                        specialists = NULL,
+                        rm_tied_conflicts = FALSE,
                         index_herbariorum = TRUE,
                         colname_recordedBy = "recordedBy",
                         colname_recordNumber = "recordNumber",
@@ -128,7 +139,7 @@ barroso_std <- function(...,
   # Check the arguments ####
   .check_df(df)
   .check_flag(unvouchered, delunkcoll, flag_missid, flag_duplicates, rm_duplicates,
-              index_herbariorum, rm_original_column)
+              rm_tied_conflicts, index_herbariorum, rm_original_column)
   .check_colnames(colname_recordedBy = colname_recordedBy,
                   colname_recordNumber = colname_recordNumber,
                   colname_identifiedBy = colname_identifiedBy,
@@ -253,6 +264,7 @@ barroso_std <- function(...,
   if (flag_duplicates & rm_duplicates == FALSE) {
     df <- barroso_flag_duplicates(df,
                                   rm_duplicates = FALSE,
+                                  colname_identifiedBy = colname_identifiedBy,
                                   colname_recordedBy = colname_recordedBy,
                                   colname_recordNumber = colname_recordNumber,
                                   colname_genus = colname_genus,
@@ -264,6 +276,9 @@ barroso_std <- function(...,
       flag_duplicates == FALSE & rm_duplicates) {
     df <- barroso_flag_duplicates(df,
                                   rm_duplicates = TRUE,
+                                  specialists = specialists,
+                                  rm_tied_conflicts = rm_tied_conflicts,
+                                  colname_identifiedBy = colname_identifiedBy,
                                   colname_recordedBy = colname_recordedBy,
                                   colname_recordNumber = colname_recordNumber,
                                   colname_genus = colname_genus,

@@ -6,10 +6,13 @@
 \usage{
 barroso_flag_duplicates(df,
                         rm_duplicates = FALSE,
+                        specialists = NULL,
+                        rm_tied_conflicts = FALSE,
                         colname_recordedBy = "recordedBy",
                         colname_recordNumber = "recordNumber",
                         colname_genus = "genus",
                         colname_specificEpithet = "specificEpithet",
+                        colname_identifiedBy = "identifiedBy",
                         colname_collectionCode = "collectionCode",
                         colname_catalogNumber = "catalogNumber",
                         colname_decimalLatitude = "decimalLatitude",
@@ -21,6 +24,16 @@ barroso_flag_duplicates(df,
 \item{rm_duplicates}{Logical; if \code{TRUE}, keeps just one record per block of
 duplicates (default: \code{FALSE}).}
 
+\item{specialists}{Optional character vector of names of specialists, e.g.
+\code{c("D. B. O. S. Cardoso", "H. C. Lima")}. With \code{rm_duplicates = TRUE}, in blocks
+with conflicting identifications, the records identified by them (or collected by
+them, when without determiner) are preferred. Names are compared by surname and
+first initial, so \code{"D. B. O. S. Cardoso"} matches \code{"D. Cardoso"} (default: \code{NULL}).}
+
+\item{rm_tied_conflicts}{Logical; with \code{rm_duplicates = TRUE}, if \code{TRUE}, blocks
+whose conflicting names are equally frequent, even after \code{specialists}, are removed
+entirely. If \code{FALSE}, all their records are kept (default: \code{FALSE}).}
+
 \item{colname_recordedBy}{Column name for the collector (default: \code{"recordedBy"}).}
 
 \item{colname_recordNumber}{Column name for the collector number (default: \code{"recordNumber"}).}
@@ -28,6 +41,8 @@ duplicates (default: \code{FALSE}).}
 \item{colname_genus}{Column name for the genus (default: \code{"genus"}).}
 
 \item{colname_specificEpithet}{Column name for the specific epithet (default: \code{"specificEpithet"}).}
+
+\item{colname_identifiedBy}{Column name for the determiner (default: \code{"identifiedBy"}).}
 
 \item{colname_collectionCode}{Column name for the herbarium acronym (default: \code{"collectionCode"}).}
 
@@ -67,6 +82,13 @@ genera. A duplicate identified just to genus (e.g. \code{"Ormosia"}) does not co
 with a complete name of the same genus. Names are compared exactly, so spelling
 variants (e.g. \code{"Ormosia trifoliata"} and \code{"Ormosia trifoliolata"}) are also
 flagged as conflicts, which helps finding misspelled names.
+\item \code{identificationUnresolved}: \code{TRUE} for the records of blocks with conflicting
+identifications whose name cannot be chosen by the rules below, as their names
+are equally frequent (e.g. two duplicates as \code{"Ormosia arborea"} and two as
+\code{"Ormosia fastigiata"}), even after \code{specialists}. These blocks need checking:
+with \code{rm_duplicates = TRUE} and \code{rm_tied_conflicts = FALSE}, all their records
+are kept. \code{FALSE} for the other duplicates, and \code{NA} for records that are not
+duplicates.
 \item \code{duplicateIdentifications}: all names found in the block, e.g.
 \code{"Ormosia arborea | Ormosia fastigiata"}.
 \item \code{duplicateCollectionCodes}: all herbaria of the block, e.g. \code{"MO | JBB"}.
@@ -80,12 +102,22 @@ binomial in the column \code{species} (as in GBIF downloads).
 When \code{rm_duplicates = TRUE}, one record per block is kept, chosen as follows:
 \enumerate{
 \item Records identified to species are preferred over those identified just to genus.
+\item In blocks with conflicting identifications, the records identified by one of
+the \code{specialists} are preferred, whatever the number of duplicates with other
+names. A record without determiner (\code{identifiedBy}) that was collected by a
+specialist counts as identified by the specialist.
 \item Among them, records with the most frequent identification in the block are
-preferred (e.g. the name given by two duplicates rather than by one). When
-names are equally frequent, all of them go to the next rule.
-\item Among them, records with latitude and longitude, and then records with more
-filled columns, are preferred. If records are still tied, the first one in
-the data is kept.
+preferred (e.g. the name given by two duplicates rather than by one).
+\item When two or more names are still equally frequent (e.g. two duplicates as
+\code{"Ormosia arborea"} and two as \code{"Ormosia fastigiata"}), it is not possible to
+know which name is correct, so the block is not reduced: all its records are
+kept, to be checked, as needed in taxonomic revisions and checklists. With
+\code{rm_tied_conflicts = TRUE}, as may suit macroecological analyses, the whole
+block is removed instead, and a message tells how many records and blocks were
+removed and why.
+\item Among the records with the chosen name, records with latitude and longitude,
+and then records with more filled columns, are preferred. If records are still
+tied, the first one in the data is kept.
 }
 
 The kept record still has \code{identificationConflict} and all the names, herbaria and
@@ -101,6 +133,11 @@ df_flagged <- barroso_flag_duplicates(df)
 df_flagged[df_flagged$identificationConflict \%in\% TRUE, ]
 
 df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE)
+
+# Identifications of specialists first, and tied conflicts removed
+df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE,
+                                    specialists = c("D. B. O. S. Cardoso", "H. C. Lima"),
+                                    rm_tied_conflicts = TRUE)
 }
 
 }

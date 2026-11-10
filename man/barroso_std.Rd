@@ -10,6 +10,8 @@ barroso_std(...,
             flag_missid = TRUE,
             flag_duplicates = TRUE,
             rm_duplicates = FALSE,
+            specialists = NULL,
+            rm_tied_conflicts = FALSE,
             index_herbariorum = TRUE,
             colname_recordedBy = "recordedBy",
             colname_recordNumber = "recordNumber",
@@ -43,6 +45,15 @@ observations without a specimen (\code{basisOfRecord} like \code{"HUMAN_OBSERVAT
 \item{flag_duplicates}{Logical; if \code{TRUE}, flags duplicates with a logical column (default: \code{TRUE}).}
 
 \item{rm_duplicates}{Logical; if \code{TRUE}, removes duplicate specimens (default: \code{FALSE}).}
+
+\item{specialists}{Optional character vector of names of specialists, whose
+identifications are preferred when removing duplicates with conflicting
+identifications. See \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}} (default: \code{NULL}).}
+
+\item{rm_tied_conflicts}{Logical; with \code{rm_duplicates = TRUE}, if \code{TRUE}, blocks of
+duplicates whose conflicting names are equally frequent are removed entirely;
+if \code{FALSE}, all their records are kept. See \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}}
+(default: \code{FALSE}).}
 
 \item{index_herbariorum}{Logical; if \code{TRUE}, checks collection codes against the API
 of Index Herbariorum, always keeping the original codes. See

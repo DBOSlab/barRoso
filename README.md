@@ -203,19 +203,29 @@ columns:
 - `identificationConflict` and `duplicateIdentifications`: blocks whose
   duplicates were identified as different species or genera,
   e.g. `Ormosia arborea | Swartzia apetala`
+- `identificationUnresolved`: blocks with conflicting names that are
+  equally frequent, e.g. two duplicates as `Ormosia arborea` and two as
+  `Ormosia fastigiata`, so the correct name cannot be chosen and they
+  need checking
 - `duplicateCollectionCodes` and `duplicateCatalogNumbers`: all herbaria
   and catalog numbers of each block, e.g. `MO 2839102 | JBB 13548`
 
 With `rm_duplicates = TRUE`, one record per block is kept: first the
-records identified to species, then those with the most frequent
-identification of the block, and then the one with coordinates and the
-most complete information.
+records identified to species, then, in conflicting blocks, those
+identified by the `specialists` you give, then those with the most
+frequent identification of the block, and then the one with coordinates
+and the most complete information. Conflicting names are never chosen at
+random: blocks with `identificationUnresolved = TRUE` keep all their
+records, or are removed entirely with `rm_tied_conflicts = TRUE`.
 
 ``` r
 flagged <- barroso_flag_duplicates(cleaned)
 
 # Blocks of duplicates with conflicting identifications
 subset(flagged, identificationConflict %in% TRUE)
+
+# Conflicts that need checking
+subset(flagged, identificationUnresolved %in% TRUE)
 ```
 
 ### 5. `std_coordinates()`: Fix and Flag Geographic Coordinates

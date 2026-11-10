@@ -67,3 +67,82 @@ test_that("the specific epithet is taken from a GBIF binomial in species", {
   expect_true(all(r$identificationConflict))
   expect_equal(unique(r$duplicateIdentifications), "Ormosia arborea | Ormosia | Ormosia nitida")
 })
+
+conflicts <- data.frame(
+  recordedBy = c(rep("A. Silva", 4), rep("B. Lima", 3), rep("D. Cardoso", 2), "C. Souza", "C. Souza"),
+  recordNumber = c("1", "1", "1", "1", "2", "2", "2", "3", "3", "4", "4"),
+  genus = "Ormosia",
+  specificEpithet = c("arborea", "arborea", "fastigiata", "fastigiata",
+                      "arborea", "arborea", "nitida",
+                      "arborea", "nitida", "arborea", "arborea"),
+  identifiedBy = c("J. Pereira", NA, "H. C. Lima", NA,
+                   "J. Pereira", "J. Pereira", "D. Cardoso & L. P. Queiroz",
+                   "J. Pereira", NA, NA, NA),
+  collectionCode = c("MO", "K", "RB", "NY", "MO", "K", "HUEFS", "RB", "HUEFS", "RB", "K"),
+  decimalLatitude = NA, decimalLongitude = NA)
+
+test_that("specialists resolve conflicting identifications, whatever their number", {
+  r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_duplicates = TRUE,
+                                                specialists = c("H. C. Lima", "D. B. O. S. Cardoso")))
+  sp <- function(coll) r$specificEpithet[r$recordedBy == coll]
+  # A. Silva 1: two arborea and two fastigiata, one fastigiata identified by H. C. Lima
+  expect_equal(sp("A. Silva"), "fastigiata")
+  expect_equal(r$collectionCode[r$recordedBy == "A. Silva"], "RB")
+  # B. Lima 2: two arborea, but nitida identified by D. Cardoso
+  expect_equal(sp("B. Lima"), "nitida")
+  # D. Cardoso 3: the duplicate without determiner was collected by the specialist
+  expect_equal(sp("D. Cardoso"), "nitida")
+  # C. Souza 4: no conflict
+  expect_equal(sp("C. Souza"), "arborea")
+  expect_true(all(r$identificationConflict[r$recordedBy != "C. Souza"]))
+})
+
+test_that("blocks with equally frequent names are kept, or removed with rm_tied_conflicts", {
+  expect_message(r <- barroso_flag_duplicates(conflicts, rm_duplicates = TRUE),
+                 "all 6 records of 2 blocks kept")
+  # A. Silva 1 (2 against 2) and D. Cardoso 3 (1 against 1) keep all their records
+  expect_equal(sum(r$recordedBy == "A. Silva"), 4)
+  expect_equal(sum(r$recordedBy == "D. Cardoso"), 2)
+  # B. Lima 2 has a majority name
+  expect_equal(r$specificEpithet[r$recordedBy == "B. Lima"], "arborea")
+
+  expect_message(r <- barroso_flag_duplicates(conflicts, rm_duplicates = TRUE, rm_tied_conflicts = TRUE),
+                 "6 records of 2 blocks removed")
+  expect_false(any(r$recordedBy %in% c("A. Silva", "D. Cardoso")))
+  expect_equal(nrow(r), 2)
+
+  # Without rm_duplicates, nothing is removed
+  r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_tied_conflicts = TRUE))
+  expect_equal(nrow(r), nrow(conflicts))
+  expect_error(barroso_flag_duplicates(conflicts, specialists = 1), "character vector of names")
+})
+
+test_that("barroso_std passes the specialists and rm_tied_conflicts", {
+  x <- conflicts[1:4, ]
+  x$family <- "Fabaceae"
+  r <- suppressMessages(barroso_std(x, rm_duplicates = TRUE, index_herbariorum = FALSE,
+                                    specialists = "H. C. Lima"))
+  expect_equal(nrow(r), 1)
+  expect_equal(r$specificEpithet, "fastigiata")
+  r <- suppressMessages(barroso_std(x, rm_duplicates = TRUE, index_herbariorum = FALSE,
+                                    rm_tied_conflicts = TRUE))
+  expect_equal(nrow(r), 0)
+})
+
+test_that("identificationUnresolved marks the blocks whose name cannot be chosen", {
+  r <- suppressMessages(barroso_flag_duplicates(conflicts))
+  un <- function(coll) unique(r$identificationUnresolved[r$recordedBy == coll])
+  expect_equal(names(r)[which(names(r) == "identificationConflict") + 1], "identificationUnresolved")
+  expect_true(un("A. Silva"))
+  expect_true(un("D. Cardoso"))
+  expect_false(un("B. Lima"))
+  expect_false(un("C. Souza"))
+  # Specialists resolve the ties
+  r <- suppressMessages(barroso_flag_duplicates(conflicts, specialists = c("H. C. Lima", "D. Cardoso")))
+  expect_false(any(r$identificationUnresolved, na.rm = TRUE))
+  # Kept with all their records, and easy to filter
+  r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_duplicates = TRUE))
+  expect_equal(sum(r$identificationUnresolved), 6)
+  expect_true(all(is.na(suppressMessages(barroso_flag_duplicates(dups))$identificationUnresolved[
+    !suppressMessages(barroso_flag_duplicates(dups))$duplicate])))
+})
