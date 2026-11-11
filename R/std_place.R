@@ -18,7 +18,11 @@
 #' converted into names. Missing countries are taken from the Brazilian state
 #' (e.g. `"Bahia"`), from a country name in the locality (e.g. `"Manaus, Brasil"`),
 #' or from other records with the same state and county. Brazilian and U.S.
-#' state abbreviations are expanded to full names. Missing municipalities are
+#' state abbreviations are expanded to full names. Brazilian state names written
+#' out in other ways are matched to the official names: with an `"Est. do"`,
+#' `"Estado de"` or `"State of"` prefix (e.g. `"Est. do Bahia"`), without accents
+#' or in another case (e.g. `"Paraiba"`, `"PARAIBA"`), and `"Brasilia"` for the
+#' Federal District. Missing municipalities are
 #' taken from the county. Words for municipality in `county` and `municipality`,
 #' e.g. `"Manaus Mun."`, `"Mun. de Castelo"`, `"Município de Mucugê"` or
 #' `"Arriaga Municipio"`, are removed, leaving just the name.
@@ -198,6 +202,20 @@ std_place <- function(df = NULL,
         tf <- brazil & df$stateProvince %in% acronyms
         df$stateProvince[tf] <- BrazilStates$states[match(df$stateProvince[tf], acronyms)]
       }
+
+      # Written-out variants of the state names: an "Est. do", "Estado de" or
+      # "State of" prefix ("Est. do Bahia"), missing accents or another case
+      # ("Paraiba", "PARAIBA", "Sao Paulo"), and "Brasilia" for the Federal
+      # District
+      state_key <- function(x) {
+        gsub("\\s+", " ", tolower(stringi::stri_trans_general(trimws(x), "Latin-ASCII")))
+      }
+      prefix <- "^(est(ado)?\\.?|state)\\s+((do|da|de|of)\\s+)?"
+      st_key <- sub(prefix, "", state_key(df$stateProvince))
+      st_key[st_key %in% c("brasilia", "distrito federal (brasilia)")] <- "distrito federal"
+      m <- match(st_key, state_key(BrazilStates$states))
+      tf <- brazil & !is.na(m)
+      df$stateProvince[tf] <- BrazilStates$states[m[tf]]
 
       # Further standardizing Brazilian states
       # More on ifelse expression: https://www.datamentor.io/r-programming/if-else-statement/

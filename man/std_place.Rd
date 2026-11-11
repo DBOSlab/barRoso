@@ -52,7 +52,11 @@ harmonized using \code{countrycode}, and country codes like \code{"BR"} or \code
 converted into names. Missing countries are taken from the Brazilian state
 (e.g. \code{"Bahia"}), from a country name in the locality (e.g. \code{"Manaus, Brasil"}),
 or from other records with the same state and county. Brazilian and U.S.
-state abbreviations are expanded to full names. Missing municipalities are
+state abbreviations are expanded to full names. Brazilian state names written
+out in other ways are matched to the official names: with an \code{"Est. do"},
+\code{"Estado de"} or \code{"State of"} prefix (e.g. \code{"Est. do Bahia"}), without accents
+or in another case (e.g. \code{"Paraiba"}, \code{"PARAIBA"}), and \code{"Brasilia"} for the
+Federal District. Missing municipalities are
 taken from the county. Words for municipality in \code{county} and \code{municipality},
 e.g. \code{"Manaus Mun."}, \code{"Mun. de Castelo"}, \code{"Município de Mucugê"} or
 \code{"Arriaga Municipio"}, are removed, leaving just the name.

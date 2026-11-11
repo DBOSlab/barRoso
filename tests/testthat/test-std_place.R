@@ -132,3 +132,23 @@ test_that("localities all in upper case get just the first letter of each word i
                  "Parque da Cidade, BR 101",
                  NA))
 })
+
+
+test_that("std_place standardises written-out Brazilian state names", {
+  df <- data.frame(country = "Brazil",
+                   stateProvince = c("Est. do Bahia", "Estado de S\u00e3o Paulo", "State of Goi\u00e1s",
+                                     "Est. Minas Gerais", "Paraiba", "PARAIBA", "Sao Paulo",
+                                     "Brasilia", "Bras\u00edlia", "goias"),
+                   locality = "Mata")
+  r <- suppressMessages(std_place(df))
+  expect_equal(r$stateProvince,
+               c("Bahia", "S\u00e3o Paulo", "Goi\u00e1s", "Minas Gerais", "Para\u00edba",
+                 "Para\u00edba", "S\u00e3o Paulo", "Distrito Federal", "Distrito Federal",
+                 "Goi\u00e1s"))
+})
+
+test_that("std_place leaves written-out state names of other countries alone", {
+  df <- data.frame(country = "Bolivia", stateProvince = "Est. do Bahia", locality = "Mata")
+  r <- suppressMessages(std_place(df))
+  expect_equal(r$stateProvince, "Est. do Bahia")
+})
