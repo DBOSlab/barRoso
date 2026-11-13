@@ -16,13 +16,17 @@
 #'   KEEL and adds stamen arrangement and fruit dehiscence; Asteraceae
 #'   replaces the inflorescence with capitulum + involucre and the flower
 #'   block with RAY / DISC florets + pappus; Ochnaceae uses the full
-#'   carpophore/mericarp fruit and seed-apical-hook block; Orchidaceae uses
+#'   carpophore/mericarp fruit and seed-apical-hook block; Myristicaceae has
+#'   one sentence for each organ (Petiole, Leaf blade, Staminate and Pistillate
+#'   inflorescences, Androecium, Ovary, Infructescence), with the exudate, the
+#'   leaf trichomes, the anthers and the aril; Orchidaceae uses
 #'   dorsal/lateral sepals, labellum and column. Supported groups:
 #'   \itemize{
 #'     \item "Leguminosae-Papilionoideae"
 #'     \item "Leguminosae-Caesalpinioideae"
 #'     \item "Leguminosae-Mimosoideae"
 #'     \item "Asteraceae"
+#'     \item "Myristicaceae"
 #'     \item "Ochnaceae"
 #'     \item "Orchidaceae"
 #'   }
@@ -268,6 +272,7 @@ barroso_chars_template <- function(species_df,
                  "Leguminosae-Caesalpinioideae",
                  "Leguminosae-Mimosoideae",
                  "Asteraceae",
+                 "Myristicaceae",
                  "Ochnaceae",
                  "Orchidaceae")
 
@@ -697,6 +702,106 @@ barroso_chars_template <- function(species_df,
   )
 
   # ----------------------------------------------------------------------------
+  # Myristicaceae block. Each organ is a sentence of the description, e.g.
+  # "Petiole 5-17 x 1-2 mm, canaliculate, glabrous. Leaf blade 7-20 x 2.5-6 cm,
+  # ...". Organs of two words are joined by "-", e.g. "LEAF-BLADE" for "Leaf
+  # blade". Counts are written with the lowercase words at the end of the
+  # column, e.g. "fascicles 5-15 per axis, alternate, 3-6 flowers" from "FASCICLES per axis" and "FASCICLES flowers".
+  # ----------------------------------------------------------------------------
+  myristicaceae_block <- c(
+    # HABIT
+    "HABIT",
+    "HABIT.height.(m)",
+    "HABIT.WOOD.color",
+    "HABIT.EXUDATE.color",
+    "HABIT.BRANCHLETS.indument",
+    # PETIOLE
+    "PETIOLE.length.(mm)",
+    "PETIOLE.width.(mm)",
+    "PETIOLE.shape",
+    "PETIOLE.indument",
+    # LEAF BLADE
+    "LEAF-BLADE.length.(cm)",
+    "LEAF-BLADE.width.(cm)",
+    "LEAF-BLADE.texture",
+    "LEAF-BLADE.shape",
+    "LEAF-BLADE.APEX",
+    "LEAF-BLADE.BASE",
+    "LEAF-BLADE.MARGIN",
+    "LEAF-BLADE.indument",
+    "LEAF-BLADE.surface",
+    "LEAF-BLADE.venation",
+    "LEAF-BLADE.TRICHOMES.type",
+    "LEAF-BLADE.SECONDARY-VEINS.pairs",
+    "LEAF-BLADE.SECONDARY-VEINS.elevation",
+    # STAMINATE INFLORESCENCE
+    "STAMINATE-INFLORESCENCE.position",
+    "STAMINATE-INFLORESCENCE.architecture",
+    "STAMINATE-INFLORESCENCE.indument",
+    "STAMINATE-INFLORESCENCE.TRICHOMES.type",
+    "STAMINATE-INFLORESCENCE.AXIS.length.(cm)",
+    "STAMINATE-INFLORESCENCE.AXIS.per.node",
+    "STAMINATE-INFLORESCENCE.PEDUNCLE.length.(cm)",
+    "STAMINATE-INFLORESCENCE.FASCICLES.per.axis",
+    "STAMINATE-INFLORESCENCE.FASCICLES.arrangement",
+    "STAMINATE-INFLORESCENCE.FASCICLES.flowers",
+    # PISTILLATE INFLORESCENCE
+    "PISTILLATE-INFLORESCENCE.position",
+    "PISTILLATE-INFLORESCENCE.architecture",
+    "PISTILLATE-INFLORESCENCE.indument",
+    "PISTILLATE-INFLORESCENCE.TRICHOMES.type",
+    "PISTILLATE-INFLORESCENCE.AXIS.length.(cm)",
+    "PISTILLATE-INFLORESCENCE.PEDUNCLE.length.(cm)",
+    "PISTILLATE-INFLORESCENCE.flowers.per.cluster",
+    # FLOWER
+    "FLOWER.PEDICEL.length.(mm)",
+    "FLOWER.BRACTEOLE.length.(mm)",
+    "FLOWER.BRACTEOLE.width.(mm)",
+    "FLOWER.BRACTEOLE.shape",
+    "FLOWER.PERIANTH.length.(mm)",
+    "FLOWER.PERIANTH.width.(mm)",
+    "FLOWER.PERIANTH.color",
+    "FLOWER.PERIANTH.shape",
+    "FLOWER.PERIANTH.indument",
+    "FLOWER.PERIANTH.lobes",
+    # ANDROECIUM
+    "ANDROECIUM.length.(mm)",
+    "ANDROECIUM.FILAMENT-COLUMN.length.(mm)",
+    "ANDROECIUM.ANTHERS.number",
+    "ANDROECIUM.ANTHERS.length.(mm)",
+    "ANDROECIUM.ANTHERS.arrangement",
+    # OVARY
+    "OVARY.shape",
+    "OVARY.length.(mm)",
+    "OVARY.width.(mm)",
+    "OVARY.indument",
+    "OVARY.STIGMA",
+    # INFRUCTESCENCE
+    "INFRUCTESCENCE.position",
+    "INFRUCTESCENCE.length.(cm)",
+    "INFRUCTESCENCE.indument",
+    "INFRUCTESCENCE.fruits",
+    "INFRUCTESCENCE.PEDUNCLE.length.(cm)",
+    # FRUIT
+    "FRUIT.length.(cm)",
+    "FRUIT.width.(cm)",
+    "FRUIT.color",
+    "FRUIT.indument",
+    "FRUIT.shape",
+    "FRUIT.LATERAL-EXTREMITIES",
+    "FRUIT.APEX",
+    "FRUIT.dehiscence",
+    "FRUIT.PERICARP.texture",
+    "FRUIT.PERICARP.thickness.(mm)",
+    # SEED
+    "SEED.length.(cm)",
+    "SEED.width.(cm)",
+    "SEED.shape",
+    "SEED.ARIL.color",
+    "SEED.ARIL.laciniation"
+  )
+
+  # ----------------------------------------------------------------------------
   # Orchidaceae blocks (zygomorphic with labellum + column).
   # Dorsal/lateral sepals nested *under* SEPALS so the parser treats them
   # as sub-groups (length+width combine within each, output reads
@@ -786,6 +891,7 @@ barroso_chars_template <- function(species_df,
       asteraceae_floret_block,
       asteraceae_fruit_block
     ),
+    "Myristicaceae" = myristicaceae_block,
     "Ochnaceae" = ochnaceae_block,
     "Orchidaceae" = c(
       habit_block,
@@ -821,6 +927,14 @@ barroso_chars_template <- function(species_df,
   if (!is.null(plant_group) && plant_group == "Asteraceae") {
     block_definitions$INFLORESCENCE <- "^(INFLORESCENCE|CAPITULUM|INVOLUCRE|PHYLLARIES|RECEPTACLE)"
     block_definitions$FLORET <- "^(FLORET|RAY|DISC|PAPPUS)"
+  }
+
+  # Myristicaceae organs of the leaf, inflorescences, flower and fruit
+  if (!is.null(plant_group) && plant_group == "Myristicaceae") {
+    block_definitions$LEAF <- "^(LEAF|PETIOLE)"
+    block_definitions$INFLORESCENCE <- "^(STAMINATE|PISTILLATE)"
+    block_definitions$FLOWER <- "^(FLOWER|ANDROECIUM|OVARY)"
+    block_definitions$FRUIT <- "^(INFRUCTESCENCE|FRUIT)"
   }
 
   # Add Ochnaceae-specific blocks (carpophore and mericarp under fruit)

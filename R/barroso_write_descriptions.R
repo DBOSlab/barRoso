@@ -37,10 +37,20 @@
 #' Columns with just numbers, e.g. \code{LEAF SECONDARY-VENATION pairs} with
 #' \code{"6 | 8 | 12"}, or \code{FLOWER STAMEN number} with \code{"10"}, are counts:
 #' their values are pooled into ranges, with rare values between parentheses, as
-#' the measurements. The last word of the column name is written after the range,
-#' e.g. "6–12 pairs", except "number" and "count", e.g. "stamen 8–10". Write counts in
+#' the measurements. The lowercase words at the end of the column name are written
+#' after the range, e.g. "6–12 pairs", or "fascicles 5–15 per axis" for
+#' \code{STAMINATE-INFLORESCENCE FASCICLES per axis}, except "number" and
+#' "count", e.g. "stamen 8–10". Write counts in
 #' their own columns, and any text in another column, e.g. "curved distally
 #' towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
+#'
+#' \strong{Maximum values, thickness and diameter}
+#'
+#' Measurements known only by their maximum are written as \code{"up to 5"} (or
+#' \code{"to 5"}) in all specimens of a species, and become e.g. "axis up to 5 cm
+#' long". Columns of thickness and diameter, e.g. \code{FRUIT PERICARP thickness (mm)}
+#' and \code{INFLORESCENCE CAPITULUM diameter (mm)}, are written as "1–2 mm thick" and
+#' "3–4 mm in diam.".
 #'
 #' \strong{Punctuation}
 #'
@@ -59,7 +69,9 @@
 #' \describe{
 #'   \item{\strong{Main character groups}}{Use ALL CAPS for the primary category:
 #'     \code{HABIT}, \code{STIPULE}, \code{LEAF}, \code{INFLORESCENCE},
-#'     \code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers.}
+#'     \code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers. Organs of two words are joined by a hyphen,
+#'     e.g. \code{LEAF-BLADE} and \code{STAMINATE-INFLORESCENCE} for "Leaf blade" and
+#'     "Staminate inflorescence", as are terms like \code{SECONDARY-VEINS}.}
 #'
 #'   \item{\strong{Simple characters}}{Lowercase descriptive terms after the main group.
 #'     Examples: \code{LEAF shape}, \code{LEAF margin}, \code{FLOWER symmetry}.
@@ -68,7 +80,8 @@
 #'   \item{\strong{Hierarchical characters}}{Use ALL CAPS for subgroup terms.
 #'     Examples: \code{LEAF PETIOLE length (cm)}, \code{FLOWER SEPALS shape}.
 #'     The capitalized term (\code{PETIOLE}, \code{SEPALS}) is extracted once
-#'     and used as a subheading.}
+#'     and used as a subheading, followed by its traits in the order of the columns,
+#'     e.g. "stamen 10, sessile, anthers brownish, glabrous, 5–6 × 1 mm".}
 #'
 #'   \item{\strong{Measurements}}{Include units in parentheses for automatic detection:
 #'     \code{LEAF length (cm)}, \code{STIPULE width (mm)}, \code{HABIT height (m)}.
@@ -725,7 +738,7 @@ barroso_write_descriptions <- function(xlsx_path,
                             "."))
     } else {
       sentences <- c(sentences,
-                     paste0(.upper_first_only(group$main), " ", formatted_items, "."))
+                     paste0(.upper_first_only(.term_label(group$main)), " ", formatted_items, "."))
     }
   }
   if (length(sentences) == 0L) return(paste0(species_name_parts$full_name))
@@ -743,7 +756,8 @@ barroso_write_descriptions <- function(xlsx_path,
     sep <- if (first_space && k == 2) " " else if (comma[k - 1] && comma[k]) ", " else "; "
     out <- paste0(out, sep, items[k])
   }
-  out
+  # Without a final dot, e.g. "4 mm in diam.", before the dot of the sentence
+  sub("[.]$", "", out)
 }
 
 #' @keywords internal
@@ -799,7 +813,7 @@ barroso_write_descriptions <- function(xlsx_path,
 
     if (group_idx == 1) {
       # The habit in bold (e.g. "Shrub"), followed by a space and the other traits
-      first_item <- items[1]
+      first_item <- if (length(items) == 1) .format_group_items(items) else items[1]
       first_item <- paste0(toupper(substr(first_item, 1, 1)),
                            substr(first_item, 2, nchar(first_item)))
       desc_runs <- c(desc_runs, list(officer::ftext(first_item, prop = group_prop)))
@@ -813,7 +827,7 @@ barroso_write_descriptions <- function(xlsx_path,
         desc_runs <- c(desc_runs, list(officer::ftext(" ", prop = normal_prop)))
       }
       desc_runs <- c(desc_runs,
-                     list(officer::ftext(.upper_first_only(group$main),
+                     list(officer::ftext(.upper_first_only(.term_label(group$main)),
                                          prop = group_prop)))
       desc_runs <- c(desc_runs, list(officer::ftext(" ",
                                                     prop = normal_prop)))
@@ -867,9 +881,12 @@ barroso_write_descriptions <- function(xlsx_path,
         }
       }
 
-      main_values <- character(0)
-      subgroup_values <- list()
-      group_measurements <- list()
+      # The traits of the part, in the order of the columns, under the terms below
+      # it, e.g. "" for "FLOWER STAMEN number" and "anthers" for "FLOWER STAMEN
+      # ANTHERS color", so that "stamen 10, sessile, anthers brownish, 5-6 x 1 mm"
+      keys <- character(0)
+      parts <- list()
+      measurements <- list()
       descriptors <- FALSE
 
       for (idx in group_indices) {
@@ -884,79 +901,58 @@ barroso_write_descriptions <- function(xlsx_path,
         col_hi <- col_info$hierarchy
         descriptors <- descriptors || .has_descriptor(col_cn)
 
+        key <- .term_label(paste(col_hi[-1], collapse = " "))
+        k <- match(key, keys)
+        if (is.na(k)) {
+          keys <- c(keys, key)
+          k <- length(keys)
+          parts[[k]] <- character(0)
+          measurements[k] <- list(NULL)
+        }
+
         if (col_info$is_length || col_info$is_width || col_info$is_height) {
-          group_measurements <- c(group_measurements, list(list(
+          # Length, width and height of a term are written together, where the
+          # first of them is
+          if (is.null(measurements[[k]])) {
+            parts[[k]] <- c(parts[[k]], "\001")
+            measurements[[k]] <- list()
+          }
+          measurements[[k]] <- c(measurements[[k]], list(list(
             value = col_val,
             is_length = col_info$is_length,
             is_width = col_info$is_width,
             is_height = col_info$is_height,
             unit = col_info$unit,
-            sub_hierarchy = if (length(col_hi) > 1) col_hi[-1] else character(0),
             col_name = col_cn,
             avg = row_averages[[col_cn]]
           )))
         } else {
-          if (length(col_hi) == 1) {
-            main_values <- c(main_values, col_val)
-          } else {
-            sub <- tolower(col_hi[length(col_hi)])
-            if (is.null(subgroup_values[[sub]])) subgroup_values[[sub]] <- character(0)
-            subgroup_values[[sub]] <- c(subgroup_values[[sub]], col_val)
-          }
+          parts[[k]] <- c(parts[[k]], .format_other_dim(col_cn, col_val, col_info$unit,
+                                                        approx_char))
         }
         processed[idx] <- TRUE
       }
 
-      main_measurements <- list()
-      sub_measurements <- list()
-      for (meas in group_measurements) {
-        if (length(meas$sub_hierarchy) == 0) {
-          main_measurements <- c(main_measurements, list(meas))
-        } else {
-          k <- tolower(paste(meas$sub_hierarchy, collapse = "."))
-          if (is.null(sub_measurements[[k]])) sub_measurements[[k]] <- list()
-          sub_measurements[[k]] <- c(sub_measurements[[k]], list(meas))
-        }
-      }
-
       group_parts <- character(0)
-      if (length(main_values) > 0) group_parts <- c(group_parts, main_values)
-
-      if (length(main_measurements) > 0) {
-        dims <- .collect_dims(main_measurements)
-        measurement_text <- .format_measurement_with_unit(
-          dims$len_val, dims$wid_val, dims$ht_val,
-          dims$len_unit, dims$wid_unit, dims$ht_unit,
-          len_avg = dims$len_avg, wid_avg = dims$wid_avg, ht_avg = dims$ht_avg,
-          approx_char = approx_char
-        )
-        if (nzchar(measurement_text)) group_parts <- c(group_parts, measurement_text)
-      }
-
-      if (length(subgroup_values) > 0) {
-        for (subname in sort(names(subgroup_values))) {
-          sv <- subgroup_values[[subname]]
-          if (length(sv) > 0) group_parts <- c(group_parts, paste(subname, sv))
-        }
-      }
-
-      if (length(sub_measurements) > 0) {
-        for (k in names(sub_measurements)) {
-          dims <- .collect_dims(sub_measurements[[k]])
-          measurement_text <- .format_measurement_with_unit(
+      for (k in seq_along(keys)) {
+        p <- parts[[k]]
+        if (!is.null(measurements[[k]])) {
+          dims <- .collect_dims(measurements[[k]])
+          p[p == "\001"] <- .format_measurement_with_unit(
             dims$len_val, dims$wid_val, dims$ht_val,
             dims$len_unit, dims$wid_unit, dims$ht_unit,
             len_avg = dims$len_avg, wid_avg = dims$wid_avg, ht_avg = dims$ht_avg,
             approx_char = approx_char
           )
-          if (nzchar(measurement_text)) {
-            group_parts <- c(group_parts, paste(k, measurement_text))
-          }
         }
+        p <- p[nzchar(p)]
+        if (length(p) == 0) next
+        p <- paste(p, collapse = ", ")
+        group_parts <- c(group_parts, if (nzchar(keys[k])) paste(keys[k], p) else p)
       }
 
       if (length(group_parts) > 0) {
-        items <- c(items, paste(tolower(first_level),
+        items <- c(items, paste(.term_label(first_level),
                                 paste(group_parts, collapse = ", ")))
         comma <- c(comma, !descriptors)
       }
@@ -1024,7 +1020,7 @@ barroso_write_descriptions <- function(xlsx_path,
         }
 
       } else {
-        items <- c(items, val)
+        items <- c(items, .format_other_dim(cn, val, info$unit, approx_char))
         comma <- c(comma, TRUE)
         processed[i] <- TRUE
       }
@@ -1304,8 +1300,8 @@ barroso_write_descriptions <- function(xlsx_path,
   # The last word of counts, e.g. "6–12 pairs" for "LEAF SECONDARY-VENATION pairs",
   # but not "number" or "count", e.g. "10" for "FLOWER STAMEN number"
   for (col in intersect(count_cols, char_cols)) {
-    word <- sub(".*\\s", "", col)
-    if (grepl("^[[:lower:]]+$", word) && !word %in% c("number", "numbers", "count")) {
+    word <- .count_suffix(col)
+    if (nzchar(word)) {
       tf <- !is.na(df_merged[[col]])
       df_merged[[col]][tf] <- paste(df_merged[[col]][tf], word)
     }
@@ -1361,6 +1357,11 @@ barroso_write_descriptions <- function(xlsx_path,
   values <- unlist(lapply(rest, .tokenize_numbers))
   if (length(values) == 0) values <- c(low, high)
   if (length(values) == 0) return(NA_character_)
+  fmt <- function(x) format(x, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+  # Maximum values only, e.g. "up to 5" or "to 5"
+  if (all(grepl("^\\s*(up\\s+)?to\\s+[0-9]+([.][0-9]+)?\\s*$", cells, ignore.case = TRUE))) {
+    return(paste("up to", fmt(max(values))))
+  }
 
   values <- sort(values)
   n <- length(values)
@@ -1376,7 +1377,6 @@ barroso_write_descriptions <- function(xlsx_path,
   low <- low[low < from]
   high <- high[high > to]
 
-  fmt <- function(x) format(x, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
   paste0(if (length(low) > 0) paste0("(", fmt(min(low)), "\u2013)"),
          fmt(from),
          if (to > from) paste0("\u2013", fmt(to)),
@@ -1398,3 +1398,44 @@ barroso_write_descriptions <- function(xlsx_path,
     paste0(min_val, sep, max_val)
   }, USE.NAMES = FALSE)
 }
+
+
+#' Terms in upper case written in the descriptions, e.g. "secondary veins" for
+#' "SECONDARY-VEINS" and "Leaf blade" for the organ "LEAF-BLADE"
+#' @keywords internal
+#' @noRd
+.term_label <- function(x) {
+  tolower(gsub("-", " ", x))
+}
+
+#' Measurements other than length, width and height, written alone, e.g.
+#' "1\u20132 mm thick" for "FRUIT PERICARP thickness (mm)" and "3 mm in diam." for
+#' "INFLORESCENCE CAPITULUM diameter (mm)". Other values are kept as they are.
+#' @keywords internal
+#' @noRd
+.format_other_dim <- function(col_name, value, unit = "", approx_char = NULL) {
+  words <- tolower(strsplit(gsub("[()]", " ", col_name), "\\s+")[[1]])
+  word <- if (any(words %in% c("thickness", "thick"))) "thick" else
+    if (any(words %in% c("diameter", "diam"))) "in diam." else ""
+  if (!nzchar(word) || !grepl("^[0-9(]", value)) return(value)
+  prefix <- if (!is.null(approx_char) && nzchar(approx_char) && !.has_variation(value))
+    paste0(approx_char, " ") else ""
+  paste0(prefix, value, if (nzchar(unit)) paste0(" ", unit), " ", word)
+}
+
+#' The words written after a count, i.e. the lowercase words at the end of the
+#' column name, e.g. "pairs" for "LEAF SECONDARY-VENATION pairs" and "flowers per
+#' fascicle" for "STAMINATE-INFLORESCENCE flowers per fascicle", but nothing for
+#' "FLOWER STAMEN number"
+#' @keywords internal
+#' @noRd
+.count_suffix <- function(col_name) {
+  words <- strsplit(stringr::str_squish(col_name), "\\s+")[[1]][-1]
+  lower <- grepl("^[[:lower:]]+$", words)
+  if (length(words) == 0 || !lower[length(words)]) return("")
+  first <- max(c(0, which(!lower))) + 1
+  words <- words[first:length(words)]
+  if (words[length(words)] %in% c("number", "numbers", "count")) return("")
+  paste(words, collapse = " ")
+}
+

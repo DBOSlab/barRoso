@@ -28,7 +28,8 @@ barroso_std(...,
             colname_family = "family",
             colname_genus = "genus",
             colname_specificEpithet = "specificEpithet",
-            rm_original_column = TRUE)
+            rm_original_column = TRUE,
+            std_collection = TRUE)
 }
 \arguments{
 \item{...}{Input data frame containing raw biodiversity records.}
@@ -92,6 +93,9 @@ standardized with \code{\link[=std_identifiedBy]{std_identifiedBy()}} only when 
 
 \item{rm_original_column}{Logical; if \code{TRUE}, remove original columns after standardization,
 except that of collection codes when \code{index_herbariorum = TRUE}.}
+
+\item{std_collection}{Logical; if \code{FALSE}, the function will not standardize
+the collection codes according to Index Herbariorum.}
 }
 \value{
 A fully cleaned and standardized data frame ready for downstream reconciliation,

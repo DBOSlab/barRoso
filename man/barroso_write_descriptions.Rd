@@ -151,10 +151,20 @@ With fewer values, the range goes from the smallest to the largest value.}
 Columns with just numbers, e.g. \code{LEAF SECONDARY-VENATION pairs} with
 \code{"6 | 8 | 12"}, or \code{FLOWER STAMEN number} with \code{"10"}, are counts:
 their values are pooled into ranges, with rare values between parentheses, as
-the measurements. The last word of the column name is written after the range,
-e.g. "6–12 pairs", except "number" and "count", e.g. "stamen 8–10". Write counts in
+the measurements. The lowercase words at the end of the column name are written
+after the range, e.g. "6–12 pairs", or "fascicles 5–15 per axis" for
+\code{STAMINATE-INFLORESCENCE FASCICLES per axis}, except "number" and
+"count", e.g. "stamen 8–10". Write counts in
 their own columns, and any text in another column, e.g. "curved distally
 towards the marginal vein" in \code{LEAF SECONDARY-VENATION}.
+
+\strong{Maximum values, thickness and diameter}
+
+Measurements known only by their maximum are written as \code{"up to 5"} (or
+\code{"to 5"}) in all specimens of a species, and become e.g. "axis up to 5 cm
+long". Columns of thickness and diameter, e.g. \code{FRUIT PERICARP thickness (mm)}
+and \code{INFLORESCENCE CAPITULUM diameter (mm)}, are written as "1–2 mm thick" and
+"3–4 mm in diam.".
 
 \strong{Punctuation}
 
@@ -173,7 +183,9 @@ morphological traits. Columns must follow these conventions:
 \describe{
 \item{\strong{Main character groups}}{Use ALL CAPS for the primary category:
 \code{HABIT}, \code{STIPULE}, \code{LEAF}, \code{INFLORESCENCE},
-\code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers.}
+\code{FLOWER}, \code{FRUIT}, \code{SEED}. These will become section headers. Organs of two words are joined by a hyphen,
+e.g. \code{LEAF-BLADE} and \code{STAMINATE-INFLORESCENCE} for "Leaf blade" and
+"Staminate inflorescence", as are terms like \code{SECONDARY-VEINS}.}
 
 \item{\strong{Simple characters}}{Lowercase descriptive terms after the main group.
 Examples: \code{LEAF shape}, \code{LEAF margin}, \code{FLOWER symmetry}.
@@ -182,7 +194,8 @@ These will be appended directly after the lowercase group name.}
 \item{\strong{Hierarchical characters}}{Use ALL CAPS for subgroup terms.
 Examples: \code{LEAF PETIOLE length (cm)}, \code{FLOWER SEPALS shape}.
 The capitalized term (\code{PETIOLE}, \code{SEPALS}) is extracted once
-and used as a subheading.}
+and used as a subheading, followed by its traits in the order of the columns,
+e.g. "stamen 10, sessile, anthers brownish, glabrous, 5–6 × 1 mm".}
 
 \item{\strong{Measurements}}{Include units in parentheses for automatic detection:
 \code{LEAF length (cm)}, \code{STIPULE width (mm)}, \code{HABIT height (m)}.

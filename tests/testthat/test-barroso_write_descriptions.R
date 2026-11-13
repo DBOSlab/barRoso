@@ -34,8 +34,9 @@ test_that("duplicate specimens are merged into one description per species", {
   concinna <- res$description_plain[1]
   # Habit first, without organ name, with ranges merged across specimens
   expect_match(concinna, "\n\nShrub or Treelet 1–3 m tall.", fixed = TRUE)
-  # Length and width merged into one measurement, final punctuation removed from cells
-  expect_match(concinna, "Leaf blade elliptic or oblong, 10–14 × 3–5 cm, apex acute.", fixed = TRUE)
+  # Length and width merged into one measurement, in the order of the columns, with
+  # final punctuation removed from cells
+  expect_match(concinna, "Leaf blade 10–14 × 3–5 cm, elliptic or oblong, apex acute.", fixed = TRUE)
   # Values without variation get approx_char
   expect_match(res$description_plain[2], "Tree ca. 5 m tall", fixed = TRUE)
   expect_match(res$description_plain[2], "ca. 20 × 8 cm", fixed = TRUE)
@@ -252,7 +253,7 @@ test_that("length, width and height are combined in all ways", {
   # FRUIT is the first group here, so it is written as the habit, without its name
   expect_match(r$description_plain, "3\u20135 \u00d7 1\u20132 \u00d7 0.5\u20131.5 cm, average 1 cm tall",
                fixed = TRUE)
-  expect_match(r$description_plain, "surface flat, 1\u20133 mm tall, average 2 mm tall", fixed = TRUE)
+  expect_match(r$description_plain, "surface 1\u20133 mm tall, average 2 mm tall, flat", fixed = TRUE)
 })
 
 test_that("internal helpers handle empty and unusual cells", {
@@ -278,3 +279,48 @@ test_that("internal helpers handle empty and unusual cells", {
   expect_equal(barRoso:::.simplify_measurement_range(c("1, 3 or 2", "4", NA, "abc")),
                c("1\u20133", "4", NA, NA))
 })
+
+test_that("organs of two words, counts with several words, maxima and thickness are written", {
+  dir <- withr::local_tempdir()
+  df <- data.frame(Genus = "Virola", Species = c("sp. 1", "sp. 1"),
+                   HABIT = "trees", `HABIT height (m)` = c("to 12", "up to 20"),
+                   `LEAF-BLADE length (cm)` = c("7", "20"), `LEAF-BLADE texture` = "chartaceous",
+                   `LEAF-BLADE SECONDARY-VEINS pairs` = c("10 | 12", "18"),
+                   `STAMINATE-INFLORESCENCE AXIS length (cm)` = c("to 3", "to 5"),
+                   `STAMINATE-INFLORESCENCE AXIS per node` = c("1", "2"),
+                   `STAMINATE-INFLORESCENCE FASCICLES flowers` = c("3", "6"),
+                   `FRUIT PERICARP texture` = "rugose", `FRUIT PERICARP thickness (mm)` = c("1", "2"),
+                   `SEED diameter (mm)` = "4",
+                   check.names = FALSE)
+  path <- file.path(dir, "myristicaceae.xlsx")
+  openxlsx::write.xlsx(df, path)
+  r <- barroso_write_descriptions(path, species_cols = 1:2, character_cols = 3:ncol(df),
+                                  dir = dir, verbose = FALSE)$description_plain
+  expect_match(r, "Trees up to 20 m tall.", fixed = TRUE)
+  expect_match(r, "Leaf blade 7\u201320 cm long, chartaceous; secondary veins 10\u201318 pairs.",
+               fixed = TRUE)
+  expect_match(r, "Staminate inflorescence axis up to 5 cm long, 1\u20132 per node; fascicles 3\u20136 flowers.",
+               fixed = TRUE)
+  expect_match(r, "Fruit pericarp rugose, 1\u20132 mm thick.", fixed = TRUE)
+  expect_match(r, "Seed ca. 4 mm in diam.$")
+
+  expect_equal(barRoso:::.count_suffix("FLOWER STAMEN number"), "")
+  expect_equal(barRoso:::.count_suffix("STAMINATE-INFLORESCENCE flowers per fascicle"),
+               "flowers per fascicle")
+  expect_equal(barRoso:::.count_suffix("FLOWER STAMEN"), "")
+  expect_equal(barRoso:::.format_other_dim("FRUIT shape", "ovoid"), "ovoid")
+  expect_equal(barRoso:::.format_other_dim("FRUIT PERICARP thickness (mm)", "thin", "mm"), "thin")
+  expect_equal(barRoso:::.term_label("LEAF-BLADE"), "leaf blade")
+})
+
+test_that("the Myristicaceae template has the columns of the descriptions", {
+  cols <- barRoso:::.taxon_template_columns("Myristicaceae")
+  expect_true(all(c("PETIOLE.length.(mm)", "LEAF-BLADE.SECONDARY-VEINS.pairs",
+                    "STAMINATE-INFLORESCENCE.FASCICLES.per.axis", "ANDROECIUM.ANTHERS.number",
+                    "FRUIT.PERICARP.thickness.(mm)", "SEED.ARIL.color") %in% cols))
+  groups <- barRoso:::.extract_trait_groups(cols, "Myristicaceae")
+  expect_true(all(c("PETIOLE.shape", "LEAF-BLADE.shape") %in% groups$LEAF))
+  expect_true(all(c("ANDROECIUM.length.(mm)", "OVARY.STIGMA") %in% groups$FLOWER))
+  expect_true("INFRUCTESCENCE.fruits" %in% groups$FRUIT)
+})
+

@@ -47,7 +47,8 @@
 #'             colname_family = "family",
 #'             colname_genus = "genus",
 #'             colname_specificEpithet = "specificEpithet",
-#'             rm_original_column = TRUE)
+#'             rm_original_column = TRUE,
+#'             std_collection = TRUE)
 #'
 #' @param ... Input data frame containing raw biodiversity records.
 #' @param unvouchered Logical; if `TRUE`, remove records of wood, seed, fruit,
@@ -86,6 +87,8 @@
 #' @param colname_specificEpithet Column name for specific epithet.
 #' @param rm_original_column Logical; if `TRUE`, remove original columns after standardization,
 #' except that of collection codes when `index_herbariorum = TRUE`.
+#' @param std_collection Logical; if `FALSE`, the function will not standardize
+#' the collection codes according to Index Herbariorum.
 #'
 #' @return A fully cleaned and standardized data frame ready for downstream reconciliation,
 #' duplicate handling, and label generation.
@@ -129,7 +132,8 @@ barroso_std <- function(...,
                         colname_family = "family",
                         colname_genus = "genus",
                         colname_specificEpithet = "specificEpithet",
-                        rm_original_column = TRUE) {
+                        rm_original_column = TRUE,
+                        std_collection = TRUE) {
 
   # Get the name of the input dataset
   namedsource <- .namedherbsource(...)
@@ -213,11 +217,13 @@ barroso_std <- function(...,
 
     # Standardizing herbarium acronyms within the column collectionCode ####
     # The asterisk will mark all collections without acronym from Index Herbariorum
-    cleaned_df[[i]] <- std_collection(df = cleaned_df[[i]],
-                                      colname_collectionCode = colname_collectionCode,
-                                      colname_institutionCode = colname_institutionCode,
-                                      index_herbariorum = index_herbariorum,
-                                      rm_original_column = rm_original_column)
+    if (std_collection) {
+      cleaned_df[[i]] <- std_collection(df = cleaned_df[[i]],
+                                        colname_collectionCode = colname_collectionCode,
+                                        colname_institutionCode = colname_institutionCode,
+                                        index_herbariorum = index_herbariorum,
+                                        rm_original_column = rm_original_column)
+    }
 
     # Standardizing place-related columns ####
     # continent, country, stateProvince, county and municipality

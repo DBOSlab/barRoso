@@ -79,13 +79,17 @@ Leguminosae-Papilionoideae swaps generic petals for STANDARD / WING /
 KEEL and adds stamen arrangement and fruit dehiscence; Asteraceae
 replaces the inflorescence with capitulum + involucre and the flower
 block with RAY / DISC florets + pappus; Ochnaceae uses the full
-carpophore/mericarp fruit and seed-apical-hook block; Orchidaceae uses
+carpophore/mericarp fruit and seed-apical-hook block; Myristicaceae has
+one sentence for each organ (Petiole, Leaf blade, Staminate and Pistillate
+inflorescences, Androecium, Ovary, Infructescence), with the exudate, the
+leaf trichomes, the anthers and the aril; Orchidaceae uses
 dorsal/lateral sepals, labellum and column. Supported groups:
 \itemize{
 \item "Leguminosae-Papilionoideae"
 \item "Leguminosae-Caesalpinioideae"
 \item "Leguminosae-Mimosoideae"
 \item "Asteraceae"
+\item "Myristicaceae"
 \item "Ochnaceae"
 \item "Orchidaceae"
 }
