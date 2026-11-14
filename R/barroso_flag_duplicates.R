@@ -190,19 +190,7 @@ barroso_flag_duplicates <- function(df,
 
   #_____________________________________________________________________________
   # Blocks of duplicates ####
-  # Same collector and number, or same species, collector and date when the
-  # number is missing
-  known_coll <- !is.na(coll) & !coll %in% "Unknown"
-  key <- rep(NA_character_, n)
-  tf <- known_coll & !is.na(num)
-  key[tf] <- paste("number", coll[tf], num[tf], sep = "\r")
-  if (all(c("year", "month", "day") %in% names(df))) {
-    y <- .col_or_na(df, "year")
-    m <- .col_or_na(df, "month")
-    d <- .col_or_na(df, "day")
-    tf <- known_coll & is.na(num) & !is.na(species) & !is.na(y) & !is.na(m) & !is.na(d)
-    key[tf] <- paste("date", species[tf], coll[tf], y[tf], m[tf], d[tf], sep = "\r")
-  }
+  key <- .duplicate_key(df, coll, num, species)
 
   size <- as.integer(table(key)[key])
   duplicate <- !is.na(size) & size > 1
@@ -217,10 +205,7 @@ barroso_flag_duplicates <- function(df,
 
   code <- .col_or_na(df, colname_collectionCode)
   catalog <- .col_or_na(df, colname_catalogNumber)
-  code_catalog <- ifelse(is.na(catalog), code,
-                         ifelse(is.na(code) | startsWith(catalog, code) |
-                                  startsWith(catalog, gsub("[^[:alnum:]]", "", code)), catalog,
-                                paste(code, catalog)))
+  code_catalog <- .code_catalog(code, catalog)
 
   collapse <- function(x) {
     x <- unique(x[!is.na(x)])
@@ -245,21 +230,10 @@ barroso_flag_duplicates <- function(df,
 
   # Records identified by each specialist, or collected by them (also as additional
   # collectors) when without determiner, and records of their taxa of expertise
-  by_person <- in_taxa <- matrix(FALSE, n, 0)
-  if (!is.null(specialists)) {
-    det <- .col_or_na(df, colname_identifiedBy)
-    add <- .col_or_na(df, colname_addCollector)
-    people <- unique(specialists$specialist)
-    by_person <- vapply(people, function(p) {
-      .is_specialist(det, p) |
-        (is.na(det) & (.is_specialist(coll, p) | .is_specialist(add, p)))
-    }, logical(n))
-    in_taxa <- vapply(people, function(p) {
-      .in_taxa(specialists$taxon[specialists$specialist == p],
-               .col_or_na(df, colname_family), genus, species)
-    }, logical(n))
-    dim(by_person) <- dim(in_taxa) <- c(n, length(people))
-  }
+  spec <- .specialist_matrices(df, specialists, coll, genus, species,
+                               colname_identifiedBy, colname_addCollector, colname_family)
+  by_person <- spec$identified | spec$collected
+  in_taxa <- spec$in_taxa
 
   blocks <- rows[startsWith(names(rows), "g")]
   choice <- lapply(blocks, function(i) {
@@ -395,5 +369,56 @@ barroso_flag_duplicates <- function(df,
   i <- !is.na(x) & x %in% names(alt)
   x[i] <- alt[x[i]]
   x
+}
+
+
+# Blocks of duplicates: same collector and number, or same species, collector and
+# date when the number is missing. Unknown collectors are never grouped ####
+.duplicate_key <- function(df, coll, num, species) {
+  known_coll <- !is.na(coll) & !coll %in% "Unknown"
+  key <- rep(NA_character_, nrow(df))
+  tf <- known_coll & !is.na(num)
+  key[tf] <- paste("number", coll[tf], num[tf], sep = "\r")
+  if (all(c("year", "month", "day") %in% names(df))) {
+    y <- .col_or_na(df, "year")
+    m <- .col_or_na(df, "month")
+    d <- .col_or_na(df, "day")
+    tf <- known_coll & is.na(num) & !is.na(species) & !is.na(y) & !is.na(m) & !is.na(d)
+    key[tf] <- paste("date", species[tf], coll[tf], y[tf], m[tf], d[tf], sep = "\r")
+  }
+  key
+}
+
+# Herbarium with its catalog number, e.g. "MO 2839102", or the catalog number
+# alone when it starts with the acronym, e.g. "RB00123" ####
+.code_catalog <- function(code, catalog) {
+  ifelse(is.na(catalog), code,
+         ifelse(is.na(code) | startsWith(catalog, code) |
+                  startsWith(catalog, gsub("[^[:alnum:]]", "", code)), catalog,
+                paste(code, catalog)))
+}
+
+# Matrices (records x specialists) of the records identified by each specialist,
+# collected by them when without determiner (also as additional collectors), and
+# of their taxa of expertise ####
+.specialist_matrices <- function(df, specialists, coll, genus, species,
+                                 colname_identifiedBy = "identifiedBy",
+                                 colname_addCollector = "addCollector",
+                                 colname_family = "family") {
+  n <- nrow(df)
+  people <- unique(specialists$specialist)
+  empty <- matrix(FALSE, n, length(people), dimnames = list(NULL, people))
+  out <- list(identified = empty, collected = empty, in_taxa = empty)
+  if (length(people) == 0) return(out)
+  det <- .col_or_na(df, colname_identifiedBy)
+  add <- .col_or_na(df, colname_addCollector)
+  family <- .col_or_na(df, colname_family)
+  for (p in people) {
+    out$identified[, p] <- .is_specialist(det, p)
+    out$collected[, p] <- is.na(det) & (.is_specialist(coll, p) | .is_specialist(add, p))
+    out$in_taxa[, p] <- .in_taxa(specialists$taxon[specialists$specialist == p],
+                                 family, genus, species)
+  }
+  out
 }
 

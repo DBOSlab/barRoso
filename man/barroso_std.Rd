@@ -11,7 +11,10 @@ barroso_std(...,
             flag_duplicates = TRUE,
             rm_duplicates = FALSE,
             specialists = NULL,
+            flag_specialists = FALSE,
             rm_tied_conflicts = FALSE,
+            database = NULL,
+            match_collectors = TRUE,
             index_herbariorum = TRUE,
             colname_recordedBy = "recordedBy",
             colname_recordNumber = "recordNumber",
@@ -53,10 +56,26 @@ observations without a specimen (\code{basisOfRecord} like \code{"HUMAN_OBSERVAT
 identifications are preferred when removing duplicates with conflicting
 identifications. See \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}} (default: \code{NULL}).}
 
+\item{flag_specialists}{Logical; if \code{TRUE}, the records identified by the
+\code{specialists} are flagged in the columns \code{specialistIdentification},
+\code{specialistName} and \code{specialistEvidence}, before duplicates are removed, so that
+a record kept from a block of duplicates is flagged when one of its duplicates
+with the same name was identified by a specialist. See \code{\link[=barroso_flag_specialists]{barroso_flag_specialists()}}
+(default: \code{FALSE}).}
+
 \item{rm_tied_conflicts}{Logical; with \code{rm_duplicates = TRUE}, if \code{TRUE}, blocks of
 duplicates whose conflicting names are equally frequent are removed entirely;
 if \code{FALSE}, all their records are kept. See \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}}
 (default: \code{FALSE}).}
+
+\item{database}{Optional data frame, or path to an .xlsx, .csv or .rds file, with
+records already standardized by \code{barroso_std()}, to which the new records are
+added. See Details (default: \code{NULL}).}
+
+\item{match_collectors}{Logical; if \code{TRUE}, the same collector written in other
+ways across the whole data, e.g. \code{"L. Queiroz"} and \code{"L. P. Queiroz"}, or
+\code{"A. D. Salinas"}, \code{"A. Delgado Salinas"} and \code{"A. Delgado-Salinas"}, gets the most
+complete name, before duplicates are found. See Details (default: \code{TRUE}).}
 
 \item{index_herbariorum}{Logical; if \code{TRUE}, checks collection codes against the API
 of Index Herbariorum, always keeping the original codes. See
@@ -116,6 +135,52 @@ package to clean records from virtual herbaria and biodiversity portals. It
 handles multilingual field names, missing data, inconsistent formatting,
 and dataset chunking for large inputs. The function also detects and optionally
 removes duplicate records and specimens lacking voucher information.
+
+\strong{The same collector written in other ways}
+
+After standardizing, the same collector can still be written in other ways, e.g.
+\code{"L. Queiroz"} and \code{"L. P. Queiroz"}, which may be two people with the same
+collector number by chance, e.g. Luis Queiroz and Luciano Paganucci de Queiroz. So,
+with \code{match_collectors = TRUE}, a deep search is made across the whole data (not in
+chunks) for records with the same first initial, surname and collector number, but
+written in other ways. Compound surnames are compared in the same form, e.g.
+\code{"A. Delgado-Salinas"}, \code{"A. Delgado Salinas"} and \code{"A. D. Salinas"} all as initials
+\verb{A D} and surname \code{Salinas}. A record gets the most complete name (with more
+initials, then the longest, e.g. \code{"A. Delgado-Salinas"}) only when:
+\itemize{
+\item its initials are among those of the complete name, with the same first initial,
+e.g. \code{"L."} in \code{"L. P."}, but not \code{"L. M."} in \code{"L. P."};
+\item it has the same date (day, month and year) or the same municipality of a record
+with the complete name, which shows that they are the same collection;
+\item its initials are not among those of two different complete names, e.g.
+\code{"L. Queiroz"} with \code{"L. P. Queiroz"} and \code{"L. M. Queiroz"}, as then the collector
+cannot be known.
+}
+
+\strong{Updating a database}
+
+With \code{database}, new downloads are added to a database already standardized by
+\code{barroso_std()}, e.g. after duplicates were removed and records were corrected by
+hand, without standardizing it again and without losing the corrections:
+\enumerate{
+\item New records already in the database are removed by their identifiers, the
+same \code{occurrenceID} (or \code{gbifID}, when present) of the same \code{datasource}.
+\item The other new records are standardized as usual.
+\item New records whose herbarium and catalog number, e.g. \code{"MO 2839102"}, are in
+the database, in \code{catalogNumber} or among the duplicates of its records
+(\code{duplicateCatalogNumbers}), are removed, as they are the same herbarium sheet.
+\item Duplicates are flagged (and removed, with \code{rm_duplicates = TRUE}) among the new
+records.
+\item New records that are duplicates of a record of the database (same collector and
+number) are added to its duplicate columns, e.g. their herbaria and catalog
+numbers to \code{duplicateCollectionCodes} and \code{duplicateCatalogNumbers}, and, with
+\code{rm_duplicates = TRUE}, removed. A different name sets \code{identificationConflict},
+but the name of the database is kept.
+}
+
+The records of the database are not changed, except their duplicate columns in
+step 5. The result has the records of the database and the new records, with the
+column \code{newRecord} (\code{TRUE} for the new records), so that they can be checked.
 
 The final data frame is sorted by species, \code{recordedBy} and \code{recordNumber}. All
 records of a block of duplicates stay together under the name of the block, which

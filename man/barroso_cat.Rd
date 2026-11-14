@@ -62,6 +62,14 @@ recognized in all sources, e.g. \code{"MOBOT_BR"} in speciesLink and \code{"MO"}
 \code{collectionCodeOriginal}, so unvouchered collections like \code{"INPA-Carpoteca"} can
 still be removed by \code{\link[=barroso_std]{barroso_std()}}.
 
+The identifiers of the records in their sources, \code{occurrenceID} in GBIF, REFLORA
+and JABOT (and \code{gbifID} in GBIF), are kept as they are, with the source of each
+record in \code{datasource}, so that the records already in a database can be found when
+it is updated with new downloads (see the argument \code{database} of \code{\link[=barroso_std]{barroso_std()}}).
+Records without a unique identifier, from any source (e.g. speciesLink downloads
+made with plantR, or some GBIF records without \code{gbifID}), are compared with the
+database by their catalog numbers instead, and a message tells how many there are.
+
 Columns with different types across sources (e.g. numeric \code{year} in one source
 and character in another) are combined as character. A column \code{datasource}
 records the source of each record.

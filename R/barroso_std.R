@@ -16,6 +16,48 @@
 #' and dataset chunking for large inputs. The function also detects and optionally
 #' removes duplicate records and specimens lacking voucher information.
 #'
+#' \strong{The same collector written in other ways}
+#'
+#' After standardizing, the same collector can still be written in other ways, e.g.
+#' `"L. Queiroz"` and `"L. P. Queiroz"`, which may be two people with the same
+#' collector number by chance, e.g. Luis Queiroz and Luciano Paganucci de Queiroz. So,
+#' with `match_collectors = TRUE`, a deep search is made across the whole data (not in
+#' chunks) for records with the same first initial, surname and collector number, but
+#' written in other ways. Compound surnames are compared in the same form, e.g.
+#' `"A. Delgado-Salinas"`, `"A. Delgado Salinas"` and `"A. D. Salinas"` all as initials
+#' `A D` and surname `Salinas`. A record gets the most complete name (with more
+#' initials, then the longest, e.g. `"A. Delgado-Salinas"`) only when:
+#' - its initials are among those of the complete name, with the same first initial,
+#'   e.g. `"L."` in `"L. P."`, but not `"L. M."` in `"L. P."`;
+#' - it has the same date (day, month and year) or the same municipality of a record
+#'   with the complete name, which shows that they are the same collection;
+#' - its initials are not among those of two different complete names, e.g.
+#'   `"L. Queiroz"` with `"L. P. Queiroz"` and `"L. M. Queiroz"`, as then the collector
+#'   cannot be known.
+#'
+#' \strong{Updating a database}
+#'
+#' With `database`, new downloads are added to a database already standardized by
+#' `barroso_std()`, e.g. after duplicates were removed and records were corrected by
+#' hand, without standardizing it again and without losing the corrections:
+#' 1. New records already in the database are removed by their identifiers, the
+#'    same `occurrenceID` (or `gbifID`, when present) of the same `datasource`.
+#' 2. The other new records are standardized as usual.
+#' 3. New records whose herbarium and catalog number, e.g. `"MO 2839102"`, are in
+#'    the database, in `catalogNumber` or among the duplicates of its records
+#'    (`duplicateCatalogNumbers`), are removed, as they are the same herbarium sheet.
+#' 4. Duplicates are flagged (and removed, with `rm_duplicates = TRUE`) among the new
+#'    records.
+#' 5. New records that are duplicates of a record of the database (same collector and
+#'    number) are added to its duplicate columns, e.g. their herbaria and catalog
+#'    numbers to `duplicateCollectionCodes` and `duplicateCatalogNumbers`, and, with
+#'    `rm_duplicates = TRUE`, removed. A different name sets `identificationConflict`,
+#'    but the name of the database is kept.
+#'
+#' The records of the database are not changed, except their duplicate columns in
+#' step 5. The result has the records of the database and the new records, with the
+#' column `newRecord` (`TRUE` for the new records), so that they can be checked.
+#'
 #' The final data frame is sorted by species, `recordedBy` and `recordNumber`. All
 #' records of a block of duplicates stay together under the name of the block, which
 #' is the most frequent name among its duplicates. For example, a duplicate identified
@@ -30,7 +72,10 @@
 #'             flag_duplicates = TRUE,
 #'             rm_duplicates = FALSE,
 #'             specialists = NULL,
+#'             flag_specialists = FALSE,
 #'             rm_tied_conflicts = FALSE,
+#'             database = NULL,
+#'             match_collectors = TRUE,
 #'             index_herbariorum = TRUE,
 #'             colname_recordedBy = "recordedBy",
 #'             colname_recordNumber = "recordNumber",
@@ -64,6 +109,19 @@
 #' `data.frame(specialist = "D. B. O. S. Cardoso", taxon = "Leguminosae")`, whose
 #' identifications are preferred when removing duplicates with conflicting
 #' identifications. See [barroso_flag_duplicates()] (default: `NULL`).
+#' @param flag_specialists Logical; if `TRUE`, the records identified by the
+#' `specialists` are flagged in the columns `specialistIdentification`,
+#' `specialistName` and `specialistEvidence`, before duplicates are removed, so that
+#' a record kept from a block of duplicates is flagged when one of its duplicates
+#' with the same name was identified by a specialist. See [barroso_flag_specialists()]
+#' (default: `FALSE`).
+#' @param database Optional data frame, or path to an .xlsx, .csv or .rds file, with
+#' records already standardized by `barroso_std()`, to which the new records are
+#' added. See Details (default: `NULL`).
+#' @param match_collectors Logical; if `TRUE`, the same collector written in other
+#' ways across the whole data, e.g. `"L. Queiroz"` and `"L. P. Queiroz"`, or
+#' `"A. D. Salinas"`, `"A. Delgado Salinas"` and `"A. Delgado-Salinas"`, gets the most
+#' complete name, before duplicates are found. See Details (default: `TRUE`).
 #' @param rm_tied_conflicts Logical; with `rm_duplicates = TRUE`, if `TRUE`, blocks of
 #' duplicates whose conflicting names are equally frequent are removed entirely;
 #' if `FALSE`, all their records are kept. See [barroso_flag_duplicates()]
@@ -117,7 +175,10 @@ barroso_std <- function(...,
                         flag_duplicates = TRUE,
                         rm_duplicates = FALSE,
                         specialists = NULL,
+                        flag_specialists = FALSE,
                         rm_tied_conflicts = FALSE,
+                        database = NULL,
+                        match_collectors = TRUE,
                         index_herbariorum = TRUE,
                         colname_recordedBy = "recordedBy",
                         colname_recordNumber = "recordNumber",
@@ -145,8 +206,13 @@ barroso_std <- function(...,
   # Check the arguments ####
   .check_df(df)
   .check_flag(unvouchered, delunkcoll, flag_missid, flag_duplicates, rm_duplicates,
-              rm_tied_conflicts, index_herbariorum, rm_original_column)
+              rm_tied_conflicts, index_herbariorum, rm_original_column, flag_specialists,
+              match_collectors)
   specialists <- .check_specialists(specialists)
+  if (flag_specialists && is.null(specialists)) {
+    stop(paste("Please give the `specialists` to flag their identifications, a data frame",
+               "with the columns specialist and taxon."), call. = FALSE)
+  }
   .check_colnames(colname_recordedBy = colname_recordedBy,
                   colname_recordNumber = colname_recordNumber,
                   colname_identifiedBy = colname_identifiedBy,
@@ -165,6 +231,15 @@ barroso_std <- function(...,
   .check_cols(df, colname_recordedBy = colname_recordedBy,
               colname_recordNumber = colname_recordNumber)
   l_df = nrow(df)
+
+  #_____________________________________________________________________________
+  # Records already in the database, by their identifiers ####
+  if (!is.null(database)) {
+    database <- .read_database(database)
+    df <- .rm_by_id(df, database)
+    if (nrow(df) == 0) return(.no_new_records(database))
+    l_df <- nrow(df)
+  }
 
   #_____________________________________________________________________________
   # Standardizing and cleaning the database ####
@@ -264,6 +339,16 @@ barroso_std <- function(...,
     df <- std_dates(df = df, rm_original_column = rm_original_column)
   }
 
+  #_____________________________________________________________________________
+  # Deep search for the same collector written in other ways across the whole
+  # database, e.g. "L. Queiroz" and "L. P. Queiroz", or "A. D. Salinas" and
+  # "A. Delgado-Salinas", with the same number and date or municipality ####
+  if (match_collectors) {
+    df <- .match_collectors_df(df, colname_recordedBy = colname_recordedBy,
+                               colname_recordNumber = colname_recordNumber,
+                               colname_municipality = colname_municipality)
+  }
+
 
   #_____________________________________________________________________________
   # Remove herbarium records with unknown collector ####
@@ -276,20 +361,44 @@ barroso_std <- function(...,
   }
 
   #_____________________________________________________________________________
-  # Flag and remove duplicate specimens ####
-  if (flag_duplicates & rm_duplicates == FALSE) {
-    df <- barroso_flag_duplicates(df,
-                                  rm_duplicates = FALSE,
-                                  colname_identifiedBy = colname_identifiedBy,
-                                  colname_recordedBy = colname_recordedBy,
-                                  colname_recordNumber = colname_recordNumber,
-                                  colname_genus = colname_genus,
-                                  colname_specificEpithet = colname_specificEpithet,
-                                  colname_collectionCode = colname_collectionCode)
+  # New herbarium sheets already in the database, by their catalog numbers ####
+  if (!is.null(database)) {
+    df <- .rm_by_catalog(df, database, colname_collectionCode,
+                         fields = c(colname_recordedBy, colname_recordNumber, colname_genus,
+                                    colname_specificEpithet, "year", "month", "day",
+                                    colname_country, colname_stateProvince, colname_municipality,
+                                    colname_locality))
+    if (nrow(df) == 0) return(.no_new_records(database))
   }
 
-  if (flag_duplicates & rm_duplicates |
-      flag_duplicates == FALSE & rm_duplicates) {
+  #_____________________________________________________________________________
+  # Flag duplicates, the identifications of specialists, and remove duplicates ####
+  if (flag_duplicates || rm_duplicates || flag_specialists) {
+    flag <- function() barroso_flag_duplicates(df,
+                                               rm_duplicates = FALSE,
+                                               colname_identifiedBy = colname_identifiedBy,
+                                               colname_recordedBy = colname_recordedBy,
+                                               colname_recordNumber = colname_recordNumber,
+                                               colname_genus = colname_genus,
+                                               colname_specificEpithet = colname_specificEpithet,
+                                               colname_collectionCode = colname_collectionCode)
+    # The messages are given when duplicates are removed below
+    df <- if (rm_duplicates) suppressMessages(flag()) else flag()
+  }
+
+  if (flag_specialists) {
+    df <- barroso_flag_specialists(df, specialists,
+                                   colname_identifiedBy = colname_identifiedBy,
+                                   colname_recordedBy = colname_recordedBy,
+                                   colname_family = colname_family,
+                                   colname_genus = colname_genus,
+                                   colname_specificEpithet = colname_specificEpithet)
+    if (!flag_duplicates && !rm_duplicates) {
+      df <- df[, !names(df) %in% .duplicate_columns, drop = FALSE]
+    }
+  }
+
+  if (rm_duplicates) {
     df <- barroso_flag_duplicates(df,
                                   rm_duplicates = TRUE,
                                   specialists = specialists,
@@ -301,6 +410,19 @@ barroso_std <- function(...,
                                   colname_genus = colname_genus,
                                   colname_specificEpithet = colname_specificEpithet,
                                   colname_collectionCode = colname_collectionCode)
+  }
+
+  #_____________________________________________________________________________
+  # New records added to the database ####
+  if (!is.null(database)) {
+    df <- .merge_database(df, database, rm_duplicates = rm_duplicates,
+                          colname_recordedBy = colname_recordedBy,
+                          colname_recordNumber = colname_recordNumber,
+                          colname_genus = colname_genus,
+                          colname_specificEpithet = colname_specificEpithet,
+                          colname_collectionCode = colname_collectionCode,
+                          colname_municipality = colname_municipality,
+                          match_collectors = match_collectors)
   }
 
   #_____________________________________________________________________________

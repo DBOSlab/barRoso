@@ -36,6 +36,14 @@
 #' `collectionCodeOriginal`, so unvouchered collections like `"INPA-Carpoteca"` can
 #' still be removed by [barroso_std()].
 #'
+#' The identifiers of the records in their sources, `occurrenceID` in GBIF, REFLORA
+#' and JABOT (and `gbifID` in GBIF), are kept as they are, with the source of each
+#' record in `datasource`, so that the records already in a database can be found when
+#' it is updated with new downloads (see the argument `database` of [barroso_std()]).
+#' Records without a unique identifier, from any source (e.g. speciesLink downloads
+#' made with plantR, or some GBIF records without `gbifID`), are compared with the
+#' database by their catalog numbers instead, and a message tells how many there are.
+#'
 #' Columns with different types across sources (e.g. numeric `year` in one source
 #' and character in another) are combined as character. A column `datasource`
 #' records the source of each record.
@@ -106,6 +114,11 @@ barroso_cat <- function(list_sources = list(), keep_source,
   # Format each source into Darwin Core column names and values
   list_sources <- lapply(list_sources, barroso_dwc)
 
+  # The identifier of each record in its source is kept as it is, e.g. gbifID of
+  # GBIF and occurrenceID of REFLORA and JABOT, to find the records already in a
+  # database when it is updated with barroso_std(database = ...)
+  for (s in src_names) .check_source_id(list_sources[[s]], s)
+
   missing_code <- !vapply(list_sources, function(df) "collectionCode" %in% names(df), logical(1))
   if (any(missing_code)) {
     warning(paste0("No 'collectionCode' column in: ", paste(src_names[missing_code], collapse = ", "),
@@ -151,18 +164,32 @@ barroso_cat <- function(list_sources = list(), keep_source,
   }
 
   # Columns with different types across sources are combined as character
-  types <- lapply(list_sources, function(df) vapply(df, function(x) class(x)[1], character(1)))
-  all_types <- split(unlist(types, use.names = FALSE),
-                     unlist(lapply(types, names), use.names = FALSE))
-  mixed <- names(all_types)[vapply(all_types, function(x) length(unique(x)) > 1, logical(1))]
-  list_sources <- lapply(list_sources, function(df) {
-    cols <- intersect(mixed, names(df))
-    df[cols] <- lapply(df[cols], as.character)
-    df
-  })
-
-  combined_df <- dplyr::bind_rows(list_sources, .id = "datasource")
+  combined_df <- .bind_mixed(list_sources, .id = "datasource")
   combined_df <- combined_df[, c(setdiff(names(combined_df), "datasource"), "datasource")]
 
   return(combined_df)
 }
+
+# Tell how many records of a source have no unique identifier ####
+.check_source_id <- function(df, source) {
+  if (nrow(df) == 0) return(invisible(NULL))
+  cols <- intersect(.id_columns, names(df))
+  # A record has a unique identifier when one of its identifiers is filled and
+  # not repeated in the source
+  unique_id <- rep(FALSE, nrow(df))
+  for (col in cols) {
+    id <- .id_text(df[[col]])
+    unique_id <- unique_id | (!is.na(id) & !(duplicated(id) | duplicated(id, fromLast = TRUE)))
+  }
+  if (any(!unique_id)) {
+    which_records <- if (all(!unique_id)) paste("all records of", source) else
+      paste0(sum(!unique_id), " of ", nrow(df), " records of ", source)
+    message(paste0("barroso_cat: ", which_records, " have no unique identifier (",
+                   if (length(cols) == 0) "no column gbifID or occurrenceID" else
+                     paste(cols, collapse = " or "),
+                   "); when updating a database with barroso_std(database = ...), they are ",
+                   "compared by their catalog numbers"))
+  }
+  invisible(NULL)
+}
+

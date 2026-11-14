@@ -132,9 +132,11 @@ source is first formatted into Darwin Core with `barroso_dwc()`, which
 can also be used alone: e.g. speciesLink columns like `collector` or
 `recordedby` become `recordedBy`, and the dates and type status of
 REFLORA and JABOT records are standardized. A column `datasource` stores
-the source of each record. With `keep_source`, the records of herbaria
-also present in the preferred source are removed from the other sources,
-after standardizing the herbarium acronyms of each source with
+the source of each record. With `keep_source`, the order of priority of
+all sources, each herbarium is kept from the first source that has it,
+e.g. with `c("JABOT", "speciesLink", "GBIF")`, the herbaria of JABOT are
+removed from speciesLink and GBIF, and then those of speciesLink from
+GBIF, after standardizing the herbarium acronyms of each source with
 `std_collection()`, checked against Index Herbariorum, so that
 e.g. `MO-Duplicates` in speciesLink matches `MO` in GBIF.
 
@@ -143,7 +145,7 @@ splink <- barroso_dwc(splink)   # optional, barroso_cat() also runs it
 
 combined <- barroso_cat(list_sources = list(GBIF = gbif,
                                             speciesLink = splink),
-                        keep_source = "GBIF")
+                        keep_source = c("GBIF", "speciesLink"))
 ```
 
 ### 2. `barroso_fix_names()`: Fix Species Names
@@ -168,12 +170,19 @@ functions, which can also be used alone:
 
 | Function | Standardizes | Example |
 |----|----|----|
-| `std_recordedBy()` | collector names and numbers; additional collectors go to `addCollector` | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
+| `std_recordedBy()` | collector names and numbers; all additional collectors go to `addCollector`, also standardized | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
 | `std_identifiedBy()` | determiner names, all kept in the same cell | `Lobato, LC; Soares, CRA` → `L. C. Lobato & C. R. A. Soares` |
 | `std_collection()` | herbarium acronyms, checked against the API of [Index Herbariorum](https://sweetgum.nybg.org/science/ih/) (`index_herbariorum = TRUE`, the default) | `Herbario INPA` → `INPA` |
 | `std_place()` | continent, country, state, county, municipality and locality, including localities all in upper case | `BRASIL` → `Brazil` |
 | `std_taxa()` | family, genus and specific epithet | `Leguminosae` → `Fabaceae` |
 | `std_types()` | type status | `Fotografia do Tipo` → removed |
+| `std_dates()` | day, month and year, swapping days and months in the wrong columns | month `23`, day `7` → day 23, month 7 |
+
+Before finding duplicates, a deep search across the whole data gives the
+most complete name to the same collector written in other ways,
+e.g. `L. Queiroz` and `L. P. Queiroz`, or `A. D. Salinas` and
+`A. Delgado-Salinas`, when they have the same collector number and the
+same date or municipality (`match_collectors = TRUE`).
 
 The final data frame is sorted by species, `recordedBy` and
 `recordNumber`, with the records of each block of duplicates kept
@@ -190,6 +199,19 @@ cleaned <- barroso_std(combined,
                        flag_duplicates = TRUE,
                        rm_duplicates = FALSE,
                        rm_original_column = FALSE)
+```
+
+With `database`, new downloads are added to a database already
+standardized and corrected by hand, without standardizing it again: new
+records already in it are removed by their identifiers (`gbifID`,
+`occurrenceID`) and catalog numbers, including those of duplicates
+removed before (`duplicateCatalogNumbers`), and new duplicates of its
+specimens are added to their duplicate columns. The new records are
+marked with `newRecord`.
+
+``` r
+updated <- barroso_std(new_records, rm_duplicates = TRUE,
+                       database = "results/Ormosia_database.xlsx")
 ```
 
 ### 4. `barroso_flag_duplicates()`: Detect Duplicate Specimens
@@ -212,11 +234,13 @@ columns:
 
 With `rm_duplicates = TRUE`, one record per block is kept: first the
 records identified to species, then, in conflicting blocks, those
-identified by the `specialists` you give, then those with the most
-frequent identification of the block, and then the one with coordinates
-and the most complete information. Conflicting names are never chosen at
-random: blocks with `identificationUnresolved = TRUE` keep all their
-records, or are removed entirely with `rm_tied_conflicts = TRUE`.
+identified by the `specialists` you give (a data frame of names and
+their taxa of expertise, e.g. a family, genus or species), then those
+with the most frequent identification of the block, and then the one
+with coordinates and the most complete information. Conflicting names
+are never chosen at random: blocks with
+`identificationUnresolved = TRUE` keep all their records, or are removed
+entirely with `rm_tied_conflicts = TRUE`.
 
 ``` r
 flagged <- barroso_flag_duplicates(cleaned)
@@ -226,6 +250,19 @@ subset(flagged, identificationConflict %in% TRUE)
 
 # Conflicts that need checking
 subset(flagged, identificationUnresolved %in% TRUE)
+```
+
+`barroso_flag_specialists()` flags the records identified by specialists
+of their taxa (`specialistIdentification`), also those collected by them
+without determiner, and duplicates with the same name of a specimen
+identified by them, or keeps just these records (`filter = TRUE`),
+e.g. for distribution maps. It also runs in `barroso_std()` with
+`flag_specialists = TRUE`, before duplicates are removed.
+
+``` r
+specialists <- data.frame(specialist = c("D. B. O. S. Cardoso", "H. C. Lima"),
+                          taxon = c("Ormosia", "Leguminosae"))
+reliable <- barroso_flag_specialists(cleaned, specialists, filter = TRUE)
 ```
 
 ### 5. `std_coordinates()`: Fix and Flag Geographic Coordinates

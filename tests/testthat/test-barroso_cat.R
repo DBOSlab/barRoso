@@ -160,3 +160,24 @@ test_that("GBIF records citing REFLORA are recognized as GBIF", {
                   bibliographicCitation = "Reflora - Virtual Herbarium")
   expect_message(barroso_dwc(g), "GBIF")
 })
+
+test_that("the identifiers of the sources are kept, with a warning for records without them", {
+  g <- data.frame(gbifID = c(1234567890, 1234567891, NA), recordedBy = c("A", "B", "C"),
+                  collectionCode = c("MO", "K", "NY"))
+  expect_message(r <- (barRoso::barroso_cat(list(GBIF = g, REFLORA = reflora),
+                                                             keep_source = c("GBIF", "REFLORA"),
+                                                             index_herbariorum = FALSE)),
+                 "1 of 3 records of GBIF have no unique identifier \\(gbifID\\); when updating a database")
+  expect_equal(r$gbifID[1:2], c("1234567890", "1234567891"))
+  # K of REFLORA is also in GBIF
+  expect_equal(r$occurrenceID[r$datasource == "REFLORA"], reflora$occurrenceID[2:3])
+  expect_message(barRoso::barroso_cat(list(GBIF = g[1:2, ], speciesLink = splink),
+                                      keep_source = c("GBIF", "speciesLink"),
+                                      index_herbariorum = FALSE),
+                 "all records of speciesLink have no unique identifier \\(no column")
+  # Repeated identifiers
+  expect_message(barRoso:::.check_source_id(data.frame(occurrenceID = c("a", "a", "b")), "JABOT"),
+                 "2 of 3 records of JABOT")
+  expect_silent(barRoso:::.check_source_id(g[1:2, ], "GBIF"))
+})
+
