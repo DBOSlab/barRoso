@@ -237,3 +237,18 @@ test_that("all additional collectors are kept and standardized one by one", {
                "H. C. Lima, D. F. Silva & D. Cardoso")
 })
 
+
+test_that("names with the surname first glued to the next name are split", {
+  x <- c("Cardoso, D.Queiroz, L.P.; Jardim, J.G.; Smith, N.P.", "Ehrendorfer, F.Gottsberger, G.",
+         "Amaral-Santos, A.Pereira, J.B.; Cordovil-Silva, S.P.",
+         # Not split: initials first, or followed by a space
+         "R.T.Pennington, V.Plana, N. Revelo", "Prance, C.C. Berg, F.A. Bisby",
+         "Siqueira, L.P.,S.C.Souza, Pereira, V.A.C.", "A.M.Amorim", NA)
+  expect_equal(barRoso:::.split_glued_names(x),
+               c("Cardoso, D.; Queiroz, L.P.; Jardim, J.G.; Smith, N.P.", "Ehrendorfer, F.; Gottsberger, G.",
+                 "Amaral-Santos, A.; Pereira, J.B.; Cordovil-Silva, S.P.", x[4:8]))
+  r <- std_coll(c(x[1:3], "Amaral-Santos, A.Pereira, J.B."))
+  expect_equal(r$recordedBy, c("D. Cardoso", "F. Ehrendorfer", "A. Amaral-Santos", "A. Amaral-Santos"))
+  expect_equal(r$addCollector, c("L. P. Queiroz, J. G. Jardim & N. P. Smith", "G. Gottsberger",
+                                 "J. B. Pereira & S. P. Cordovil-Silva", "J. B. Pereira"))
+})

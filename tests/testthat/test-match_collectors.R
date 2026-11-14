@@ -97,3 +97,16 @@ test_that("new records are matched with the collectors of a database written in 
   r <- suppressMessages(barroso_std(new, index_herbariorum = FALSE, database = db))
   expect_equal(r$recordedBy[r$newRecord & r$recordNumber == "12456"], "L. P. Queiroz")
 })
+
+test_that("the complete name that agrees the most with the record is chosen", {
+  # Same date and municipality rather than just the same municipality
+  r <- barRoso:::.match_collectors(c("E. A. Rodrigues", "E. H. A. Rodrigues", "E. M. A. Rodrigues"),
+                                   rep("341", 3), rep("1995", 3), rep("9", 3), c("15", "15", "25"),
+                                   rep("Jaboticabal", 3))
+  expect_equal(as.character(r), c("E. H. A. Rodrigues", "E. H. A. Rodrigues", "E. M. A. Rodrigues"))
+  expect_equal(attr(r, "ambiguous"), 0)
+  # The same month counts more than the same year
+  r <- barRoso:::.match_collectors(c("L. Queiroz", "L. P. Queiroz", "L. M. Queiroz"), rep("1", 3),
+                                   rep(2001, 3), c(5, 5, 6), c(3, 4, 9), rep("Mucuge", 3))
+  expect_equal(as.character(r)[1], "L. P. Queiroz")
+})

@@ -31,9 +31,12 @@
 #'   e.g. `"L."` in `"L. P."`, but not `"L. M."` in `"L. P."`;
 #' - it has the same date (day, month and year) or the same municipality of a record
 #'   with the complete name, which shows that they are the same collection;
-#' - its initials are not among those of two different complete names, e.g.
-#'   `"L. Queiroz"` with `"L. P. Queiroz"` and `"L. M. Queiroz"`, as then the collector
-#'   cannot be known.
+#' - when several complete names fit, the one that agrees the most with the record
+#'   is chosen, with 4 points for the same full date, 2 for the same year and month,
+#'   1 for the same year and 1 for the same municipality, e.g. `"E. H. A. Rodrigues"`
+#'   of the same date and municipality rather than `"E. M. A. Rodrigues"` of the same
+#'   municipality, for `"E. A. Rodrigues"`. When different people agree as much, e.g.
+#'   `"L. Queiroz"` with `"L. P. Queiroz"` and `"L. M. Queiroz"`, the record is kept.
 #'
 #' \strong{Updating a database}
 #'

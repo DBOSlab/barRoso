@@ -110,16 +110,27 @@
     for (k in seq_along(forms)[-1]) {
       for (r in rows[coll[rows] == forms[k] & !fixed[rows]]) {
         # More complete forms with the initials of this one, and a record with the
-        # same date or municipality
-        cand <- which(vapply(seq_len(k - 1), function(g) {
+        # same date or municipality, scored by how much they agree: 4 for the same
+        # full date, 2 for the same year and month, 1 for the same year, and 1 for
+        # the same municipality
+        score <- vapply(seq_len(k - 1), function(g) {
+          if (!can_take(k, g)) return(0)
           g_rows <- rows[coll[rows] == forms[g]]
-          can_take(k, g) &&
-            any((!is.na(date[r]) & date[g_rows] %in% date[r]) |
-                  (!is.na(muni[r]) & muni[g_rows] %in% muni[r]))
-        }, logical(1)))
-        if (length(cand) == 0) next
-        # Different people, e.g. "L. P. Queiroz" and "L. M. Queiroz" for "L. Queiroz":
-        # the name cannot be chosen
+          same_date <- !is.na(date[r]) & date[g_rows] %in% date[r]
+          same_muni <- !is.na(muni[r]) & muni[g_rows] %in% muni[r]
+          if (!any(same_date | same_muni)) return(0)
+          ym <- !is.na(year[r]) & !is.na(month[r]) &
+            paste(year[g_rows], month[g_rows]) %in% paste(year[r], month[r])
+          y <- !is.na(year[r]) & year[g_rows] %in% year[r]
+          max(ifelse(same_date, 4, ifelse(ym, 2, ifelse(y, 1, 0))) + same_muni)
+        }, numeric(1))
+        if (all(score == 0)) next
+        # The complete name that agrees the most, e.g. "E. H. A. Rodrigues" of the
+        # same date and municipality rather than "E. M. A. Rodrigues" of the same
+        # municipality, for "E. A. Rodrigues". When different people agree as much,
+        # e.g. "L. P. Queiroz" and "L. M. Queiroz" for "L. Queiroz", the name cannot
+        # be chosen
+        cand <- which(score == max(score))
         best <- cand[1]
         if (!all(vapply(cand, function(g) .initials_fit(init[[g]], init[[best]]) &&
                         .initials_fit(written[[g]], written[[best]]), logical(1)))) {

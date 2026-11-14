@@ -96,6 +96,9 @@ std_recordedBy <- function(df = NULL,
   df$recordedBy <- gsub("\\b([Dd])so\\b", "\\1os", df$recordedBy)
   # Other forms of the same name, e.g. "Berg, C. C. (Berg, Cornelis Christiaan)"
   df$recordedBy <- gsub("\\s*[(][^()]*,[^()]*[)]", "", df$recordedBy)
+  # Names with the surname first, whose initials are followed by the next name,
+  # e.g. "Cardoso, D.Queiroz, L.P." into "Cardoso, D.; Queiroz, L.P."
+  df$recordedBy <- .split_glued_names(df$recordedBy)
 
   # Identifiers after the names, e.g. "E. Marcano (Wikidata Q5850623)" or
   # "Rodriguez,D. et al. 2688 [DR-02688]"
@@ -1978,6 +1981,7 @@ std_recordedBy <- function(df = NULL,
   # Numbers, e.g. "Rodriguez,D. et al. 2688", and "s.n."
   x <- gsub("\\bs[.]\\s?n[.]?|[0-9]+[^;,&|]*", "", x)
   x <- gsub("\\b([Dd])so\\b", "\\1os", x)
+  x <- .split_glued_names(x)
   # Initials without space before the surname, e.g. "A.M.Amorim" into "A.M. Amorim"
   x <- gsub("([.])(\\p{Lu}\\p{Ll}{2,})", "\\1 \\2", x, perl = TRUE)
   # Names without separators, e.g. "V. Ariati D.A. Roher J.E. Bianchin", but not
@@ -2035,3 +2039,18 @@ std_recordedBy <- function(df = NULL,
   }, character(1), USE.NAMES = FALSE)
 }
 
+
+# Names with the surname first, whose initials are glued to the next name with the
+# surname first, e.g. "Cardoso, D.Queiroz, L.P.; Jardim, J.G." into "Cardoso, D.;
+# Queiroz, L.P.; Jardim, J.G.", but not names with the initials first, e.g.
+# "R.T.Pennington, V.Plana" or "Siqueira, L.P.,S.C.Souza", nor initials followed by
+# a space, e.g. "Prance, C.C. Berg, F.A. Bisby" (Prance and C. C. Berg) ####
+.split_glued_names <- function(x) {
+  surname_first <- !is.na(x) &
+    grepl("^\\s*\\p{Lu}\\p{Ll}+(?:-\\p{Lu}?\\p{Ll}+)*(\\s+\\p{Lu}\\p{Ll}+(?:-\\p{Lu}?\\p{Ll}+)*)?,\\s*\\p{Lu}\\.?", x, perl = TRUE)
+  x[surname_first] <- gsub(
+    paste0("(\\p{Lu}\\p{Ll}+(?:-\\p{Lu}?\\p{Ll}+)*,\\s*(?:\\p{Lu}\\.){1,4})",
+           "(?=\\p{Lu}[\\p{Ll}-]{2,}(?:\\s+\\p{Lu}\\p{Ll}+(?:-\\p{Lu}?\\p{Ll}+)*)?,\\s*\\p{Lu})"),
+    "\\1; ", x[surname_first], perl = TRUE)
+  x
+}

@@ -152,9 +152,12 @@ initials, then the longest, e.g. \code{"A. Delgado-Salinas"}) only when:
 e.g. \code{"L."} in \code{"L. P."}, but not \code{"L. M."} in \code{"L. P."};
 \item it has the same date (day, month and year) or the same municipality of a record
 with the complete name, which shows that they are the same collection;
-\item its initials are not among those of two different complete names, e.g.
-\code{"L. Queiroz"} with \code{"L. P. Queiroz"} and \code{"L. M. Queiroz"}, as then the collector
-cannot be known.
+\item when several complete names fit, the one that agrees the most with the record
+is chosen, with 4 points for the same full date, 2 for the same year and month,
+1 for the same year and 1 for the same municipality, e.g. \code{"E. H. A. Rodrigues"}
+of the same date and municipality rather than \code{"E. M. A. Rodrigues"} of the same
+municipality, for \code{"E. A. Rodrigues"}. When different people agree as much, e.g.
+\code{"L. Queiroz"} with \code{"L. P. Queiroz"} and \code{"L. M. Queiroz"}, the record is kept.
 }
 
 \strong{Updating a database}
