@@ -13,6 +13,8 @@ barroso_flag_duplicates(df,
                         colname_genus = "genus",
                         colname_specificEpithet = "specificEpithet",
                         colname_identifiedBy = "identifiedBy",
+                        colname_addCollector = "addCollector",
+                        colname_family = "family",
                         colname_collectionCode = "collectionCode",
                         colname_catalogNumber = "catalogNumber",
                         colname_decimalLatitude = "decimalLatitude",
@@ -24,11 +26,16 @@ barroso_flag_duplicates(df,
 \item{rm_duplicates}{Logical; if \code{TRUE}, keeps just one record per block of
 duplicates (default: \code{FALSE}).}
 
-\item{specialists}{Optional character vector of names of specialists, e.g.
-\code{c("D. B. O. S. Cardoso", "H. C. Lima")}. With \code{rm_duplicates = TRUE}, in blocks
-with conflicting identifications, the records identified by them (or collected by
-them, when without determiner) are preferred. Names are compared by surname and
-first initial, so \code{"D. B. O. S. Cardoso"} matches \code{"D. Cardoso"} (default: \code{NULL}).}
+\item{specialists}{Optional data frame with the columns \code{specialist} and \code{taxon},
+one row for each specialist and taxon of expertise, which can be a family (e.g.
+\code{"Myristicaceae"}, all genera and species of the family), a genus (e.g.
+\code{"Ormosia"}) or a species (e.g. \code{"Ormosia arborea"}), e.g.
+\code{data.frame(specialist = c("D. B. O. S. Cardoso", "D. B. O. S. Cardoso", "H. C. Lima"), taxon = c("Ormosia", "Swartzia", "Leguminosae"))}. With \code{rm_duplicates = TRUE}, in
+blocks with conflicting identifications that include a name of their taxa, the
+records identified by them (or collected by them, also as additional collectors,
+when without determiner) are preferred. Names are compared by surname and first
+initial, so \code{"D. B. O. S. Cardoso"} matches \code{"D. Cardoso"}, and families by their
+alternative names too, e.g. \code{"Leguminosae"} and \code{"Fabaceae"} (default: \code{NULL}).}
 
 \item{rm_tied_conflicts}{Logical; with \code{rm_duplicates = TRUE}, if \code{TRUE}, blocks
 whose conflicting names are equally frequent, even after \code{specialists}, are removed
@@ -43,6 +50,12 @@ entirely. If \code{FALSE}, all their records are kept (default: \code{FALSE}).}
 \item{colname_specificEpithet}{Column name for the specific epithet (default: \code{"specificEpithet"}).}
 
 \item{colname_identifiedBy}{Column name for the determiner (default: \code{"identifiedBy"}).}
+
+\item{colname_addCollector}{Column name for the additional collectors (default:
+\code{"addCollector"}).}
+
+\item{colname_family}{Column name for the family, compared with the families in
+\code{specialists} (default: \code{"family"}).}
 
 \item{colname_collectionCode}{Column name for the herbarium acronym (default: \code{"collectionCode"}).}
 
@@ -104,8 +117,10 @@ When \code{rm_duplicates = TRUE}, one record per block is kept, chosen as follow
 \item Records identified to species are preferred over those identified just to genus.
 \item In blocks with conflicting identifications, the records identified by one of
 the \code{specialists} are preferred, whatever the number of duplicates with other
-names. A record without determiner (\code{identifiedBy}) that was collected by a
-specialist counts as identified by the specialist.
+names, when the taxon of expertise of the specialist includes one of the names
+of the block. A record without determiner (\code{identifiedBy}) that was collected
+by a specialist, as main (\code{recordedBy}) or additional collector
+(\code{addCollector}), counts as identified by the specialist.
 \item Among them, records with the most frequent identification in the block are
 preferred (e.g. the name given by two duplicates rather than by one).
 \item When two or more names are still equally frequent (e.g. two duplicates as
@@ -136,7 +151,9 @@ df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE)
 
 # Identifications of specialists first, and tied conflicts removed
 df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE,
-                                    specialists = c("D. B. O. S. Cardoso", "H. C. Lima"),
+                                    specialists = data.frame(
+                                      specialist = c("D. B. O. S. Cardoso", "H. C. Lima"),
+                                      taxon = c("Ormosia", "Leguminosae")),
                                     rm_tied_conflicts = TRUE)
 }
 

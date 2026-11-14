@@ -21,9 +21,10 @@ specimens <- data.frame(
   catalogNumber = c("HUEFS000123", "456", NA, NA, "NY0099", NA),
   typeStatus = c("holotype", "isotype", NA, NA, NA, NA))
 
-write_specimens <- function(dir, journal = "Systematic Botany", ...) {
+# Without catalog numbers, except when asked, to compare the other fields
+write_specimens <- function(dir, journal = "Systematic Botany", catalog_numbers = FALSE, ...) {
   barroso_write_specimens(df = specimens, journal = journal, dir = dir,
-                          filename = "out", verbose = FALSE, ...)
+                          filename = "out", verbose = FALSE, catalog_numbers = catalog_numbers, ...)
 }
 
 docx_lines <- function(dir, name = "out") {
@@ -81,7 +82,7 @@ test_that("each journal has its own format", {
   expect_match(first("Rodriguesia"), "12º58’17”S, 38º30’05”W, 5.III.2010, fl.,",
                fixed = TRUE)
   expect_match(first("Brittonia", catalog_numbers = TRUE),
-               "(HUEFS no. 000123, RB no. 456)", fixed = TRUE)
+               "(HUEFS no. 000123; RB no. 456)", fixed = TRUE)
 
   # Rodriguesia cites the catalog number of collections without number
   res <- write_specimens(dir, "Rodriguésia")
@@ -140,10 +141,11 @@ test_that("coordinates, dates, collectors and herbaria are formatted", {
   expect_equal(barRoso:::.translate_country("Narnia", "pt"), "Narnia")
 
   style <- barRoso:::.journal_style("Systematic Botany")
-  expect_equal(barRoso:::.format_collector(c("D. B. O. S. Cardoso", "", "R. M. Harley"),
-                                           c("Etal", NA, "A. M. Giulietti"), style),
-               list(name = c("D.B.O.S. Cardoso", "Anonymous", "R.M. Harley & A.M. Giulietti"),
-                    etal = c("et al.", "", "")))
+  expect_equal(barRoso:::.format_collector(c("D. B. O. S. Cardoso", "", "R. M. Harley", "A. Silva", "A. Silva"),
+                                           c("Etal", NA, "A. M. Giulietti", "A. Alves, K. Paix\u00e3o & E. Consuelo",
+                                             "H. Lorenzi et al."), style),
+               list(name = c("D.B.O.S. Cardoso", "Anonymous", "R.M. Harley & A.M. Giulietti", "A. Silva", "A. Silva"),
+                    etal = c("et al.", "", "", "et al.", "et al.")))
   expect_equal(barRoso:::.format_elevation(c("650", "650", ""), c("700", "", ""), " m"),
                c("650–700 m", "650 m", ""))
 })
@@ -359,10 +361,11 @@ test_that("repeated places are written as l.c. or loc. cit.", {
   df$locality <- c("Parque da Cidade", "Parque da Cidade", "Dunas")
   df$decimalLatitude[3] <- NA
   res <- barroso_write_specimens(df = df, journal = "Acta Botanica Mexicana", dir = dir,
-                                 filename = "out", verbose = FALSE)
+                                 filename = "out", verbose = FALSE, catalog_numbers = FALSE)
   expect_true(any(grepl("(HUEFS); loc. cit., 5.III.2010 (fl), D. B. O. S. Cardoso et al. 2",
                         docx_lines(dir), fixed = TRUE)))
-  barroso_write_specimens(df = df, journal = "Hoehnea", dir = dir, filename = "out", verbose = FALSE)
+  barroso_write_specimens(df = df, journal = "Hoehnea", dir = dir, filename = "out", verbose = FALSE,
+                          catalog_numbers = FALSE)
   expect_true(any(grepl("(HUEFS); l.c., Dunas, 5-III-2010 (fl.), D.B.O.S. Cardoso et al. 3",
                         docx_lines(dir), fixed = TRUE)))
 })
@@ -388,3 +391,27 @@ test_that("one_per_municipality keeps the most complete specimen of each municip
   all <- barroso_write_specimens(df = df, dir = dir, filename = "out", verbose = FALSE)
   expect_length(strsplit(all$specimens_text, "\n")[[1]], 5)
 })
+
+test_that("all catalog numbers of each herbarium are written by default", {
+  dir <- withr::local_tempdir()
+  df <- specimens[c(1, 1, 1, 1), ]
+  df$collectionCode <- c("NY", "MO", "MO", "MO")
+  df$catalogNumber <- c("5464648", "45556667", "MO000894546", "45556667")
+  first <- function(journal) {
+    res <- barroso_write_specimens(df = df, journal = journal, dir = dir, filename = "out", verbose = FALSE)
+    strsplit(res$specimens_text, "\n")[[1]][1]
+  }
+  expect_match(first("Taxon"), "(MO barcodes 45556667, 000894546; NY barcode 5464648)", fixed = TRUE)
+  expect_match(first("Systematic Botany"), "(MO 45556667, 000894546; NY 5464648)", fixed = TRUE)
+  expect_match(first("Nordic"), "MO45556667, MO000894546; NY5464648", fixed = TRUE)
+  expect_match(first("Brittonia"), "(MO nos. 45556667, 000894546; NY no. 5464648)", fixed = TRUE)
+  expect_match(first("Acta Botanica Brasilica"), "(MO barcodes 45556667, 000894546!; NY barcode 5464648!)",
+               fixed = TRUE)
+  # Without catalog numbers
+  res <- barroso_write_specimens(df = df, dir = dir, filename = "out", verbose = FALSE,
+                                 catalog_numbers = FALSE)
+  expect_match(res$specimens_text, "(MO, NY)", fixed = TRUE)
+  expect_equal(barRoso:::.plural_catalog(c("%s barcode %s", "%s no. %s", "%s [%s]")),
+               c("%s barcodes %s", "%s nos. %s", "%s [%s]"))
+})
+

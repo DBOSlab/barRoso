@@ -68,6 +68,9 @@ test_that("the specific epithet is taken from a GBIF binomial in species", {
   expect_equal(unique(r$duplicateIdentifications), "Ormosia arborea | Ormosia | Ormosia nitida")
 })
 
+# Specialists of Ormosia, e.g. spec("H. C. Lima")
+spec <- function(specialist, taxon = "Ormosia") data.frame(specialist = specialist, taxon = taxon)
+
 conflicts <- data.frame(
   recordedBy = c(rep("A. Silva", 4), rep("B. Lima", 3), rep("D. Cardoso", 2), "C. Souza", "C. Souza"),
   recordNumber = c("1", "1", "1", "1", "2", "2", "2", "3", "3", "4", "4"),
@@ -83,7 +86,7 @@ conflicts <- data.frame(
 
 test_that("specialists resolve conflicting identifications, whatever their number", {
   r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_duplicates = TRUE,
-                                                specialists = c("H. C. Lima", "D. B. O. S. Cardoso")))
+                                                specialists = spec(c("H. C. Lima", "D. B. O. S. Cardoso"))))
   sp <- function(coll) r$specificEpithet[r$recordedBy == coll]
   # A. Silva 1: two arborea and two fastigiata, one fastigiata identified by H. C. Lima
   expect_equal(sp("A. Silva"), "fastigiata")
@@ -114,14 +117,17 @@ test_that("blocks with equally frequent names are kept, or removed with rm_tied_
   # Without rm_duplicates, nothing is removed
   r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_tied_conflicts = TRUE))
   expect_equal(nrow(r), nrow(conflicts))
-  expect_error(barroso_flag_duplicates(conflicts, specialists = 1), "character vector of names")
+  expect_error(barroso_flag_duplicates(conflicts, specialists = 1), "data frame with the columns")
+  expect_error(barroso_flag_duplicates(conflicts, specialists = "H. C. Lima"), "data frame with the columns")
+  expect_error(barroso_flag_duplicates(conflicts, specialists = data.frame(specialist = "H. C. Lima", taxon = NA)),
+               "no specialist with a taxon")
 })
 
 test_that("barroso_std passes the specialists and rm_tied_conflicts", {
   x <- conflicts[1:4, ]
   x$family <- "Fabaceae"
   r <- suppressMessages(barroso_std(x, rm_duplicates = TRUE, index_herbariorum = FALSE,
-                                    specialists = "H. C. Lima"))
+                                    specialists = spec("H. C. Lima", "Leguminosae")))
   expect_equal(nrow(r), 1)
   expect_equal(r$specificEpithet, "fastigiata")
   r <- suppressMessages(barroso_std(x, rm_duplicates = TRUE, index_herbariorum = FALSE,
@@ -138,7 +144,7 @@ test_that("identificationUnresolved marks the blocks whose name cannot be chosen
   expect_false(un("B. Lima"))
   expect_false(un("C. Souza"))
   # Specialists resolve the ties
-  r <- suppressMessages(barroso_flag_duplicates(conflicts, specialists = c("H. C. Lima", "D. Cardoso")))
+  r <- suppressMessages(barroso_flag_duplicates(conflicts, specialists = spec(c("H. C. Lima", "D. Cardoso"))))
   expect_false(any(r$identificationUnresolved, na.rm = TRUE))
   # Kept with all their records, and easy to filter
   r <- suppressMessages(barroso_flag_duplicates(conflicts, rm_duplicates = TRUE))
@@ -146,3 +152,36 @@ test_that("identificationUnresolved marks the blocks whose name cannot be chosen
   expect_true(all(is.na(suppressMessages(barroso_flag_duplicates(dups))$identificationUnresolved[
     !suppressMessages(barroso_flag_duplicates(dups))$duplicate])))
 })
+
+test_that("specialists count only for the blocks of their taxa of expertise", {
+  x <- conflicts
+  x$family <- "Fabaceae"
+  rm_dups <- function(s) suppressMessages(barroso_flag_duplicates(x, rm_duplicates = TRUE, specialists = s))
+  # A specialist of Swartzia does not resolve conflicts in Ormosia
+  r <- rm_dups(spec("H. C. Lima", "Swartzia"))
+  expect_equal(sum(r$recordedBy == "A. Silva"), 4)
+  # A specialist of the species, the genus or the family, also by its alternative name
+  for (taxon in c("Ormosia fastigiata", "Ormosia", "Fabaceae", "Leguminosae", "LEGUMINOSAE")) {
+    r <- rm_dups(spec("H. C. Lima", taxon))
+    expect_equal(r$specificEpithet[r$recordedBy == "A. Silva"], "fastigiata")
+  }
+  # Several taxa of the same specialist
+  r <- rm_dups(spec(c("H. C. Lima", "H. C. Lima"), c("Swartzia", "Ormosia")))
+  expect_equal(r$specificEpithet[r$recordedBy == "A. Silva"], "fastigiata")
+  expect_equal(barRoso:::.family_name(c("leguminosae", "compositae", "myristicaceae", NA)),
+               c("fabaceae", "asteraceae", "myristicaceae", NA))
+})
+
+test_that("records without determiner collected by a specialist as additional collector count", {
+  x <- conflicts[conflicts$recordedBy == "D. Cardoso", ]
+  x$recordedBy <- "J. Souza"
+  x$addCollector <- c(NA, "A. Alves, D. Cardoso & K. Paix\u00e3o")
+  r <- suppressMessages(barroso_flag_duplicates(x, rm_duplicates = TRUE,
+                                                specialists = spec("D. B. O. S. Cardoso")))
+  expect_equal(r$specificEpithet, "nitida")
+  # Not when the additional collectors are in another column
+  r <- suppressMessages(barroso_flag_duplicates(x, rm_duplicates = TRUE, colname_addCollector = "other",
+                                                specialists = spec("D. B. O. S. Cardoso")))
+  expect_equal(nrow(r), 2)
+})
+

@@ -20,7 +20,7 @@ barroso_write_specimens(
      "Taxon"),
   header = NULL,
   language = "en",
-  catalog_numbers = FALSE,
+  catalog_numbers = TRUE,
   one_per_municipality = FALSE,
   dir = NULL,
   filename = NULL,
@@ -63,8 +63,11 @@ Systematic Botany. Use \code{""} to write no header.}
 \item{language}{Language of the section header, months and countries:
 \code{"en"} (default) or \code{"pt"}.}
 
-\item{catalog_numbers}{Logical. If \code{TRUE}, the catalog number is written after
-each herbarium, e.g. \code{"(IAC no. 14754, NY no. 1162464)"} in Brittonia. Default \code{FALSE}.}
+\item{catalog_numbers}{Logical. If \code{TRUE} (default), the catalog numbers are written
+after each herbarium, all of them when the herbarium has several sheets, with the
+herbaria separated by semicolons, e.g. \code{"(NY barcode 5464648; MO barcodes 45556667, 000894546)"} in Systematic Botany or \code{"(IAC no. 14754; NY nos. 1162464, 1162465)"}
+in Brittonia. If \code{FALSE}, just the herbaria are written, e.g. \code{"(MO, NY)"}, with
+the catalog number of the first herbarium for collections without number.}
 
 \item{one_per_municipality}{Logical. If \code{TRUE}, just one specimen of each
 municipality is written for each species, the one with the most complete

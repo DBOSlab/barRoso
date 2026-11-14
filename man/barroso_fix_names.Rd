@@ -97,7 +97,7 @@ which are then kept in cache folders for the next uses.
 \examples{
 \dontrun{
 data_all <- barroso_cat(list(REFLORA = data_reflora, JABOT = data_jabot),
-                        keep_source = "JABOT")
+                        keep_source = c("JABOT", "REFLORA"))
 data_all <- barroso_fix_names(data_all, vascular_only = TRUE)
 table(data_all$taxonStatus)
 data_all <- barroso_std(data_all)

@@ -4,16 +4,22 @@
 #'
 #' @description
 #' Merges herbarium records from two or more biodiversity data sources into a single
-#' harmonized data frame. Optionally prioritizes specific sources when duplicates
-#' are detected across herbaria, retaining records based on a flexible exclusion
-#' strategy.
+#' harmonized data frame, keeping the records of each herbarium from a single source,
+#' chosen by an order of priority of the sources.
 #'
 #' @details
 #' This function aligns column structures, removes redundant records from overlapping
-#' herbaria, and merges all sources into a single output. Duplicate filtering is
-#' based on matching `collectionCode` across sources: when `keep_source` is given,
-#' the records of any herbarium that is also present in `keep_source` are removed
-#' from the other sources. Herbaria shared only among the other sources are kept.
+#' herbaria, and merges all sources into a single output. The same herbarium is often
+#' in several sources, e.g. the RB collection in JABOT, REFLORA and GBIF, so its
+#' records would be repeated. Overlapping herbaria are found by their `collectionCode`
+#' and kept from a single source, following the order of priority in `keep_source`,
+#' e.g. with `keep_source = c("JABOT", "speciesLink", "REFLORA", "GBIF")`:
+#' 1. the herbaria of JABOT are removed from speciesLink, REFLORA and GBIF;
+#' 2. the remaining herbaria of speciesLink are removed from REFLORA and GBIF;
+#' 3. the remaining herbaria of REFLORA are removed from GBIF.
+#'
+#' So each herbarium comes from the first source that has it, and GBIF adds only the
+#' herbaria that are in none of the other sources.
 #'
 #' Each source is first formatted into Darwin Core column names and values with
 #' [barroso_dwc()], e.g. the columns of speciesLink downloads (`collector`,
@@ -36,15 +42,16 @@
 #'
 #' @usage
 #' barroso_cat(list_sources = list(),
-#'             keep_source = NULL,
+#'             keep_source,
 #'             index_herbariorum = TRUE)
 #'
 #' @param list_sources A named list of data frames. Each element represents a
 #' herbarium data source. The names of the list are used to track the source origin
 #' for internal filtering.
-#' @param keep_source Optional character string specifying the preferred data
-#' source (e.g., "GBIF") for resolving duplicate `collectionCode` conflicts. If
-#' NULL, all records are retained.
+#' @param keep_source Character vector with the names of all sources of
+#' `list_sources`, in order of priority, e.g. `c("JABOT", "speciesLink", "REFLORA",
+#' "GBIF")`. The herbaria of each source are removed from the sources after it, so
+#' each herbarium is kept from the first source that has it.
 #' @param index_herbariorum Logical; if `TRUE`, the herbarium acronyms of each source
 #' are checked against the API of Index Herbariorum after the regular expressions of
 #' [std_collection()] (default: `TRUE`). Use `FALSE` to work offline.
@@ -62,19 +69,18 @@
 #'                                                speciesLink = splink_data,
 #'                                                REFLORA = reflora,
 #'                                                JABOT = jabot),
-#'                            keep_source = "GBIF")
+#'                            keep_source = c("JABOT", "speciesLink", "REFLORA", "GBIF"))
 #' }
 #'
 #' @importFrom dplyr bind_rows
 #' @importFrom tibble add_column
 #' @export
 
-barroso_cat <- function(list_sources = list(), keep_source = NULL,
+barroso_cat <- function(list_sources = list(), keep_source,
                         index_herbariorum = TRUE) {
 
   # Check the arguments ####
   .check_flag(index_herbariorum)
-  .check_string(keep_source, null_ok = TRUE)
 
   if (!is.list(list_sources) || is.data.frame(list_sources) || length(list_sources) < 2) {
     stop("Please provide a named list of at least two data sources.", call. = FALSE)
@@ -85,9 +91,16 @@ barroso_cat <- function(list_sources = list(), keep_source = NULL,
     stop("All data sources in 'list_sources' must have unique names, e.g. ",
          "list(GBIF = gbif, speciesLink = splink).", call. = FALSE)
   }
-  if (!is.null(keep_source) && !keep_source %in% src_names) {
-    stop(paste0("'keep_source' must be one of: ", paste(src_names, collapse = ", "), "."),
+  example <- paste0("c(\"", paste(src_names, collapse = "\", \""), "\")")
+  if (missing(keep_source) || is.null(keep_source)) {
+    stop(paste0("Please give the order of priority of all sources in `keep_source`, e.g. ",
+                example, ". The herbaria of each source are removed from the sources after it."),
          call. = FALSE)
+  }
+  if (!is.character(keep_source) || anyNA(keep_source) || anyDuplicated(keep_source) ||
+      !setequal(keep_source, src_names)) {
+    stop(paste0("`keep_source` must have the names of all sources once, in order of ",
+                "priority, e.g. ", example, "."), call. = FALSE)
   }
 
   # Format each source into Darwin Core column names and values
@@ -120,16 +133,18 @@ barroso_cat <- function(list_sources = list(), keep_source = NULL,
     list_sources[[s]] <- df
   }
 
-  # Remove from the other sources the herbaria also present in keep_source
-  if (!is.null(keep_source) && !missing_code[[keep_source]]) {
-    kept_herbaria <- unique(stats::na.omit(list_sources[[keep_source]]$collectionCode))
-    for (s in setdiff(src_names[!missing_code], keep_source)) {
+  # In order of priority, the herbaria of each source are removed from the sources
+  # after it, so each herbarium comes from the first source that has it ####
+  priority <- keep_source[!missing_code[keep_source]]
+  for (k in seq_along(priority)[-length(priority)]) {
+    kept_herbaria <- unique(stats::na.omit(list_sources[[priority[k]]]$collectionCode))
+    for (s in priority[-seq_len(k)]) {
       df <- list_sources[[s]]
       tf <- df$collectionCode %in% kept_herbaria
       if (any(tf)) {
         message(paste0("barroso_cat: removing ", sum(tf), " records of ",
                        length(unique(df$collectionCode[tf])), " herbaria from ", s,
-                       " also present in ", keep_source))
+                       " also present in ", priority[k]))
         list_sources[[s]] <- df[!tf, , drop = FALSE]
       }
     }

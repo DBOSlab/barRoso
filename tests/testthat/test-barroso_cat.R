@@ -6,24 +6,40 @@ splink <- data.frame(collector = c("D", "E", "F"), collectornumber = c("1", "2",
 jabot <- data.frame(recordedBy = c("G", "H"), collectionCode = c("HUEFS", "RB"))
 
 test_that("sources are combined with Darwin Core names and a datasource column", {
-  r <- suppressMessages(barroso_cat(list(GBIF = gbif, speciesLink = splink), index_herbariorum = FALSE))
-  expect_equal(nrow(r), 6)
+  r <- suppressMessages(barroso_cat(list(GBIF = gbif, speciesLink = splink),
+                                    keep_source = c("GBIF", "speciesLink"), index_herbariorum = FALSE))
+  # RB of speciesLink is removed, as it is in GBIF
+  expect_equal(nrow(r), 5)
   expect_true(all(c("recordedBy", "recordNumber", "collectionCode", "datasource") %in% names(r)))
-  expect_equal(r$species[4:6], c("Ormosia arborea", "Ormosia fastigiata", "Ormosia arborea"))
+  expect_equal(r$species[4:5], c("Ormosia fastigiata", "Ormosia arborea"))
   expect_type(r$year, "character")
 })
 
-test_that("keep_source removes only herbaria also present in the preferred source", {
-  r <- suppressMessages(barroso_cat(list(GBIF = gbif, speciesLink = splink, JABOT = jabot),
-                                    keep_source = "GBIF", index_herbariorum = FALSE))
-  expect_false(any(r$collectionCode == "RB" & r$datasource != "GBIF"))
-  # HUEFS is shared by speciesLink and JABOT, but not by GBIF
-  expect_equal(sum(r$collectionCode == "HUEFS"), 2)
+test_that("each herbarium is kept from the first source that has it, in the order of keep_source", {
+  sources <- list(GBIF = gbif, speciesLink = splink, JABOT = jabot)
+  expect_message(r <- barroso_cat(sources, keep_source = c("GBIF", "speciesLink", "JABOT"),
+                                  index_herbariorum = FALSE),
+                 "removing 1 records of 1 herbaria from JABOT also present in speciesLink")
+  expect_equal(r$datasource[r$collectionCode == "RB"], "GBIF")
+  # HUEFS is in speciesLink and JABOT, but not in GBIF
+  expect_equal(r$datasource[r$collectionCode == "HUEFS"], "speciesLink")
+  expect_equal(nrow(r), 5)
+
+  # JABOT first
+  r <- suppressMessages(barroso_cat(sources, keep_source = c("JABOT", "speciesLink", "GBIF"),
+                                    index_herbariorum = FALSE))
+  expect_equal(r$datasource[r$collectionCode %in% c("RB", "HUEFS")], c("JABOT", "JABOT"))
+  expect_equal(r$collectionCode[r$datasource == "speciesLink"], "ALCB")
+  expect_equal(r$collectionCode[r$datasource == "GBIF"], c("K", "NY"))
 })
 
 test_that("barroso_cat validates its arguments", {
   expect_error(barroso_cat(list(gbif, splink), index_herbariorum = FALSE), "unique names")
-  expect_error(barroso_cat(list(GBIF = gbif, SL = splink), keep_source = "X"), "must be one of")
+  expect_error(barroso_cat(list(GBIF = gbif, SL = splink), index_herbariorum = FALSE),
+               "order of priority of all sources in `keep_source`, e.g. c\\(\"GBIF\", \"SL\"\\)")
+  for (k in list("X", "GBIF", c("GBIF", "GBIF"), c("GBIF", "SL", "X"), c("GBIF", NA))) {
+    expect_error(barroso_cat(list(GBIF = gbif, SL = splink), keep_source = k), "names of all sources once")
+  }
   expect_error(barroso_cat(list(GBIF = gbif), index_herbariorum = FALSE), "at least two")
 })
 
@@ -55,10 +71,8 @@ jabot <- data.frame(
   decimalLatitude = c(-23.1, NA))
 
 test_that("REFLORA and JABOT values are standardized into Darwin Core formats", {
-  expect_message(r <- barroso_cat(list(REFLORA = reflora, JABOT = jabot), index_herbariorum = FALSE),
-                 "REFLORA format, values standardized")
-  rf <- r[r$datasource == "REFLORA", ]
-  jb <- r[r$datasource == "JABOT", ]
+  expect_message(rf <- barroso_dwc(reflora), "REFLORA format, values standardized")
+  jb <- suppressMessages(barroso_dwc(jabot))
 
   expect_equal(rf$identifiedBy, c(NA, "Cardoso, D.B.O.S.", NA))
   expect_equal(rf$eventDate, c("2006-10-11", "1940-12-02", "1880-05"))
@@ -72,11 +86,13 @@ test_that("REFLORA and JABOT values are standardized into Darwin Core formats", 
 })
 
 test_that("REFLORA and JABOT are recognized by their content, not by their names", {
-  r <- suppressMessages(barroso_cat(list(a = reflora, b = jabot, c = gbif), index_herbariorum = FALSE))
-  expect_equal(r$eventDate[r$datasource == "b"], c("2008-09-26", "1940-12-02"))
+  r <- suppressMessages(barroso_cat(list(a = reflora, b = jabot, c = gbif), keep_source = c("a", "b", "c"),
+                                    index_herbariorum = FALSE))
+  # RB of b and RB and K of c are already in a
+  expect_equal(r$eventDate[r$datasource == "b"], "2008-09-26")
   expect_equal(r$typeStatus[r$datasource == "a"], c(NA, "holotype", "isotype"))
   # GBIF data is not changed
-  expect_equal(r$recordedBy[r$datasource == "c"], gbif$recordedBy)
+  expect_equal(r$recordedBy[r$datasource == "c"], "C")
 
   expect_true(barRoso:::.is_reflora(reflora))
   expect_false(barRoso:::.is_jabot(reflora))
@@ -84,11 +100,11 @@ test_that("REFLORA and JABOT are recognized by their content, not by their names
   expect_false(barRoso:::.is_reflora(gbif))
 })
 
-test_that("herbaria of REFLORA and JABOT already in GBIF are removed with keep_source", {
+test_that("herbaria of REFLORA and JABOT already in GBIF are removed when GBIF comes first", {
   g <- data.frame(recordedBy = "A. Ducke", recordNumber = "770", collectionCode = "RB",
                   catalogNumber = "RB00180784")
   r <- suppressMessages(barroso_cat(list(GBIF = g, REFLORA = reflora, JABOT = jabot),
-                                    keep_source = "GBIF", index_herbariorum = FALSE))
+                                    keep_source = c("GBIF", "REFLORA", "JABOT"), index_herbariorum = FALSE))
   expect_equal(sort(unique(r$collectionCode)), c("CGMS", "K", "RB"))
   expect_equal(sum(r$collectionCode == "RB"), 1)
   expect_equal(r$datasource[r$collectionCode == "RB"], "GBIF")
@@ -112,18 +128,19 @@ test_that("herbarium acronyms are standardized before comparing the sources", {
   sl <- data.frame(collector = c("D", "E", "F", "G"), collectornumber = c("1", "2", "3", "4"),
                    collectioncode = c("MOBOT_BR", "Herbario INPA", "UnB", "INPA-Carpoteca"),
                    institutioncode = c("MOBOT", "INPA", "UnB", "INPA"))
-  r <- suppressMessages(barroso_cat(list(GBIF = g, speciesLink = sl), keep_source = "GBIF"))
+  r <- suppressMessages(barroso_cat(list(GBIF = g, speciesLink = sl), keep_source = c("GBIF", "speciesLink")))
   # All herbaria of speciesLink are also in GBIF
   expect_equal(r$datasource, rep("GBIF", 3))
   expect_true(all(r$indexHerbariorum))
 
-  r <- suppressMessages(barroso_cat(list(GBIF = g, speciesLink = sl)))
-  expect_equal(r$collectionCode[4:7], c("MO", "INPA", "UNB", "INPA"))
-  expect_equal(r$collectionCodeOriginal[4:7], sl$collectioncode)
+  r <- suppressMessages(barroso_cat(list(GBIF = data.frame(recordedBy = "H", collectionCode = "NY"),
+                                         speciesLink = sl), keep_source = c("speciesLink", "GBIF")))
+  expect_equal(r$collectionCode[2:5], c("MO", "INPA", "UNB", "INPA"))
+  expect_equal(r$collectionCodeOriginal[2:5], sl$collectioncode)
   # The carpological collection is still recognized by barroso_std
-  expect_equal(nrow(.delunvouchered(r, "collectionCode")), 6)
+  expect_equal(nrow(.delunvouchered(r, "collectionCode")), 4)
   # A source without institutionCode does not get one
-  expect_true(all(is.na(r$institutionCode[1:3])))
+  expect_true(is.na(r$institutionCode[1]))
 })
 
 test_that("barroso_cat works offline when Index Herbariorum cannot be reached", {
@@ -131,9 +148,10 @@ test_that("barroso_cat works offline when Index Herbariorum cannot be reached", 
     warning("Index Herbariorum could not be reached, so the codes were not checked", call. = FALSE)
     NULL
   })
-  expect_warning(r <- suppressMessages(barroso_cat(list(GBIF = gbif, speciesLink = splink))),
+  expect_warning(r <- suppressMessages(barroso_cat(list(GBIF = gbif, speciesLink = splink),
+                                                    keep_source = c("GBIF", "speciesLink"))),
                  "could not be reached")
-  expect_equal(nrow(r), 6)
+  expect_equal(nrow(r), 5)
   expect_false("indexHerbariorum" %in% names(r))
 })
 

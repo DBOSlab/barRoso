@@ -33,8 +33,12 @@
 #'   Systematic Botany. Use `""` to write no header.
 #' @param language Language of the section header, months and countries:
 #'   `"en"` (default) or `"pt"`.
-#' @param catalog_numbers Logical. If `TRUE`, the catalog number is written after
-#'   each herbarium, e.g. `"(IAC no. 14754, NY no. 1162464)"` in Brittonia. Default `FALSE`.
+#' @param catalog_numbers Logical. If `TRUE` (default), the catalog numbers are written
+#'   after each herbarium, all of them when the herbarium has several sheets, with the
+#'   herbaria separated by semicolons, e.g. `"(NY barcode 5464648; MO barcodes 45556667,
+#'   000894546)"` in Systematic Botany or `"(IAC no. 14754; NY nos. 1162464, 1162465)"`
+#'   in Brittonia. If `FALSE`, just the herbaria are written, e.g. `"(MO, NY)"`, with
+#'   the catalog number of the first herbarium for collections without number.
 #' @param one_per_municipality Logical. If `TRUE`, just one specimen of each
 #'   municipality is written for each species, the one with the most complete
 #'   information: state, locality, coordinates, elevation, date (year, month and
@@ -186,7 +190,7 @@ barroso_write_specimens <- function(df = NULL,
                                                 "Taxon"),
                                     header = NULL,
                                     language = "en",
-                                    catalog_numbers = FALSE,
+                                    catalog_numbers = TRUE,
                                     one_per_municipality = FALSE,
                                     dir = NULL,
                                     filename = NULL,
@@ -758,8 +762,11 @@ barroso_write_specimens <- function(df = NULL,
   rows <- lapply(idx, function(i) {
     hp <- do.call(rbind, herb_pairs[i])
     hp <- hp[!is.na(hp$code) & nzchar(hp$code), , drop = FALSE]
-    # One entry per herbarium, with its first catalog number, in alphabetical order
+    # One entry per herbarium, in alphabetical order, with all its catalog numbers
+    # when they are written, or else its first catalog number
     hp <- hp[order(toupper(hp$code), !nzchar(hp$nr)), , drop = FALSE]
+    all_nr <- lapply(split(hp$nr, factor(hp$code, levels = unique(hp$code))),
+                     function(v) unique(v[nzchar(v)]))
     hp <- hp[!duplicated(hp$code), , drop = FALSE]
     # Catalog numbers are written when asked, and, for collections without
     # number, the catalog number of the first herbarium
@@ -777,6 +784,21 @@ barroso_write_specimens <- function(df = NULL,
                          style$catalog %in% c("%s %s", "%s%s"),
                        hp$nr, sprintf(style$catalog, hp$code, nr_only)),
                 hp$code)
+    # Several sheets of the same herbarium, e.g. "MO barcodes 45556667, 000894546"
+    if (catalog_numbers) {
+      several <- lengths(all_nr) > 1
+      h[several] <- vapply(which(several), function(k) {
+        # Numbers without the acronym, written once, e.g. "MO 45556667, 000894546",
+        # or before each number in styles like "MO45556667, MO000894546"
+        nrs <- all_nr[[k]]
+        if (nzchar(code_alnum[k])) {
+          nrs <- ifelse(startsWith(nrs, code_alnum[k]), substring(nrs, nchar(code_alnum[k]) + 1), nrs)
+        }
+        nrs <- unique(nrs)
+        if (style$catalog == "%s%s") return(paste(sprintf("%s%s", hp$code[k], nrs), collapse = ", "))
+        sprintf(.plural_catalog(style$catalog), hp$code[k], paste(nrs, collapse = ", "))
+      }, character(1))
+    }
     h <- paste0(h, if (nrow(hp)) style$herbarium_mark)
     data.frame(species = df$species[i[1]],
                country = first(country, i), country_label = first(country_label, i),
@@ -787,7 +809,7 @@ barroso_write_specimens <- function(df = NULL,
                year = first(col("year"), i), month = first(col("month"), i),
                day = first(col("day"), i), coll_name = collector$name[i[1]],
                coll_etal = collector$etal[i[1]], coll_number = number[i[1]],
-               herbaria = paste(h, collapse = ", "),
+               herbaria = paste(h, collapse = if (catalog_numbers) "; " else ", "),
                # For one_per_municipality
                has_collector = nzchar(coll[i[1]]), has_number = nzchar(num[i[1]]),
                has_phenology = any(nzchar(phen[i])), n_herbaria = nrow(hp))
@@ -874,7 +896,10 @@ barroso_write_specimens <- function(df = NULL,
   add <- .na_to_empty(add)
   name <- fmt(.na_to_empty(coll))
   name[!nzchar(name)] <- "Anonymous"
-  etal <- grepl("^(et\\.?\\s*al\\.?|&\\s*al\\.?)$", add, ignore.case = TRUE)
+  # "et al." for several additional collectors, e.g. "A. Alves, K. Paixao & E. Consuelo"
+  # or "H. Lorenzi et al.", as kept by std_recordedBy
+  etal <- grepl("^(et\\.?\\s*al\\.?|&\\s*al\\.?)$", add, ignore.case = TRUE) |
+    grepl(",|&|;|\\bet\\.?\\s*al\\b", add, ignore.case = TRUE)
   # The second collector, e.g. "R.M. Harley & A.M. Giulietti", or "et al."
   two <- nzchar(add) & !etal
   name[two] <- paste(name[two], .translate_and(style$coll_and, language), fmt(add[two]))
@@ -1020,3 +1045,10 @@ barroso_write_specimens <- function(df = NULL,
     out
   }, "", USE.NAMES = FALSE)
 }
+
+# Catalog formats for several numbers, e.g. "%s barcodes %s" and "%s nos. %s"
+.plural_catalog <- function(catalog) {
+  catalog <- sub("barcode ", "barcodes ", catalog, fixed = TRUE)
+  sub("no. ", "nos. ", catalog, fixed = TRUE)
+}
+

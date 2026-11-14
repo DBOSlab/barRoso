@@ -88,9 +88,9 @@
     <text x="590" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">removing “cf.”, “aff.”, “indet.”</text>
 
     <rect x="780" y="408" width="340" height="66" rx="10" fill="#FFFFFF" stroke="#0082C8" stroke-width="1.5"/>
-    <text x="950" y="432" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_types()</text>
-    <text x="950" y="450" text-anchor="middle" fill="#4F6F86" font-size="11">Type status,</text>
-    <text x="950" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">removing non-type entries</text>
+    <text x="950" y="432" text-anchor="middle" fill="#0B3D5C" font-weight="600">std_types() &#183; std_dates()</text>
+    <text x="950" y="450" text-anchor="middle" fill="#4F6F86" font-size="11">Type status, and day, month and year,</text>
+    <text x="950" y="465" text-anchor="middle" fill="#4F6F86" font-size="11">month “23”, day “7” &#8594; day 23, month 7</text>
   </g>
 
   <!-- connector: stage 2 -> stage 3 -->

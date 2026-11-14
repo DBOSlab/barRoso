@@ -20,7 +20,10 @@ test_that("additional collectors go to addCollector", {
                   "Ordones, J. et al.", "Cardoso, N. e outros"))
   expect_equal(r$recordedBy, c("D. Cardoso", "H. C. Lima", "J. A. Lombardi",
                                "A. Gómez Pompa", "R. E. Schultes", "J. Ordones", "N. Cardoso"))
-  expect_equal(r$addCollector, c("Q. Santos", "D. Cardoso", rep("et al.", 5)))
+  # All additional collectors, with "et al." only when it is written
+  expect_equal(r$addCollector, c("Q. Santos", "D. Cardoso", "H. Lorenzi & R. Tsuji",
+                                 "A. J. Sharp & P. Hern\u00e1ndez", "R. F. Raffauf & D. Soejarto",
+                                 "et al.", "et al."))
 })
 
 test_that("accents, particles and encodings are handled", {
@@ -94,8 +97,10 @@ test_that("more collector formats and separators are standardized", {
                                "A. C. Cervi", "J. Silva", "J. Smith", "R. M. Harley",
                                "L. P. Queiroz", "Flora of Bahia Project", "T. N. Liou",
                                "Q. W. Wang", "Li"))
-  expect_equal(r$addCollector, c("F. Silva", NA, "et al.", "et al.", "et al.", "M. Santos", "K. Jones",
-                                 "A. O. Ribeiro", "et al.", NA, "P. C. Tsoong", "Y. Liu", NA))
+  expect_equal(r$addCollector, c("F. Silva", NA, "B. Rodr\u00edguez & L. Trejo",
+                                 "H. Lorenzi, R. Tsuji & M. Sobral",
+                                 "R. Spichiger, P.-A. Loizeau & E. Cottier", "M. Santos", "K. Jones",
+                                 "A. O. Ribeiro", "A. Santos et al.", NA, "P. C. Tsoong", "Y. Liu", NA))
 })
 
 test_that("names in specific herbaria are standardized", {
@@ -152,7 +157,7 @@ test_that("placeholders, titles, positions and team numbers are cleaned", {
   expect_equal(r$recordNumber[2], "236-6")
   expect_equal(r$recordedBy[4], "R. H. Beddome")
   expect_equal(r$recordedBy[5], "H. C. Lima")
-  expect_equal(r$addCollector[5], "et al.")
+  expect_equal(r$addCollector[5], "C. A. Cid-Ferreira, J. Guedes & F. Neves")
   expect_equal(r$recordedBy[6], "W. D. Stevens")
   # "B. A. Krukoff Curator" is the position of W. D. Stevens, not a collector
   expect_true(is.na(r$addCollector[6]))
@@ -169,7 +174,7 @@ test_that("placeholders, titles, positions and team numbers are cleaned", {
     recordedBy = c("M. J. E. Coode D. W. Kirkup et al.", "V. Ariati D.A. Roher J.E. Bianchin;M.M. Dutra"),
     recordNumber = NA_character_)))
   expect_equal(r$recordedBy, c("M. J. E. Coode", "V. Ariati"))
-  expect_equal(r$addCollector, c("et al.", "et al."))
+  expect_equal(r$addCollector, c("D. W. Kirkup et al.", "D. A. Roher, J. E. Bianchin & M. M. Dutra"))
 
   # A particle is not a surname
   r <- suppressMessages(std_recordedBy(data.frame(recordedBy = "M. Dos S. Rodrigues", recordNumber = "1")))
@@ -199,3 +204,36 @@ test_that("numbers followed by Greek letters or \u00df keep the letter", {
     recordedBy = "A. Silva", recordNumber = c("12,979b", "1.350", "159.0", "2773.00"))))
   expect_equal(r$recordNumber, c("12979b", "1350", "159", "2773"))
 })
+
+test_that("all additional collectors are kept and standardized one by one", {
+  r <- std_coll(c(
+    "Silveira, A.L.P; Adelciano Alves, K\u00e9sid Paix\u00e3o, Edilson Consuelo,  Flavio Obermiller, Mirian Antonicelli, Rodrigo Segatto.",
+    "Berg, C. C.  (Berg, Cornelis Christiaan);J.F. Lima,O.P. Monteiro,W.A. Rodrigues,J.F. Ramos",
+    "Daly, DC; Silveira, M; Torezan, JMD; Saraiva, M; Oliveira, ARS; Lima, L",
+    "G.T.PRANCE; A.S.SILVA, C.C.BERG, A.J.HENDERSON ET ALLI",
+    "Lima, H.C. de; Silva, D.F.; Quintela, M.F.",
+    "Wendt, Tom; Villalobos, A.; Navarrete, I.",
+    "Hattori, E.K.O.;Ara\u00fajo, G.M.,Rosa, P.O.,Rosa, PO,Hattori, EKO,Ara\u00fajo, GM",
+    "A. A. dso Santos"))
+  expect_equal(r$recordedBy, c("A. L. P. Silveira", "C. C. Berg", "D. C. Daly", "G. T. Prance",
+                               "H. C. Lima", "T. Wendt", "E. K. O. Hattori", "A. A. Santos"))
+  expect_equal(r$addCollector, c(
+    "A. Alves, K. Paix\u00e3o, E. Consuelo, F. Obermiller, M. Antonicelli & R. Segatto",
+    "J. F. Lima, O. P. Monteiro, W. A. Rodrigues & J. F. Ramos",
+    "M. Silveira, J. M. D. Torezan, M. Saraiva, A. R. S. Oliveira & L. Lima",
+    "A. S. Silva, C. C. Berg & A. J. Henderson et al.",
+    "D. F. Silva & M. F. Quintela",
+    "A. Villalobos & I. Navarrete",
+    "G. M. Ara\u00fajo & P. O. Rosa",
+    NA))
+  expect_equal(std_coll("A. A. dso Santos")$recordedBy, std_coll("A. A. dos Santos")$recordedBy)
+
+  expect_equal(barRoso:::.join_names(c("A", "B", "C")), "A, B & C")
+  expect_equal(barRoso:::.split_comma_names("Daly, DC, J. Silva, Torezan, J.M.D. de"),
+               c("Daly, DC", "J. Silva", "Torezan, J.M.D."))
+  expect_equal(barRoso:::.names_to_title("Douglas daly dos Santos"), "Douglas Daly dos Santos")
+  # Determiners are standardized one by one, without their original cells
+  expect_equal(barRoso:::.std_determiners("Lima, H.C.; Silva, D.F.; Cardoso, D."),
+               "H. C. Lima, D. F. Silva & D. Cardoso")
+})
+

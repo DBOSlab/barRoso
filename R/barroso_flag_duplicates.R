@@ -47,8 +47,10 @@
 #' 1. Records identified to species are preferred over those identified just to genus.
 #' 2. In blocks with conflicting identifications, the records identified by one of
 #'    the `specialists` are preferred, whatever the number of duplicates with other
-#'    names. A record without determiner (`identifiedBy`) that was collected by a
-#'    specialist counts as identified by the specialist.
+#'    names, when the taxon of expertise of the specialist includes one of the names
+#'    of the block. A record without determiner (`identifiedBy`) that was collected
+#'    by a specialist, as main (`recordedBy`) or additional collector
+#'    (`addCollector`), counts as identified by the specialist.
 #' 3. Among them, records with the most frequent identification in the block are
 #'    preferred (e.g. the name given by two duplicates rather than by one).
 #' 4. When two or more names are still equally frequent (e.g. two duplicates as
@@ -84,11 +86,17 @@
 #' @param df A data frame with biodiversity specimen records.
 #' @param rm_duplicates Logical; if `TRUE`, keeps just one record per block of
 #' duplicates (default: `FALSE`).
-#' @param specialists Optional character vector of names of specialists, e.g.
-#' `c("D. B. O. S. Cardoso", "H. C. Lima")`. With `rm_duplicates = TRUE`, in blocks
-#' with conflicting identifications, the records identified by them (or collected by
-#' them, when without determiner) are preferred. Names are compared by surname and
-#' first initial, so `"D. B. O. S. Cardoso"` matches `"D. Cardoso"` (default: `NULL`).
+#' @param specialists Optional data frame with the columns `specialist` and `taxon`,
+#' one row for each specialist and taxon of expertise, which can be a family (e.g.
+#' `"Myristicaceae"`, all genera and species of the family), a genus (e.g.
+#' `"Ormosia"`) or a species (e.g. `"Ormosia arborea"`), e.g.
+#' `data.frame(specialist = c("D. B. O. S. Cardoso", "D. B. O. S. Cardoso", "H. C. Lima"),
+#' taxon = c("Ormosia", "Swartzia", "Leguminosae"))`. With `rm_duplicates = TRUE`, in
+#' blocks with conflicting identifications that include a name of their taxa, the
+#' records identified by them (or collected by them, also as additional collectors,
+#' when without determiner) are preferred. Names are compared by surname and first
+#' initial, so `"D. B. O. S. Cardoso"` matches `"D. Cardoso"`, and families by their
+#' alternative names too, e.g. `"Leguminosae"` and `"Fabaceae"` (default: `NULL`).
 #' @param rm_tied_conflicts Logical; with `rm_duplicates = TRUE`, if `TRUE`, blocks
 #' whose conflicting names are equally frequent, even after `specialists`, are removed
 #' entirely. If `FALSE`, all their records are kept (default: `FALSE`).
@@ -97,6 +105,10 @@
 #' @param colname_genus Column name for the genus (default: `"genus"`).
 #' @param colname_specificEpithet Column name for the specific epithet (default: `"specificEpithet"`).
 #' @param colname_identifiedBy Column name for the determiner (default: `"identifiedBy"`).
+#' @param colname_addCollector Column name for the additional collectors (default:
+#' `"addCollector"`).
+#' @param colname_family Column name for the family, compared with the families in
+#' `specialists` (default: `"family"`).
 #' @param colname_collectionCode Column name for the herbarium acronym (default: `"collectionCode"`).
 #' @param colname_catalogNumber Column name for the catalog number (default: `"catalogNumber"`).
 #' @param colname_decimalLatitude Column name for latitude (default: `"decimalLatitude"`).
@@ -117,7 +129,9 @@
 #'
 #' # Identifications of specialists first, and tied conflicts removed
 #' df_clean <- barroso_flag_duplicates(df, rm_duplicates = TRUE,
-#'                                     specialists = c("D. B. O. S. Cardoso", "H. C. Lima"),
+#'                                     specialists = data.frame(
+#'                                       specialist = c("D. B. O. S. Cardoso", "H. C. Lima"),
+#'                                       taxon = c("Ormosia", "Leguminosae")),
 #'                                     rm_tied_conflicts = TRUE)
 #' }
 #'
@@ -134,6 +148,8 @@ barroso_flag_duplicates <- function(df,
                                     colname_genus = "genus",
                                     colname_specificEpithet = "specificEpithet",
                                     colname_identifiedBy = "identifiedBy",
+                                    colname_addCollector = "addCollector",
+                                    colname_family = "family",
                                     colname_collectionCode = "collectionCode",
                                     colname_catalogNumber = "catalogNumber",
                                     colname_decimalLatitude = "decimalLatitude",
@@ -142,15 +158,14 @@ barroso_flag_duplicates <- function(df,
   # Check the arguments ####
   .check_df(df)
   .check_flag(rm_duplicates, rm_tied_conflicts)
-  if (!is.null(specialists) && (!is.character(specialists) || anyNA(specialists))) {
-    stop("`specialists` must be a character vector of names, e.g. c(\"D. B. O. S. Cardoso\").",
-         call. = FALSE)
-  }
+  specialists <- .check_specialists(specialists)
   .check_colnames(colname_recordedBy = colname_recordedBy,
                   colname_recordNumber = colname_recordNumber,
                   colname_genus = colname_genus,
                   colname_specificEpithet = colname_specificEpithet,
                   colname_identifiedBy = colname_identifiedBy,
+                  colname_addCollector = colname_addCollector,
+                  colname_family = colname_family,
                   colname_collectionCode = colname_collectionCode,
                   colname_catalogNumber = colname_catalogNumber,
                   colname_decimalLatitude = colname_decimalLatitude,
@@ -226,12 +241,22 @@ barroso_flag_duplicates <- function(df,
     !is.na(.col_or_na(df, colname_decimalLongitude))
   filled <- rowSums(!is.na(df) & as.matrix(df) != "", na.rm = TRUE)
 
-  # Identified by a specialist, or collected by one when without determiner
-  by_specialist <- rep(FALSE, n)
-  if (length(specialists) > 0) {
+  # Records identified by each specialist, or collected by them (also as additional
+  # collectors) when without determiner, and records of their taxa of expertise
+  by_person <- in_taxa <- matrix(FALSE, n, 0)
+  if (!is.null(specialists)) {
     det <- .col_or_na(df, colname_identifiedBy)
-    by_specialist <- .is_specialist(det, specialists) |
-      (is.na(det) & .is_specialist(coll, specialists))
+    add <- .col_or_na(df, colname_addCollector)
+    people <- unique(specialists$specialist)
+    by_person <- vapply(people, function(p) {
+      .is_specialist(det, p) |
+        (is.na(det) & (.is_specialist(coll, p) | .is_specialist(add, p)))
+    }, logical(n))
+    in_taxa <- vapply(people, function(p) {
+      .in_taxa(specialists$taxon[specialists$specialist == p],
+               .col_or_na(df, colname_family), genus, species)
+    }, logical(n))
+    dim(by_person) <- dim(in_taxa) <- c(n, length(people))
   }
 
   blocks <- rows[startsWith(names(rows), "g")]
@@ -240,10 +265,15 @@ barroso_flag_duplicates <- function(df,
     spec <- FALSE
     # 1. Identified to species rather than just to genus
     if (any(!is.na(epithet[i]))) i <- i[!is.na(epithet[i])]
-    # 2. Identified by a specialist, in blocks with conflicting identifications
-    if (length(unique(stats::na.omit(species[i]))) > 1 && any(by_specialist[i])) {
-      i <- i[by_specialist[i]]
-      spec <- TRUE
+    # 2. Identified by a specialist of one of the taxa of the block, in blocks with
+    # conflicting identifications
+    if (length(unique(stats::na.omit(species[i]))) > 1 && ncol(by_person) > 0) {
+      experts <- colSums(in_taxa[all_i, , drop = FALSE]) > 0
+      by_specialist <- rowSums(by_person[i, experts, drop = FALSE]) > 0
+      if (any(by_specialist)) {
+        i <- i[by_specialist]
+        spec <- TRUE
+      }
     }
     # 3. The most frequent identification in the block
     if (any(!is.na(species[i]))) {
@@ -327,3 +357,41 @@ barroso_flag_duplicates <- function(df,
     any(key(people[nzchar(people)]) %in% spec)
   }, logical(1), USE.NAMES = FALSE)
 }
+
+# Specialists as a data frame with the columns specialist and taxon ####
+.check_specialists <- function(specialists) {
+  if (is.null(specialists)) return(NULL)
+  example <- paste0("e.g. data.frame(specialist = c(\"D. B. O. S. Cardoso\", \"H. C. Lima\"), ",
+                    "taxon = c(\"Ormosia\", \"Leguminosae\")).")
+  if (!is.data.frame(specialists) || !all(c("specialist", "taxon") %in% names(specialists))) {
+    stop(paste("`specialists` must be a data frame with the columns specialist and taxon,",
+               example), call. = FALSE)
+  }
+  specialists <- data.frame(specialist = trimws(as.character(specialists$specialist)),
+                            taxon = trimws(as.character(specialists$taxon)))
+  specialists <- specialists[!is.na(specialists$specialist) & nzchar(specialists$specialist) &
+                               !is.na(specialists$taxon) & nzchar(specialists$taxon), ]
+  if (nrow(specialists) == 0) {
+    stop(paste("`specialists` has no specialist with a taxon,", example), call. = FALSE)
+  }
+  specialists
+}
+
+# Records of the taxa of expertise of a specialist: families, with their
+# alternative names, genera or species ####
+.in_taxa <- function(taxa, family, genus, species) {
+  key <- function(v) .family_name(tolower(.ascii_squish(v)))
+  taxa <- key(taxa)
+  key(family) %in% taxa | key(genus) %in% taxa | key(species) %in% taxa
+}
+
+# Alternative family names into a single name, e.g. "leguminosae" into "fabaceae" ####
+.family_name <- function(x) {
+  alt <- c(leguminosae = "fabaceae", compositae = "asteraceae", gramineae = "poaceae",
+           palmae = "arecaceae", cruciferae = "brassicaceae", guttiferae = "clusiaceae",
+           labiatae = "lamiaceae", umbelliferae = "apiaceae")
+  i <- !is.na(x) & x %in% names(alt)
+  x[i] <- alt[x[i]]
+  x
+}
+

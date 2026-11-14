@@ -92,6 +92,10 @@ std_recordedBy <- function(df = NULL,
   # Decode HTML entities like "Co&#234;lho" and drop prefixes like "Collector(s): "
   df$recordedBy <- .decode_html(df$recordedBy)
   df$recordedBy <- gsub("^Collector[(]s[)]:\\s*(unknown,\\s*)?", "", df$recordedBy)
+  # Misspelled particles, e.g. "A. A. dso Santos" into "A. A. dos Santos"
+  df$recordedBy <- gsub("\\b([Dd])so\\b", "\\1os", df$recordedBy)
+  # Other forms of the same name, e.g. "Berg, C. C. (Berg, Cornelis Christiaan)"
+  df$recordedBy <- gsub("\\s*[(][^()]*,[^()]*[)]", "", df$recordedBy)
 
   # Identifiers after the names, e.g. "E. Marcano (Wikidata Q5850623)" or
   # "Rodriguez,D. et al. 2688 [DR-02688]"
@@ -188,7 +192,8 @@ std_recordedBy <- function(df = NULL,
 
   #_____________________________________________________________________________
   # Particles before surnames, based on the original collector column ####
-  df$recordedBy <- .std_particles(df$recordedBy, df$recordedByOriginal)
+  df$recordedBy <- .std_particles(df$recordedBy,
+                                  gsub("\\b([Dd])so\\b", "\\1os", df$recordedByOriginal))
 
   #_____________________________________________________________________________
   # Final cleaning of the collector names
@@ -207,6 +212,13 @@ std_recordedBy <- function(df = NULL,
   # Clean the newly created column of additional collectors
   df <- .addcollclean(df)
   if (any(han_add)) df$addCollector[han_add] <- han_addnames
+
+  # All additional collectors instead of just "et al.", standardized one by one,
+  # e.g. "Daly, DC; Silveira, M; Torezan, JMD; Saraiva, M" into "M. Silveira,
+  # J. M. D. Torezan & M. Saraiva", keeping "et al." only when it is written
+  if (!isTRUE(getOption("barRoso.single_names"))) {
+    df <- .full_addcollectors(df, skip = han | han_add | teams | no_collector)
+  }
 
   # Numbers of Chinese teams go to $recordNumber, e.g. "236-6 Dui", "Yue73"
   if (any(han)) df <- .han_team_number(df, han)
@@ -1904,3 +1916,122 @@ std_recordedBy <- function(df = NULL,
 
   return(df)
 }
+
+
+#_______________________________________________________________________________
+# All additional collectors of the records with "et al." in $addCollector, taken
+# from the original names, standardized one by one with the rules above and
+# written as "A. Alves, K. Paixao & E. Consuelo". "et al." is kept only when it
+# is written in the original names, e.g. "J.A. Lombardi, H. Lorenzi, R. Tsuji et
+# al." into "H. Lorenzi & R. Tsuji et al." ####
+.full_addcollectors <- function(df, skip = rep(FALSE, nrow(df))) {
+  idx <- which(df$addCollector %in% "et al." & !skip & !is.na(df$recordedByOriginal))
+  if (length(idx) == 0) return(df)
+  message(".full_addcollectors $addCollector")
+
+  orig <- .decode_html(as.character(df$recordedByOriginal[idx]))
+  etal_pattern <- paste0("\\bet[.]?\\s*al(ii|li|l)?\\b[.]?|&\\s*(col|al)[.]?(?=\\s|$)|",
+                         "\\be\\s+(outros|auxiliares|col[.])|\\b(Otros|Part\u00edcipes|",
+                         "Participantes|Etc)\\b[.]?")
+  etal <- grepl(etal_pattern, orig, ignore.case = TRUE, perl = TRUE)
+  orig <- gsub(etal_pattern, ";", orig, ignore.case = TRUE, perl = TRUE)
+
+  # The first name is the main collector, already in $recordedBy
+  names_list <- lapply(.collector_names(orig), function(n) n[-1])
+  all_names <- unique(unlist(names_list))
+  std_names <- character(0)
+  if (length(all_names) > 0) {
+    op <- options(barRoso.single_names = TRUE)
+    on.exit(options(op), add = TRUE)
+    std <- suppressMessages(
+      std_recordedBy(data.frame(recordedBy = all_names, recordNumber = NA_character_),
+                     rm_original_column = TRUE))
+    std_names <- ifelse(is.na(std$addCollector) | std$addCollector %in% "et al.",
+                        std$recordedBy, paste(std$recordedBy, std$addCollector, sep = "; "))
+    names(std_names) <- all_names
+  }
+
+  df$addCollector[idx] <- vapply(seq_along(idx), function(k) {
+    n <- unique(unlist(strsplit(std_names[names_list[[k]]], "; ")))
+    n <- n[!is.na(n) & !n %in% c("Unknown", "et al.", df$recordedBy[idx[k]])]
+    if (length(n) == 0) return("et al.")
+    n <- .join_names(n)
+    if (etal[k]) paste(n, "et al.") else n
+  }, character(1))
+
+  df
+}
+
+# Names separated by commas and the last by "&", e.g. "A. Alves, K. Paixao & E. Consuelo"
+.join_names <- function(n) {
+  if (length(n) < 2) return(n)
+  paste(paste(n[-length(n)], collapse = ", "), n[length(n)], sep = " & ")
+}
+
+# Split collector names into single names, e.g. "Silveira, A.L.P; Adelciano Alves,
+# Douglas daly" into "Silveira, A.L.P", "Adelciano Alves", "Douglas Daly", and
+# "Berg, C. C.;J.F. Lima,O.P. Monteiro" into "Berg, C. C.", "J.F. Lima", "O.P. Monteiro" ####
+.collector_names <- function(x) {
+  x <- gsub("^Collector[(]s[)]:\\s*(unknown,\\s*)?", "", x)
+  # Other forms of the names and identifiers, e.g. "(Berg, Cornelis Christiaan)", "[DR-02688]"
+  x <- gsub("\\s*[(][^)]*[)]|\\s*\\[[^]]*\\]", "", x)
+  # Numbers, e.g. "Rodriguez,D. et al. 2688", and "s.n."
+  x <- gsub("\\bs[.]\\s?n[.]?|[0-9]+[^;,&|]*", "", x)
+  x <- gsub("\\b([Dd])so\\b", "\\1os", x)
+  # Initials without space before the surname, e.g. "A.M.Amorim" into "A.M. Amorim"
+  x <- gsub("([.])(\\p{Lu}\\p{Ll}{2,})", "\\1 \\2", x, perl = TRUE)
+  # Names without separators, e.g. "V. Ariati D.A. Roher J.E. Bianchin", but not
+  # after particles, e.g. "M. Dos S. Rodrigues"
+  x <- gsub(paste0("\\b(?!(?:De|Da|Do|Dos|Das|Del)\\b)(\\p{Lu}\\p{Ll}{2,})\\s+",
+                   "(?=(?:\\p{Lu}[.]\\s*)+\\p{Lu}\\p{Ll}{2,})"), "\\1; ", x, perl = TRUE)
+  parts <- strsplit(x, "\\s*(;|&|[|]|:|/|\\s(and|e|y|et|with|com)\\s|\\s-\\s|-{2,})\\s*",
+                    perl = TRUE)
+  lapply(parts, function(p) {
+    p <- unlist(lapply(p[!is.na(p)], .split_comma_names))
+    p <- gsub("^[[:punct:][:space:]]+|[,;:[:space:]]+$", "", p)
+    p <- .names_to_title(p)
+    p[grepl("[[:alpha:]]{2,}", p)]
+  })
+}
+
+# Names separated by commas, keeping together surnames and their initials, e.g.
+# "Daly, DC", "Torezan, JMD", "Berg, C. C." or "Cid Ferreira, C.A." ####
+.split_comma_names <- function(x) {
+  # Particles after the initials, e.g. "Lima, H.C. de", "Hartmann, LS da"
+  tok <- trimws(sub("\\s+(de|da|do|dos|das|del|De|Da|Do|Dos)[.]?$", "", trimws(strsplit(x, ",")[[1]])))
+  tok <- tok[nzchar(tok)]
+  initials <- "^(\\p{Lu}[.]?\\s*-?\\s*){1,4}$"
+  # A single name with the given name after the surname, e.g. "Wendt, Tom" or
+  # "Ramseur, George S."
+  if (length(tok) == 2 && !grepl("\\p{Lu}[.]", tok[1], perl = TRUE) &&
+      grepl("^\\S+(\\s\\S+)?$", tok[1], perl = TRUE) &&
+      grepl("^\\p{Lu}\\p{Ll}+(\\s*\\p{Lu}[.]?)*$", tok[2], perl = TRUE)) {
+    return(paste0(tok[1], ", ", tok[2]))
+  }
+  out <- character(0)
+  i <- 1
+  while (i <= length(tok)) {
+    if (i < length(tok) && grepl(initials, tok[i + 1], perl = TRUE) &&
+        !grepl("\\p{Lu}[.]|^(\\p{Lu}[.]?\\s*-?\\s*){1,4}$", tok[i], perl = TRUE)) {
+      out <- c(out, paste0(tok[i], ", ", tok[i + 1]))
+      i <- i + 2
+    } else {
+      out <- c(out, tok[i])
+      i <- i + 1
+    }
+  }
+  out
+}
+
+# Names in lowercase into title case, e.g. "Douglas daly" into "Douglas Daly",
+# keeping particles like "de", "da" and "dos" ####
+.names_to_title <- function(x) {
+  particles <- c("de", "da", "das", "do", "dos", "del", "della", "di", "du", "van", "von",
+                 "der", "den", "la", "le", "y", "e")
+  vapply(strsplit(x, " "), function(w) {
+    low <- grepl("^\\p{Ll}{2,}$", w, perl = TRUE) & !w %in% particles
+    w[low] <- paste0(toupper(substr(w[low], 1, 1)), substr(w[low], 2, nchar(w[low])))
+    paste(w, collapse = " ")
+  }, character(1), USE.NAMES = FALSE)
+}
+

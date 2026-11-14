@@ -47,7 +47,9 @@ observations without a specimen (\code{basisOfRecord} like \code{"HUMAN_OBSERVAT
 
 \item{rm_duplicates}{Logical; if \code{TRUE}, removes duplicate specimens (default: \code{FALSE}).}
 
-\item{specialists}{Optional character vector of names of specialists, whose
+\item{specialists}{Optional data frame with the columns \code{specialist} and \code{taxon}
+(a family, genus or species of expertise), e.g.
+\code{data.frame(specialist = "D. B. O. S. Cardoso", taxon = "Leguminosae")}, whose
 identifications are preferred when removing duplicates with conflicting
 identifications. See \code{\link[=barroso_flag_duplicates]{barroso_flag_duplicates()}} (default: \code{NULL}).}
 

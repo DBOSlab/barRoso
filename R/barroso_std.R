@@ -59,7 +59,9 @@
 #' @param flag_missid Reserved for future use. Currently not implemented.
 #' @param flag_duplicates Logical; if `TRUE`, flags duplicates with a logical column (default: `TRUE`).
 #' @param rm_duplicates Logical; if `TRUE`, removes duplicate specimens (default: `FALSE`).
-#' @param specialists Optional character vector of names of specialists, whose
+#' @param specialists Optional data frame with the columns `specialist` and `taxon`
+#' (a family, genus or species of expertise), e.g.
+#' `data.frame(specialist = "D. B. O. S. Cardoso", taxon = "Leguminosae")`, whose
 #' identifications are preferred when removing duplicates with conflicting
 #' identifications. See [barroso_flag_duplicates()] (default: `NULL`).
 #' @param rm_tied_conflicts Logical; with `rm_duplicates = TRUE`, if `TRUE`, blocks of
@@ -144,6 +146,7 @@ barroso_std <- function(...,
   .check_df(df)
   .check_flag(unvouchered, delunkcoll, flag_missid, flag_duplicates, rm_duplicates,
               rm_tied_conflicts, index_herbariorum, rm_original_column)
+  specialists <- .check_specialists(specialists)
   .check_colnames(colname_recordedBy = colname_recordedBy,
                   colname_recordNumber = colname_recordNumber,
                   colname_identifiedBy = colname_identifiedBy,
@@ -254,6 +257,13 @@ barroso_std <- function(...,
                   colname_typeStatus = colname_typeStatus,
                   rm_original_column = rm_original_column)
 
+  #_____________________________________________________________________________
+  # Standardize the day, month and year of collection, before finding duplicates
+  # by their dates ####
+  if (any(c("day", "month", "year") %in% names(df))) {
+    df <- std_dates(df = df, rm_original_column = rm_original_column)
+  }
+
 
   #_____________________________________________________________________________
   # Remove herbarium records with unknown collector ####
@@ -285,6 +295,7 @@ barroso_std <- function(...,
                                   specialists = specialists,
                                   rm_tied_conflicts = rm_tied_conflicts,
                                   colname_identifiedBy = colname_identifiedBy,
+                                  colname_family = colname_family,
                                   colname_recordedBy = colname_recordedBy,
                                   colname_recordNumber = colname_recordNumber,
                                   colname_genus = colname_genus,

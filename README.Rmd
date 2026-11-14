@@ -91,14 +91,14 @@ The functions below follow the order of the [workflow](#workflow).
 
 ### 1. `barroso_cat()`: Combine Herbarium Sources
 
-Merges records from two or more sources into a single data frame. Each source is first formatted into Darwin Core with `barroso_dwc()`, which can also be used alone: e.g. speciesLink columns like `collector` or `recordedby` become `recordedBy`, and the dates and type status of REFLORA and JABOT records are standardized. A column `datasource` stores the source of each record. With `keep_source`, the records of herbaria also present in the preferred source are removed from the other sources, after standardizing the herbarium acronyms of each source with `std_collection()`, checked against Index Herbariorum, so that e.g. `MO-Duplicates` in speciesLink matches `MO` in GBIF.
+Merges records from two or more sources into a single data frame. Each source is first formatted into Darwin Core with `barroso_dwc()`, which can also be used alone: e.g. speciesLink columns like `collector` or `recordedby` become `recordedBy`, and the dates and type status of REFLORA and JABOT records are standardized. A column `datasource` stores the source of each record. With `keep_source`, the order of priority of all sources, each herbarium is kept from the first source that has it, e.g. with `c("JABOT", "speciesLink", "GBIF")`, the herbaria of JABOT are removed from speciesLink and GBIF, and then those of speciesLink from GBIF, after standardizing the herbarium acronyms of each source with `std_collection()`, checked against Index Herbariorum, so that e.g. `MO-Duplicates` in speciesLink matches `MO` in GBIF.
 
 ``` r
 splink <- barroso_dwc(splink)   # optional, barroso_cat() also runs it
 
 combined <- barroso_cat(list_sources = list(GBIF = gbif,
                                             speciesLink = splink),
-                        keep_source = "GBIF")
+                        keep_source = c("GBIF", "speciesLink"))
 ```
 
 ### 2. `barroso_fix_names()`: Fix Species Names
@@ -115,12 +115,13 @@ The core standardization pipeline. In one call, it runs the following functions,
 
 | Function | Standardizes | Example |
 |---|---|---|
-| `std_recordedBy()` | collector names and numbers; additional collectors go to `addCollector` | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
+| `std_recordedBy()` | collector names and numbers; all additional collectors go to `addCollector`, also standardized | `Cardoso, D.B.O.S.` → `D. B. O. S. Cardoso` |
 | `std_identifiedBy()` | determiner names, all kept in the same cell | `Lobato, LC; Soares, CRA` → `L. C. Lobato & C. R. A. Soares` |
 | `std_collection()` | herbarium acronyms, checked against the API of [Index Herbariorum](https://sweetgum.nybg.org/science/ih/) (`index_herbariorum = TRUE`, the default) | `Herbario INPA` → `INPA` |
 | `std_place()` | continent, country, state, county, municipality and locality, including localities all in upper case | `BRASIL` → `Brazil` |
 | `std_taxa()` | family, genus and specific epithet | `Leguminosae` → `Fabaceae` |
 | `std_types()` | type status | `Fotografia do Tipo` → removed |
+| `std_dates()` | day, month and year, swapping days and months in the wrong columns | month `23`, day `7` → day 23, month 7 |
 
 The final data frame is sorted by species, `recordedBy` and `recordNumber`, with the records of each block of duplicates kept together under the most frequent name of the block.
 
@@ -142,7 +143,7 @@ Groups duplicates into blocks by collector and collector number (or by species, 
 - `identificationUnresolved`: blocks with conflicting names that are equally frequent, e.g. two duplicates as `Ormosia arborea` and two as `Ormosia fastigiata`, so the correct name cannot be chosen and they need checking
 - `duplicateCollectionCodes` and `duplicateCatalogNumbers`: all herbaria and catalog numbers of each block, e.g. `MO 2839102 | JBB 13548`
 
-With `rm_duplicates = TRUE`, one record per block is kept: first the records identified to species, then, in conflicting blocks, those identified by the `specialists` you give, then those with the most frequent identification of the block, and then the one with coordinates and the most complete information. Conflicting names are never chosen at random: blocks with `identificationUnresolved = TRUE` keep all their records, or are removed entirely with `rm_tied_conflicts = TRUE`.
+With `rm_duplicates = TRUE`, one record per block is kept: first the records identified to species, then, in conflicting blocks, those identified by the `specialists` you give (a data frame of names and their taxa of expertise, e.g. a family, genus or species), then those with the most frequent identification of the block, and then the one with coordinates and the most complete information. Conflicting names are never chosen at random: blocks with `identificationUnresolved = TRUE` keep all their records, or are removed entirely with `rm_tied_conflicts = TRUE`.
 
 ``` r
 flagged <- barroso_flag_duplicates(cleaned)

@@ -87,6 +87,9 @@ std_identifiedBy <- function(df = NULL,
   all_names <- unique(unlist(names_list))
   all_names <- all_names[!is.na(all_names) & !grepl("^et al[.]$", all_names)]
   if (length(all_names) == 0) return(rep(NA_character_, length(x)))
+  # Each name alone, without looking for more names in the original cells
+  op <- options(barRoso.single_names = TRUE)
+  on.exit(options(op), add = TRUE)
   std <- suppressMessages(
     std_recordedBy(data.frame(recordedBy = all_names, recordNumber = NA_character_),
                    rm_original_column = TRUE))

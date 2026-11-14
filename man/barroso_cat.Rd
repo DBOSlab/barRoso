@@ -5,7 +5,7 @@
 \title{Combine and Harmonize Multiple Herbarium Data Sources}
 \usage{
 barroso_cat(list_sources = list(),
-            keep_source = NULL,
+            keep_source,
             index_herbariorum = TRUE)
 }
 \arguments{
@@ -13,9 +13,9 @@ barroso_cat(list_sources = list(),
 herbarium data source. The names of the list are used to track the source origin
 for internal filtering.}
 
-\item{keep_source}{Optional character string specifying the preferred data
-source (e.g., "GBIF") for resolving duplicate \code{collectionCode} conflicts. If
-NULL, all records are retained.}
+\item{keep_source}{Character vector with the names of all sources of
+\code{list_sources}, in order of priority, e.g. \code{c("JABOT", "speciesLink", "REFLORA", "GBIF")}. The herbaria of each source are removed from the sources after it, so
+each herbarium is kept from the first source that has it.}
 
 \item{index_herbariorum}{Logical; if \code{TRUE}, the herbarium acronyms of each source
 are checked against the API of Index Herbariorum after the regular expressions of
@@ -28,16 +28,24 @@ duplicate collections.
 }
 \description{
 Merges herbarium records from two or more biodiversity data sources into a single
-harmonized data frame. Optionally prioritizes specific sources when duplicates
-are detected across herbaria, retaining records based on a flexible exclusion
-strategy.
+harmonized data frame, keeping the records of each herbarium from a single source,
+chosen by an order of priority of the sources.
 }
 \details{
 This function aligns column structures, removes redundant records from overlapping
-herbaria, and merges all sources into a single output. Duplicate filtering is
-based on matching \code{collectionCode} across sources: when \code{keep_source} is given,
-the records of any herbarium that is also present in \code{keep_source} are removed
-from the other sources. Herbaria shared only among the other sources are kept.
+herbaria, and merges all sources into a single output. The same herbarium is often
+in several sources, e.g. the RB collection in JABOT, REFLORA and GBIF, so its
+records would be repeated. Overlapping herbaria are found by their \code{collectionCode}
+and kept from a single source, following the order of priority in \code{keep_source},
+e.g. with \code{keep_source = c("JABOT", "speciesLink", "REFLORA", "GBIF")}:
+\enumerate{
+\item the herbaria of JABOT are removed from speciesLink, REFLORA and GBIF;
+\item the remaining herbaria of speciesLink are removed from REFLORA and GBIF;
+\item the remaining herbaria of REFLORA are removed from GBIF.
+}
+
+So each herbarium comes from the first source that has it, and GBIF adds only the
+herbaria that are in none of the other sources.
 
 Each source is first formatted into Darwin Core column names and values with
 \code{\link[=barroso_dwc]{barroso_dwc()}}, e.g. the columns of speciesLink downloads (\code{collector},
@@ -67,7 +75,7 @@ combined_df <- barroso_cat(list_sources = list(GBIF = gbif_data,
                                                speciesLink = splink_data,
                                                REFLORA = reflora,
                                                JABOT = jabot),
-                           keep_source = "GBIF")
+                           keep_source = c("JABOT", "speciesLink", "REFLORA", "GBIF"))
 }
 
 }
